@@ -263,3 +263,12 @@ Append under `## Discoveries` below. Keep each entry to 2–3 sentences with a d
 
 <!-- Agents: append new discoveries here after each task cycle. -->
 <!-- Engineers: seed this section with known pitfalls at project setup time. -->
+
+### 2026-04-26 — `@sveltejs/vite-plugin-svelte` must be `^5.0.0` with Vite 6
+`@sveltejs/vite-plugin-svelte@4.x` only supports Vite 5; `^5.x` is required for Vite 6 compatibility. Using `^4.0.0` causes `ERESOLVE` on `npm install`. Do not downgrade this constraint.
+
+### 2026-04-26 — Auth.js uses JWT sessions until DB is configured
+`src/auth.ts` is wired for stateless JWT sessions (no DrizzleAdapter). To switch to DB-backed sessions, add `adapter: DrizzleAdapter(db)` to the `SvelteKitAuth` config in `src/auth.ts`. The schema already has the required Auth.js tables.
+
+### 2026-04-26 — `DATABASE_URL` uses `$env/dynamic/private`, not static
+`src/lib/server/db/index.ts` reads `DATABASE_URL` at runtime so the dev server starts without a configured database. Queries throw at the call site when the URL is missing, not at import time. Do not change this to `$env/static/private`.

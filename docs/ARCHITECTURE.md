@@ -33,10 +33,11 @@ There is no long-running backend process. Every request is handled by a short-li
 
 ### Server-side lib (`src/lib/server/`)
 
-- `db.ts` — Drizzle ORM client wired to the Neon HTTP driver; all SQL goes through here
+- `db/index.ts` — Drizzle ORM client wired to the Neon HTTP driver; all SQL goes through here
+- `db/schema.ts` — Drizzle table definitions: `notes`, `note_links`, Auth.js tables, `chat_rate_limits`
+- `db/notes.ts` — note CRUD helpers: `createNote`, `updateNote`, `deleteNote`, `getNoteBySlug`, `getPublishedNotes`, `findSimilarNotes` (pgvector cosine), `getBacklinks`, `getOutlinks`, `syncNoteLinks`
 - `chat.ts` — builds the RAG prompt, calls OpenRouter for streaming completions, returns a `ReadableStream`
 - `embeddings.ts` — calls OpenRouter embedding endpoint; returns `vector(1536)`
-- `notes.ts` — note CRUD operations (upsert, fetch by slug, list published, delete)
 - `personality.ts` — exports the system prompt personality block as a string constant; never inlined elsewhere
 
 **Does not:** run in the browser; none of these modules are imported by client components
@@ -96,9 +97,21 @@ There is no long-running backend process. Every request is handled by a short-li
 5. API route calls OpenRouter embedding endpoint with the full note body
    → receives vector(1536)
 6. API route stores the embedding in notes.embedding for the upserted row
-7. API route responds with the note slug
-8. Browser redirects to /notes/[slug]
+7. db/notes.ts syncNoteLinks() parses [[slug]] / [[slug|text]] wiki-links from
+   the body, deletes prior outgoing links for this note, and re-inserts into note_links
+8. API route responds with the note slug
+9. Browser redirects to /notes/[slug]
 ```
+
+### Wiki-link data model
+
+Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to link between notes. These are stored as rows in the `note_links` table on every save:
+
+- `source_slug` — the note being saved (FK → notes.slug, CASCADE DELETE)
+- `target_slug` — the linked note slug (soft reference; target may not exist yet)
+- `link_text` — display text when different from slug (null otherwise)
+
+`getBacklinks(slug)` returns all notes that link to a given note. `getOutlinks(slug)` returns all links from a given note with their resolved `Note` objects (or null for unresolved). `renderWikiLinks(body, resolvedSlugs)` converts wiki-link syntax to markdown links (for resolved targets) or `<span class="wiki-link-missing">` (for forward references).
 
 ---
 

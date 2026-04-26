@@ -1,0 +1,297 @@
+# Glass Atlas — Conventions
+
+This document is the authoritative style and architecture guide for the Glass Atlas codebase. All contributors and AI agents must follow these rules. Update this file whenever behavior, interfaces, or invariants change.
+
+---
+
+## Universal Rules
+
+- TypeScript strict mode is on everywhere. No `any`, no `// @ts-ignore`.
+- All secrets live in environment variables. Never commit `.env` files or API keys.
+- Run `vitest` before marking any task done.
+- Update `docs/` when you change behavior, a public interface, or an invariant.
+- Prefer explicit over clever. Readable code beats compact code.
+- One concern per file. Keep files short and focused.
+
+---
+
+## SvelteKit + Svelte 5
+
+### Language & Types
+
+- Use Svelte 5 runes everywhere. Never use legacy `$:` reactive declarations or `export let` for props in new components.
+  - State: `let count = $state(0)`
+  - Derived: `let doubled = $derived(count * 2)`
+  - Side effects: `$effect(() => { ... })`
+  - Props: `let { title, slug }: { title: string; slug: string } = $props()`
+- All `.svelte` files must have a `<script lang="ts">` block.
+- All TypeScript types and interfaces use PascalCase: `Note`, `ChatMessage`, `EmbeddingResult`.
+- Constants use UPPER_SNAKE_CASE: `MAX_CONTEXT_NOTES`, `RATE_LIMIT_WINDOW_MS`.
+- Never use `object`, `Function`, or untyped array literals as types.
+- Prefer `type` over `interface` for plain data shapes; use `interface` when you need declaration merging (e.g., `App.Locals`).
+
+### File Organization
+
+```
+src/
+  lib/
+    server/            — server-only modules (never imported client-side)
+      db/
+        schema.ts      — all Drizzle table definitions
+        index.ts       — Neon DB connection export
+        notes.ts       — note query helpers
+      ai/
+        openrouter.ts  — OpenRouter adapter (OpenAI-compatible interface)
+      embeddings.ts    — embed on note create/update
+      chat.ts          — embedding search + prompt assembly
+      personality.ts   — personality block (source of truth)
+    components/
+      NoteCard.svelte
+      Chat.svelte
+    utils/
+      slugify.ts
+      note-taxonomy.ts — canonical category list
+  routes/
+    +page.svelte                      — landing
+    notes/
+      +page.svelte                    — browse/filter
+      [slug]/+page.svelte             — note detail
+    admin/
+      +page.svelte                    — dashboard
+      notes/
+        new/+page.svelte
+        [slug]/edit/+page.svelte
+    api/
+      chat/+server.ts                 — public, rate-limited, streaming SSE
+      admin/notes/+server.ts
+      admin/notes/[slug]/+server.ts
+  hooks.server.ts                     — Auth.js middleware + admin route guard
+```
+
+### Naming
+
+| Thing | Convention | Example |
+|---|---|---|
+| Svelte components | PascalCase | `NoteCard.svelte`, `Chat.svelte` |
+| Server modules | camelCase | `notes.ts`, `embeddings.ts`, `openrouter.ts` |
+| Route files | SvelteKit conventions | `+page.svelte`, `+server.ts`, `+page.server.ts` |
+| TypeScript types | PascalCase | `Note`, `ChatMessage` |
+| Constants | UPPER_SNAKE_CASE | `MAX_CONTEXT_NOTES` |
+| DB columns | snake_case | `created_at`, `note_id` |
+| URL slugs | kebab-case, auto-generated | `stoic-resilience` |
+
+### Patterns
+
+**Server load functions** — always check the session before returning protected data:
+
+```ts
+// src/routes/admin/+page.server.ts
+import type { PageServerLoad } from './$types';
+
+export const load: PageServerLoad = async ({ locals }) => {
+  if (!locals.session) throw redirect(302, '/');
+  return { notes: await getNotes() };
+};
+```
+
+**Form actions** — use SvelteKit `actions` in `+page.server.ts` for mutations. Never call the DB from a `+page.svelte` script block.
+
+**API endpoints** — typed request/response, serialize explicitly:
+
+```ts
+// src/routes/api/admin/notes/+server.ts
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+
+export const POST: RequestHandler = async ({ request, locals }) => {
+  if (!locals.session) return json({ error: 'Unauthorized' }, { status: 401 });
+  const body = await request.json();
+  const note = await createNote(body);
+  return json({ id: note.id, slug: note.slug }); // serialize — never return raw ORM object
+};
+```
+
+**Streaming chat endpoint** — return a `ReadableStream` directly, never buffer:
+
+```ts
+// src/routes/api/chat/+server.ts
+export const POST: RequestHandler = async ({ request }) => {
+  const stream = await buildChatStream(await request.json());
+  return new Response(stream, {
+    headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
+  });
+};
+```
+
+**Client-side streaming** — consume SSE in a Svelte component using `fetch` + `ReadableStream`, not `EventSource` (POST body required):
+
+```svelte
+<script lang="ts">
+  let reply = $state('');
+
+  async function send(message: string) {
+    const res = await fetch('/api/chat', { method: 'POST', body: JSON.stringify({ message }) });
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      reply += decoder.decode(value);
+    }
+  }
+</script>
+```
+
+**Auth session** — read from `event.locals.session` (set by `hooks.server.ts`). Never read cookies manually in load functions or endpoints.
+
+**Slugs** — always generate via `src/lib/utils/slugify.ts`. Never construct slugs by hand.
+
+---
+
+## Database (Drizzle ORM / Neon)
+
+### Connection
+
+- Use the Neon serverless HTTP driver (`@neondatabase/serverless`). Never use a TCP/WebSocket pool — it is incompatible with Vercel edge.
+- The database client is exported from `src/lib/server/db/index.ts`. Import from there everywhere.
+
+### Schema (`src/lib/server/db/schema.ts`)
+
+- All table and column definitions live in a single `schema.ts`. No splitting schema across files.
+- DB columns use snake_case. Drizzle maps them to camelCase TypeScript properties automatically.
+- Tags are stored as `text[]` (Postgres array) on the notes table — not a separate join table.
+- Embeddings are stored as `vector(1536)` using pgvector. Only pgvector similarity queries may use raw SQL (via Drizzle `sql` template tag). All other queries use Drizzle query builders.
+
+Example column conventions:
+
+```ts
+export const notes = pgTable('notes', {
+  id:        serial('id').primaryKey(),
+  slug:      text('slug').notNull().unique(),
+  title:     text('title').notNull(),
+  body:      text('body').notNull(),
+  takeaway:  text('takeaway').notNull(),
+  tags:      text('tags').array().notNull().default([]),
+  category:  text('category').notNull(),
+  embedding: vector('embedding', { dimensions: 1536 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+```
+
+### Migrations
+
+- Generate migrations with `drizzle-kit generate`. Never hand-edit generated migration files.
+- Apply migrations with `drizzle-kit migrate` (or the project's `npm run db:migrate` script).
+- Migration files live in `drizzle/` at the project root.
+- Never apply schema changes directly against the production Neon database without a migration file.
+
+### Query Patterns
+
+- All query helpers live in `src/lib/server/db/notes.ts` (or a peer file for other domains). No inline Drizzle queries in route files.
+- Return plain serializable objects from query helpers, not raw Drizzle result types.
+- Use Drizzle's type inference for return types: `typeof notes.$inferSelect`.
+
+```ts
+// src/lib/server/db/notes.ts
+import { db } from './index';
+import { notes } from './schema';
+import { eq } from 'drizzle-orm';
+
+export async function getNoteBySlug(slug: string) {
+  const [note] = await db.select().from(notes).where(eq(notes.slug, slug));
+  return note ?? null;
+}
+```
+
+- Similarity search (pgvector) is the one allowed exception for raw SQL — use the `sql` template tag:
+
+```ts
+import { sql } from 'drizzle-orm';
+
+export async function findSimilarNotes(embedding: number[], limit = 5) {
+  return db.execute(
+    sql`SELECT id, slug, title, takeaway
+        FROM notes
+        ORDER BY embedding <=> ${JSON.stringify(embedding)}::vector
+        LIMIT ${limit}`
+  );
+}
+```
+
+### Embeddings
+
+- Embeddings are generated in `src/lib/server/embeddings.ts` and called at note create/update time.
+- Always regenerate the embedding when the note `body` changes.
+- Embedding generation must not block the HTTP response — fire it synchronously as part of the save transaction, or enqueue it if latency is a concern.
+
+---
+
+## AI / Chat
+
+### Personality
+
+- The personality block (system prompt preamble) is defined in `src/lib/server/personality.ts`.
+- `chat.ts` imports and uses it. Never inline the personality string in `chat.ts` or any other file.
+
+### Prompt Assembly (`src/lib/server/chat.ts`)
+
+- Retrieve the top-N similar notes via pgvector similarity search.
+- Include only the `takeaway` field and the first paragraph of `body` per note in the LLM context. Never send the full note body.
+- Assemble the final prompt from: personality block + condensed note context + user message.
+
+### OpenRouter (`src/lib/server/ai/openrouter.ts`)
+
+- All LLM calls go through `openrouter.ts`. Never call the OpenRouter API directly from `chat.ts` or route files.
+- The adapter exposes an OpenAI-compatible interface (streaming `chat.completions.create`).
+
+---
+
+## Auth & Security
+
+- Auth.js manages sessions. Session data is attached to `event.locals.session` in `hooks.server.ts`.
+- The `hooks.server.ts` file guards every route under `/admin` and `/api/admin`. Never add per-route auth checks as a substitute for the hook guard — they can be forgotten.
+- Rate limiting for `/api/chat` is tracked per IP in Neon or Vercel edge KV. The limit check runs in `hooks.server.ts` or at the top of the `+server.ts` handler before any LLM call.
+- Never expose internal error messages or stack traces in API responses. Return generic error strings to the client.
+
+---
+
+## Testing
+
+See `docs/TESTING.md` for the full testing guide. Rules that affect code structure:
+
+- Write testable functions: pure query helpers in `src/lib/server/db/` are unit-testable without a live DB (mock `db`).
+- Vitest is the only test runner. Do not add Jest.
+- Test files live alongside source files as `*.test.ts`, or in `src/__tests__/` for integration tests.
+- Server-only modules must be tested in a Node environment (not a browser/jsdom environment) — set `environment: 'node'` in the Vitest config for those files.
+- Do not write tests that call OpenRouter or Neon in CI — mock those boundaries.
+
+---
+
+## Never
+
+- Never commit secrets, `.env` files, or API keys.
+- Never import anything from `src/lib/server/` in a client-side Svelte component or `+page.svelte` script block.
+- Never call OpenRouter or Neon directly from client-side code.
+- Never hardcode the personality block anywhere except `src/lib/server/personality.ts`.
+- Never include full note bodies in the LLM prompt — use `takeaway` + first paragraph only.
+- Never return raw Drizzle ORM result objects from API endpoints — serialize to a typed plain object first.
+- Never bypass the `hooks.server.ts` auth guard on `/admin` or `/api/admin` routes.
+- Never use legacy Svelte reactive declarations (`$:`) or `export let` for props in new components.
+- Never write raw SQL outside of pgvector similarity queries.
+- Never hand-edit generated Drizzle migration files.
+- Never use a TCP/WebSocket Neon connection — use the serverless HTTP driver only.
+- Never buffer the chat response and return JSON — always stream via `ReadableStream` SSE.
+
+## Always
+
+- Always use Svelte 5 runes (`$state`, `$derived`, `$effect`, `$props`) in new components.
+- Always stream chat responses as SSE (`return new Response(stream, ...)`).
+- Always regenerate the note embedding when `body` changes.
+- Always generate slugs via `src/lib/utils/slugify.ts`.
+- Always check `event.locals.session` in server load functions and endpoints that require auth.
+- Always load the personality block from `src/lib/server/personality.ts`.
+- Always run Vitest before marking a task done.
+- Always update `docs/` when behavior, interfaces, or invariants change.
+- Always keep DB query helpers in `src/lib/server/db/` — not inline in route files.
+- Always use the Neon serverless HTTP driver for DB connections.

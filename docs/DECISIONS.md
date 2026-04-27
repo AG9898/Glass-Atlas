@@ -21,12 +21,12 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 
 ### OPEN-02 — Rate Limiting Implementation
 
-**Question:** How should per-IP rate limiting be enforced on the chat endpoint — via a Neon counter table, Vercel KV (Upstash Redis), or an in-memory Map?
-**Context:** The plan identifies the need for rate limiting on the `/api/chat` route to prevent abuse and control OpenRouter API costs. Three approaches are noted but no decision was made. The choice has cost, accuracy, and operational complexity implications.
+**Question:** How should per-IP rate limiting be enforced on the chat endpoint — via a Neon counter table, Upstash Redis, or an in-memory Map?
+**Context:** The plan identifies the need for rate limiting on the `/api/chat` route to prevent abuse and control OpenRouter API costs. The choice has cost, accuracy, and operational complexity implications. Note: deployment has moved to Railway (persistent Bun server), so in-memory state now survives between requests — unlike on Vercel serverless. This significantly improves the viability of the in-memory Map approach.
 **Options under consideration:**
-1. **Neon counter table** — Store request counts per IP in PostgreSQL. Tradeoff: Persists across deploys and is accurate across serverless instances, but adds a DB write on every chat request, increasing latency and cost.
-2. **Vercel KV (Upstash Redis)** — Use a Redis-backed KV store for fast atomic increments. Tradeoff: Fast and accurate with no DB overhead, but introduces an additional dependency and billing surface.
-3. **In-memory Map** — Track counts in a module-level Map on the edge function. Tradeoff: Zero cost and complexity, but resets on cold start and may undercount across concurrent instances.
+1. **Neon counter table** — Store request counts per IP in PostgreSQL. Tradeoff: Persists across deploys and is accurate if scaled horizontally, but adds a DB write on every chat request, increasing latency and cost.
+2. **Upstash Redis** — Use a Redis-backed KV store for fast atomic increments. Tradeoff: Fast and accurate with no DB overhead, but introduces an additional dependency and billing surface.
+3. **In-memory Map** — Track counts in a module-level Map on the persistent server. Tradeoff: Zero cost and complexity; resets only on deploy (acceptable for a blog). Undercounts only if scaled beyond one instance (not expected at current scale).
 **Blocking:** Phase 4 (chat endpoint implementation).
 **See also:** ARCHITECTURE.md, ENV_VARS.md
 
@@ -45,6 +45,26 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 ---
 
 ## Resolved Decisions
+
+### RESOLVED-06 — Database Schema Strategy (Shared Neon, Separate Postgres Schema)
+
+**Resolved:** 2026-04-27
+**Decision:** Use the same Neon project and database as the Techy project, but scope all Glass Atlas tables to a dedicated `glass_atlas` Postgres schema. Techy continues to use the default `public` schema.
+**Why:** Keeps a single Neon compute tier (lower cost) while maintaining full table isolation. Postgres schemas allow cross-schema SQL queries when needed (e.g. importing or referencing Techy notes). Drizzle's `pgSchema('glass_atlas')` scopes all ORM operations automatically.
+**Alternatives rejected:** Separate Neon databases were rejected because they don't support cross-database SQL in Postgres, requiring HTTP API calls to cross-reference data. Fully merged tables (shared schema with an `app` discriminator) were rejected as too tightly coupled.
+**Affects:** ARCHITECTURE.md, ENV_VARS.md, src/lib/server/db/schema.ts, src/lib/server/db/index.ts
+
+---
+
+### RESOLVED-07 — Deployment Platform (Railway + Bun, not Vercel)
+
+**Resolved:** 2026-04-27
+**Decision:** Deploy to Railway using the SvelteKit node adapter with Bun as the runtime, instead of Vercel serverless functions.
+**Why:** The RAG chat endpoint streams long-lived responses — a poor fit for serverless function timeout limits and cold starts. A persistent Bun server on Railway eliminates both problems. Railway's Hobby plan (~$5/mo) is sufficient for blog-scale traffic. Bun's fast startup and lower memory overhead are a natural fit for the node adapter output.
+**Alternatives rejected:** Vercel was rejected because serverless cold starts degrade streaming chat UX and function timeouts are a risk for long completions. Fly.io, Render, and Hetzner+Coolify were considered; Railway was chosen for the best DX/cost tradeoff at this scale.
+**Affects:** ARCHITECTURE.md, ENV_VARS.md, svelte.config.js, package.json (adapter swap), CLAUDE.md
+
+---
 
 ### RESOLVED-01 — LLM Model Choice
 

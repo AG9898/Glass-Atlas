@@ -211,9 +211,10 @@ Stop and report (do not continue) when:
 
 ## Debugging & Gotchas
 
-- Neon uses the **serverless HTTP driver** (not TCP). Import from `@neondatabase/serverless`, not `pg`. TCP connections time out on Vercel.
+- Neon uses the **serverless HTTP driver** (not TCP). Import from `@neondatabase/serverless`, not `pg`. TCP connections time out in serverless environments.
 - pgvector cosine similarity requires the `vector` extension enabled on the Neon project. Run `CREATE EXTENSION IF NOT EXISTS vector;` in the Neon console before first migration.
-- Auth.js on Vercel requires `AUTH_TRUST_HOST=true` — without it, OAuth callbacks fail silently.
+- All Glass Atlas tables use the `glass_atlas` Postgres schema (not `public`). Drizzle must use `pgSchema('glass_atlas')` when defining tables. The Techy project owns the `public` schema on the same database.
+- `AUTH_TRUST_HOST` is a Vercel-specific workaround and must **not** be set on Railway — it is not needed and could cause unexpected behavior.
 - SvelteKit's `$env/static/private` is only accessible in server-side files. Importing it in a `.svelte` file causes a build error.
 - Streaming responses from `/api/chat` must use `return new Response(stream)` — SvelteKit's `json()` helper buffers the full response before sending.
 
@@ -223,7 +224,7 @@ Stop and report (do not continue) when:
 
 See [`docs/ENV_VARS.md`](docs/ENV_VARS.md) for the canonical variable and secret matrix.
 
-Key variables: `DATABASE_URL`, `OPENROUTER_API_KEY`, `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `AUTH_TRUST_HOST` (Vercel only), `PUBLIC_SITE_URL`.
+Key variables: `DATABASE_URL`, `OPENROUTER_API_KEY`, `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `PUBLIC_SITE_URL`. (`AUTH_TRUST_HOST` is not used — Railway does not require it.)
 
 ---
 
@@ -237,7 +238,7 @@ Full test strategy, file inventory, and patterns for writing new tests: [`docs/T
 
 ## Deployment
 
-Deployments are CI-only via Vercel. Pushing to `main` triggers a production deploy automatically. Never manually push secrets or deploy from a local machine. Staging uses a separate Neon branch — set `DATABASE_URL` to the branch connection string in Vercel's staging environment.
+Deployments are CI-only via Railway. Pushing to `main` triggers a production deploy automatically via Railway's GitHub integration. The app runs as a persistent Bun HTTP server using `@sveltejs/adapter-node`. Never manually push secrets or deploy from a local machine. Staging uses a separate Neon branch — set `DATABASE_URL` to the branch connection string in Railway's staging service variables.
 
 ---
 

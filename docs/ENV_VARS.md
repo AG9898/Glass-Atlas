@@ -22,7 +22,7 @@
 | `AUTH_SECRET` | Yes | All | — | `$env/static/private` | Random secret for Auth.js session signing. Generate: `openssl rand -hex 32`. |
 | `AUTH_GITHUB_ID` | Yes | All | — | `$env/static/private` | GitHub OAuth app Client ID. |
 | `AUTH_GITHUB_SECRET` | Yes | All | — | `$env/static/private` | GitHub OAuth app Client Secret. |
-| `AUTH_TRUST_HOST` | Conditional | Staging, Production | — | `$env/static/private` | Set to `true` on Vercel. Required for Auth.js to work correctly behind Vercel's proxy. |
+| `AUTH_TRUST_HOST` | No | — | — | `$env/static/private` | Vercel-specific workaround — not required on Railway. Do not set. |
 | `CHAT_RATE_LIMIT` | No | All | `10` | `$env/static/private` | Max chat messages allowed per IP per hour. |
 | `PUBLIC_SITE_URL` | Yes (production) | All | `http://localhost:5173` | `$env/static/public` | Canonical site URL used for OG tags and sitemap generation. |
 
@@ -46,7 +46,8 @@ Minimum required values for local development:
 # .env.local
 
 # Database — use a Neon dev branch, not the production branch
-DATABASE_URL=postgresql://user:password@ep-xxx.us-east-2.aws.neon.tech/glass_atlas?sslmode=require
+# The glass_atlas Postgres schema is used; all tables are scoped to it via Drizzle pgSchema()
+DATABASE_URL=postgresql://user:password@ep-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require
 
 # OpenRouter
 OPENROUTER_API_KEY=sk-or-...
@@ -91,9 +92,9 @@ Set in `.env.local` (gitignored).
 
 `AUTH_TRUST_HOST` is not needed locally.
 
-### Production (Vercel)
+### Production (Railway)
 
-Set via Vercel dashboard under Project > Settings > Environment Variables. Mark each secret variable as "Sensitive" so it is encrypted at rest and never shown in logs.
+Set via Railway dashboard under Project > Service > Variables. Railway encrypts variables at rest and never exposes them in build logs.
 
 | Variable | Value |
 |---|---|
@@ -102,9 +103,10 @@ Set via Vercel dashboard under Project > Settings > Environment Variables. Mark 
 | `AUTH_SECRET` | Production random hex (separate from local) |
 | `AUTH_GITHUB_ID` | Production GitHub OAuth app client ID |
 | `AUTH_GITHUB_SECRET` | Production GitHub OAuth app client secret |
-| `AUTH_TRUST_HOST` | `true` |
 | `PUBLIC_SITE_URL` | `https://yourdomain.com` |
+
+`AUTH_TRUST_HOST` is not needed on Railway — do not set it.
 
 Use separate GitHub OAuth apps for local and production so callback URLs stay distinct and credentials can be rotated independently.
 
-Optional variables (`CHAT_RATE_LIMIT`, `OPENROUTER_MODEL`, `EMBEDDING_MODEL`, `OPENROUTER_BASE_URL`) only need to be set in Vercel if you want to override the defaults in production.
+Optional variables (`CHAT_RATE_LIMIT`, `OPENROUTER_MODEL`, `EMBEDDING_MODEL`, `OPENROUTER_BASE_URL`) only need to be set in Railway if you want to override the defaults in production.

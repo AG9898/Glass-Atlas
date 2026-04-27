@@ -2,7 +2,7 @@
 
 ## Overview
 
-Glass Atlas is a SvelteKit-based editorial site where the author publishes notes (markdown content) and visitors can explore them via browse/search or through an LLM-powered chat interface. All server-side logic runs as Vercel serverless functions; the database is Neon PostgreSQL with the pgvector extension for semantic search. Admin authoring is gated behind GitHub OAuth via Auth.js; all visitor interactions, including chat, are anonymous.
+Glass Atlas is a SvelteKit-based editorial site where the author publishes notes (markdown content) and visitors can explore them via browse/search or through an LLM-powered chat interface. All server-side logic runs as a persistent Bun HTTP server deployed on Railway (SvelteKit node adapter); the database is Neon PostgreSQL with the pgvector extension for semantic search, using the `glass_atlas` Postgres schema. Admin authoring is gated behind GitHub OAuth via Auth.js; all visitor interactions, including chat, are anonymous.
 
 ---
 
@@ -10,14 +10,14 @@ Glass Atlas is a SvelteKit-based editorial site where the author publishes notes
 
 | Service | Where it runs |
 |---|---|
-| SvelteKit app (UI + API routes) | Vercel (serverless functions + CDN-served static assets) |
-| PostgreSQL database (notes, conversations, messages, Auth.js tables) | Neon (serverless HTTP driver; production project + dev branch) |
+| SvelteKit app (UI + API routes) | Railway (persistent Bun HTTP server; SvelteKit node adapter; auto-deploy on push to `main`) |
+| PostgreSQL database (notes, conversations, messages, Auth.js tables) | Neon (serverless HTTP driver; `glass_atlas` Postgres schema; production project + dev branch) |
 | LLM inference (chat completions, streaming) | OpenRouter API (remote, HTTP) |
 | Embedding generation (query + note body vectors) | OpenRouter API (remote, HTTP) |
 | GitHub OAuth provider | GitHub (remote, HTTP) |
 | Local development server | localhost:5173 (SvelteKit dev server) |
 
-There is no long-running backend process. Every request is handled by a short-lived Vercel function. No in-memory state is shared between requests.
+The server is a persistent Bun process. In-memory state survives between requests on the same instance. Any state that must survive across deploys (conversation history, note data) is stored in Neon.
 
 ---
 
@@ -137,7 +137,7 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 | Neon PostgreSQL | Primary database (notes, conversations, messages, auth tables) | Yes | Accessed via Neon serverless HTTP driver; pgvector extension required for embedding storage and cosine similarity search |
 | OpenRouter API | LLM completions (streaming) + embedding generation | Yes | Default model: `google/gemini-2.0-flash-001`; embedding model: `text-embedding-3-small` (vector dimension: 1536) |
 | GitHub OAuth | Admin authentication provider | Yes | Only the author's GitHub account is permitted; OAuth app credentials stored as environment variables |
-| Vercel | Hosting, serverless function execution, CDN | Yes | Auto-deploys on push to `main`; no persistent server process |
+| Railway | Hosting, persistent Bun HTTP server | Yes | Auto-deploys on push to `main` via GitHub integration; Hobby plan (~$5/mo) |
 
 ---
 
@@ -145,7 +145,7 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 
 | Environment | Hosting | Database | Notes |
 |---|---|---|---|
-| Production | Vercel (auto-deploy on push to `main`) | Neon production project | Environment variables set in Vercel dashboard; secrets never in source |
+| Production | Railway (auto-deploy on push to `main`) | Neon production project, `glass_atlas` schema | Environment variables set in Railway dashboard; secrets never in source |
 | Local development | `localhost:5173` (SvelteKit dev server) | Neon dev branch or local PostgreSQL with pgvector | `.env.local` holds secrets; never committed |
 
 ---
@@ -158,6 +158,6 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 - `POST /api/chat` is rate-limited to 10 messages per IP per hour to protect OpenRouter API costs. This limit is enforced in the API route handler before any embedding or LLM call is made.
 - The LLM system prompt personality block lives exclusively in `src/lib/server/personality.ts`. It must never be inlined directly into chat logic or any other file.
 - LLM responses must be strictly grounded in the notes retrieved by the vector search. The system prompt must include an explicit guardrail instructing the model not to answer from general knowledge when the retrieved notes do not support the answer.
-- There is no persistent in-memory state. Vercel serverless functions are stateless and ephemeral. Any state that must persist across requests (conversation history, note data) is stored in Neon.
+- The server is a persistent process — in-memory state survives between requests on the same instance. Any state that must survive across deploys (conversation history, note data) is stored in Neon. Do not rely on in-memory state for correctness if horizontal scaling is ever introduced.
 - All database schema changes must be applied via Drizzle ORM migrations (`drizzle-kit`). Direct `ALTER TABLE` statements against the Neon database are not permitted.
 - All secrets (Neon connection string, OpenRouter API key, GitHub OAuth client ID/secret, Auth.js secret) are read exclusively from environment variables. No secret value may appear in source code or be committed to version control.

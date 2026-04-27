@@ -54,6 +54,12 @@ src/
       chat.ts          — embedding search + prompt assembly
       personality.ts   — personality block (source of truth)
     components/
+      ui/
+        Button.svelte
+        Dialog.svelte
+        Input.svelte
+        Select.svelte
+        index.ts
       NoteCard.svelte
       Chat.svelte
     utils/

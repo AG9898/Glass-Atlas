@@ -2,6 +2,11 @@
 
 This document is the canonical visual system for Glass Atlas. It defines enforceable design rules for implementation across public and admin surfaces.
 
+Implementation references:
+
+- [bits-ui.md](bits-ui.md)
+- [GSAP.md](GSAP.md)
+
 ---
 
 ## 1) Brand Direction
@@ -267,3 +272,10 @@ Fonts are **self-hosted**.
 - Dense card mosaics as the default notes browsing pattern.
 - Decorative gradients or texture overlays that reduce legibility.
 - Unconstrained asymmetry that breaks reading flow on mobile.
+
+---
+
+## 9) Implementation Alignment
+
+- Use [bits-ui.md](bits-ui.md) as the default interactive component implementation policy.
+- Use [GSAP.md](GSAP.md) as the animation planning reference; do not treat it as a finalized motion standard yet.

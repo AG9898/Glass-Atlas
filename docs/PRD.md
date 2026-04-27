@@ -78,7 +78,7 @@ Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note ed
 - **Rate limiting** — 10 chat messages per IP per hour, enforced server-side, to control LLM API costs.
 - **Auth scope** — GitHub OAuth is for the single author only. No OAuth flows for visitors.
 - **Stateless deployment** — hosted on Vercel; no persistent in-memory state between requests. All state lives in Neon PostgreSQL.
-- **Stack is fixed** — SvelteKit + Svelte 5 (runes), TypeScript, Tailwind CSS v4, Neon PostgreSQL + pgvector, Drizzle ORM, OpenRouter (Gemini Flash default), Auth.js, Vitest.
+- **Stack is fixed** — SvelteKit + Svelte 5 (runes), TypeScript, Tailwind CSS v4, Bits UI, GSAP (for advanced motion), Neon PostgreSQL + pgvector, Drizzle ORM, OpenRouter (Gemini Flash default), Auth.js, Vitest.
 
 ---
 

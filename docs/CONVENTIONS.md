@@ -10,12 +10,20 @@ This document is the authoritative style and architecture guide for the Glass At
 - All secrets live in environment variables. Never commit `.env` files or API keys.
 - Run `vitest` before marking any task done.
 - Update `docs/` when you change behavior, a public interface, or an invariant.
+- Use `bits-ui` as the default source of interactive UI primitives. Build custom interaction widgets only when no suitable Bits primitive exists.
+- Use `GSAP` for advanced motion orchestration; use CSS/Svelte-native transitions for simple state changes.
 - Prefer explicit over clever. Readable code beats compact code.
 - One concern per file. Keep files short and focused.
 
 ---
 
 ## SvelteKit + Svelte 5
+
+See also:
+
+- [bits-ui.md](bits-ui.md)
+- [GSAP.md](GSAP.md)
+- [styleguide.md](styleguide.md)
 
 ### Language & Types
 
@@ -145,6 +153,17 @@ export const POST: RequestHandler = async ({ request }) => {
 **Auth session** — read from `event.locals.session` (set by `hooks.server.ts`). Never read cookies manually in load functions or endpoints.
 
 **Slugs** — always generate via `src/lib/utils/slugify.ts`. Never construct slugs by hand.
+
+### UI Primitives and Motion
+
+- Prefer Bits wrappers in local component files (for example under `src/lib/components/ui/`) rather than ad-hoc route-level usage.
+- Bits components must conform to the visual system in [styleguide.md](styleguide.md) (sharp geometry, line hierarchy, tokenized color/type).
+- If a Bits primitive exists for the interaction pattern (dialog, select, menu, tabs, tooltip, etc.), use it by default.
+- Only use custom interaction implementations when a concrete limitation is documented.
+- For animation:
+  - Use CSS/Svelte transitions for simple hover/focus/show-hide.
+  - Use GSAP for complex sequencing, scroll-coupled choreography, and multi-element timeline control.
+  - Respect reduced-motion behavior and ensure content remains usable without motion.
 
 ---
 

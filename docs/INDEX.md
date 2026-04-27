@@ -13,6 +13,8 @@ Keep this file current: add, remove, or rename a row in the same commit as the d
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System topology, runtime boundaries, component responsibilities, and data flow |
 | [CONVENTIONS.md](CONVENTIONS.md) | Coding standards, naming rules, and idiomatic SvelteKit/Svelte 5 patterns |
 | [styleguide.md](styleguide.md) | Canonical visual system: design tokens, typography roles, layout rules, and component recipes |
+| [bits-ui.md](bits-ui.md) | Default component primitive policy and implementation rules for using Bits UI across product surfaces |
+| [GSAP.md](GSAP.md) | Planned animation architecture and constraints for GSAP adoption |
 | [DECISIONS.md](DECISIONS.md) | Architectural decision log — open questions and resolved decisions |
 | [ENV_VARS.md](ENV_VARS.md) | Environment variable and secret matrix — names, required/optional, and where used |
 | [TESTING.md](TESTING.md) | Test strategy, Vitest configuration, how to run tests, patterns for writing new tests |

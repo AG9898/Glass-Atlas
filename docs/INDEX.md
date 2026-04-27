@@ -12,6 +12,7 @@ Keep this file current: add, remove, or rename a row in the same commit as the d
 | [PRD.md](PRD.md) | Product requirements, feature scope, target users, and success criteria |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System topology, runtime boundaries, component responsibilities, and data flow |
 | [CONVENTIONS.md](CONVENTIONS.md) | Coding standards, naming rules, and idiomatic SvelteKit/Svelte 5 patterns |
+| [styleguide.md](styleguide.md) | Canonical visual system: design tokens, typography roles, layout rules, and component recipes |
 | [DECISIONS.md](DECISIONS.md) | Architectural decision log — open questions and resolved decisions |
 | [ENV_VARS.md](ENV_VARS.md) | Environment variable and secret matrix — names, required/optional, and where used |
 | [TESTING.md](TESTING.md) | Test strategy, Vitest configuration, how to run tests, patterns for writing new tests |
@@ -44,4 +45,3 @@ These docs are expected as the project grows. Add their rows above when the file
 |---|---|
 | `SCHEMA.md` | Database schema reference — tables, columns, indexes, and Drizzle model definitions |
 | `API.md` | Internal API surface — SvelteKit route contracts, request/response shapes |
-| `STYLE_GUIDE.md` | Visual design tokens, component conventions, and Tailwind usage patterns |

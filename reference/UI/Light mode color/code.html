@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-container": "#8ba6c0",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-dim": "#dcd9d9",
+                        "on-primary-fixed": "#062010",
+                        "tertiary": "#466179",
+                        "secondary": "#735758",
+                        "on-primary-fixed-variant": "#334d38",
+                        "inverse-primary": "#b0ceb4",
+                        "on-primary-container": "#253f2b",
+                        "secondary-fixed": "#ffdada",
+                        "on-background": "#1c1b1b",
+                        "surface-container-highest": "#e5e2e1",
+                        "surface-variant": "#e5e2e1",
+                        "error-container": "#ffdad6",
+                        "on-tertiary-fixed-variant": "#2e4960",
+                        "on-surface": "#1c1b1b",
+                        "surface-container": "#f0eded",
+                        "inverse-on-surface": "#f3f0ef",
+                        "on-secondary-fixed-variant": "#5a4041",
+                        "secondary-fixed-dim": "#e2bebe",
+                        "primary-fixed": "#cceacf",
+                        "surface": "#fcf9f8",
+                        "surface-container-low": "#f6f3f2",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-fixed": "#001d31",
+                        "on-secondary": "#ffffff",
+                        "on-tertiary-container": "#203c52",
+                        "tertiary-fixed": "#cce5ff",
+                        "on-secondary-fixed": "#2a1617",
+                        "tertiary-fixed-dim": "#aecae5",
+                        "primary-fixed-dim": "#b0ceb4",
+                        "surface-bright": "#fcf9f8",
+                        "on-primary": "#ffffff",
+                        "primary-container": "#8daa91",
+                        "primary": "#4a654f",
+                        "on-error-container": "#93000a",
+                        "on-secondary-container": "#785c5c",
+                        "on-surface-variant": "#424842",
+                        "secondary-container": "#fcd7d7",
+                        "surface-container-high": "#eae7e7",
+                        "background": "#fcf9f8",
+                        "outline": "#737972",
+                        "outline-variant": "#c2c8c0",
+                        "error": "#ba1a1a",
+                        "surface-tint": "#4a654f",
+                        "on-error": "#ffffff",
+                        "inverse-surface": "#313030"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "grid-gutter": "1px",
+                        "xxl": "80px",
+                        "xs": "4px",
+                        "unit": "4px",
+                        "lg": "24px",
+                        "sm": "8px",
+                        "xl": "48px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Epilogue"],
+                        "label-caps": ["Epilogue"],
+                        "display-xl": ["Epilogue"],
+                        "body-lg": ["Epilogue"],
+                        "headline-md": ["Epilogue"],
+                        "body-md": ["Epilogue"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "label-caps": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                        "display-xl": ["80px", {"lineHeight": "1.0", "letterSpacing": "-0.04em", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}],
+                        "headline-md": ["32px", {"lineHeight": "1.2", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "1.6", "letterSpacing": "0", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        .grid-line-x { border-bottom: 1px solid #1c1b1b; }
+        .grid-line-y { border-right: 1px solid #1c1b1b; }
+        .grid-line-y-left { border-left: 1px solid #1c1b1b; }
+        .grid-line-x-top { border-top: 1px solid #1c1b1b; }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md">
+<!-- TopAppBar -->
+<header class="bg-neutral-50 dark:bg-neutral-950 flex flex-col items-center w-full px-6 md:px-12 docked full-width top-0 border-b border-neutral-900 dark:border-neutral-50 sticky z-50">
+<div class="w-full flex justify-between items-center py-4 border-b border-neutral-900 dark:border-neutral-50">
+<div class="flex gap-4">
+<span class="material-symbols-outlined cursor-pointer">menu</span>
+</div>
+<h1 class="text-4xl md:text-6xl font-black tracking-tighter text-neutral-900 dark:text-neutral-50 py-4">CHRONICLE</h1>
+<div class="flex gap-4">
+<span class="material-symbols-outlined cursor-pointer" data-icon="search">search</span>
+</div>
+</div>
+<nav class="hidden md:flex gap-12 py-6">
+<a class="font-['Epilogue'] font-medium uppercase tracking-widest text-xs text-neutral-900 dark:text-neutral-50 border-b-2 border-neutral-900 dark:border-neutral-50 pb-1" href="#">ESSAYS</a>
+<a class="font-['Epilogue'] font-medium uppercase tracking-widest text-xs text-neutral-500 dark:text-neutral-400 hover:bg-[#8DAA91] hover:text-white transition-all duration-75" href="#">DISCOURSE</a>
+<a class="font-['Epilogue'] font-medium uppercase tracking-widest text-xs text-neutral-500 dark:text-neutral-400 hover:bg-[#8DAA91] hover:text-white transition-all duration-75" href="#">ARCHIVE</a>
+<a class="font-['Epilogue'] font-medium uppercase tracking-widest text-xs text-neutral-500 dark:text-neutral-400 hover:bg-[#8DAA91] hover:text-white transition-all duration-75" href="#">ABOUT</a>
+</nav>
+</header>
+<main class="w-full max-w-[1600px] mx-auto px-6 md:px-12 pt-12">
+<!-- Hero Asymmetric Section -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-0 mb-xxl border border-on-background">
+<div class="md:col-span-7 grid-line-y p-lg bg-surface-container-low flex flex-col justify-between">
+<div>
+<span class="font-label-caps text-label-caps text-primary-container mb-md inline-block">FEATURED ESSAY — VOL. 04</span>
+<h2 class="font-display-xl text-display-xl mb-xl">The Weight of Silence in Brutalist Spaces.</h2>
+</div>
+<div class="flex flex-col md:flex-row justify-between items-end gap-lg">
+<p class="font-body-lg text-body-lg max-w-md">An exploration of how concrete surfaces and rigid geometries influence the acoustic and emotional landscape of modern dwellings.</p>
+<button class="bg-primary-container text-white border border-on-background px-lg py-sm font-label-caps hover:translate-x-0.5 hover:translate-y-0.5 transition-all">READ ARTICLE</button>
+</div>
+</div>
+<div class="md:col-span-5 h-[500px] md:h-auto overflow-hidden relative group">
+<img alt="Brutalist building facade" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="Detail of a minimalist brutalist building facade with geometric shadows and textured gray concrete under sharp daylight" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCLj2HRyvceUGWxCSq1fi0o-XfdlDga1U3J4cyc7JwLc86dRcMpraWEPGlRsdHKdSueLcsibjn5gOmHfnEGsKSmB1btTujJsW0DoeZZfEYU0uRI6O6Di5dXuvIHDLI03_wu9eGKtxx4_LZh6zE6Aba-LPksu65zUAa3ATfLdXGi8JjwyCPb3ObYQpPScVn_AOqXjAYDYnVXEME490v6Y_M5iAC10vtEtp8TNVVfH1IrsflafZwu7tIQWsngNGUStuppW5gh36skSq3f"/>
+<div class="absolute inset-0 bg-primary-container/10 group-hover:bg-transparent transition-colors"></div>
+</div>
+</section>
+<!-- Secondary Grid: The Asymmetric Feed -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-0 border-l border-t border-r border-on-background">
+<!-- Article 1: Large Vertical -->
+<article class="md:col-span-1 grid-line-y grid-line-x p-lg flex flex-col gap-lg bg-surface">
+<div class="aspect-[3/4] border border-on-background overflow-hidden">
+<img alt="Minimalist lamp" class="w-full h-full object-cover" data-alt="Close-up of a modern minimalist lamp on a wooden table with soft morning light casting gentle shadows on a sage green wall" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxYPxPlO89hmGJspD6nNL2BiQNS9NaJnQHcn8zldhXaRjMq1SPGtW0_mHKiAqNj5tndAAm8J-X9J4Rg2pktBX-XU5YXWeIJ9XULZ_ktVffa6zwsTdQOGhvuFRflA1tIlebVT-dcpz0nYtiecPeSM_saf0Ns6sJVoK5CzNWeN3I1E4XDHv_J-YLu0ZhKhF-eytbr6qvxcEY0lb6Ck28Hg048h2v79M9xDRrMq2WwLMH8nX_ESPNtv_JhagUJ13IACcZ2OgW2wIazOs4"/>
+</div>
+<div class="flex flex-col gap-sm">
+<span class="font-label-caps text-label-caps text-tertiary">DESIGN &amp; ARCHITECTURE</span>
+<h3 class="font-headline-md text-headline-md">Softening the Edge: Scandinavian Brutalism.</h3>
+<p class="font-body-md text-body-md opacity-70">How the Nordic palette transforms industrial rigidity into domestic warmth.</p>
+</div>
+</article>
+<!-- Article 2 & 3 Column -->
+<div class="md:col-span-2 flex flex-col">
+<div class="grid grid-cols-1 md:grid-cols-2 flex-grow">
+<!-- Article 2 -->
+<article class="grid-line-y grid-line-x p-lg bg-primary-container text-on-primary flex flex-col justify-between">
+<h3 class="font-headline-lg text-headline-lg text-white">Grid vs. Soul.</h3>
+<div>
+<p class="font-body-md text-white/90 mb-lg">Does mathematical perfection inhibit creative intuition? A dialogue with Studio Monolith.</p>
+<span class="font-label-caps text-label-caps border-b border-white pb-xs cursor-pointer">READ MORE</span>
+</div>
+</article>
+<!-- Article 3 -->
+<article class="grid-line-x p-lg bg-surface flex flex-col gap-md">
+<div class="w-full aspect-video border border-on-background overflow-hidden">
+<img alt="Urban garden" class="w-full h-full object-cover grayscale" data-alt="A small serene urban garden nestled between two tall concrete buildings with lush green plants and a single wooden bench" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBaOGvw9GdYEvGEnsJ-oZ_Xb0ud3Ip1IC7_hzDevmylQ4ae89rG7S8h9baOZ5NAieo7RCWywRXQtE4cFtSNPdIIXwAIpN_chM3TCtc7gVsWTcE8jCMdlwha7jedsrh-qYNdC-hPnLpVXgff0XToY3vfXX4lfdAgmE54WtVg_FM1BcE_JMs3gGBYOBowd5MmXMLmOfKh4xb7y-nFqMytuVXiwp2m0XpI0RvUkueG3ILabA34tvEe1CZ6Fu1FRAQNMI-NdowfDkG-OgJL"/>
+</div>
+<span class="font-label-caps text-label-caps text-tertiary">URBANISM</span>
+<h3 class="font-headline-md text-headline-md">Pocket Parks of Tokyo.</h3>
+</article>
+</div>
+<!-- Article 4: Horizontal Span -->
+<article class="grid-line-x p-lg grid grid-cols-1 md:grid-cols-12 gap-lg items-center bg-surface-container-high">
+<div class="md:col-span-4 border border-on-background aspect-square overflow-hidden">
+<img alt="Interior shadows" class="w-full h-full object-cover" data-alt="Artistic shot of sunlight streaming through a window creating sharp geometric shadows on a minimal white wall" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBiEmykH3mzWUHupg9nGEzGuT2vi_es54E9UMBzjcXat__pl9augOV7ePaIRZJ7qej7QEBNRL8qKPEv42PyOQ6W3UrGNpH9VP1AHW1K-pMZzj75GgBuYpBnIP_Of-206W5z2dQ31EFSSuOYPlaORQrHQkGzy6s9ZJPvbU5FeKZ0g7ffeUSc6vM6cSF1YICY59qvhoOVTNUvBxTJZ-Pt3QzUpzzcGR6O5sYvFn5TbqlZS2Oa3ngNbitWyvoUXdxphXBElTANEbsUKzoH"/>
+</div>
+<div class="md:col-span-8">
+<span class="font-label-caps text-label-caps text-secondary mb-sm inline-block">PHILOSOPHY</span>
+<h2 class="font-headline-lg text-headline-lg mb-md">The Impermanence of Stone.</h2>
+<p class="font-body-lg text-body-lg mb-xl">Traditional materials in a digital age. Why the tactile matters more than ever in the screenscape.</p>
+<div class="flex gap-xl">
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+<span class="font-label-caps">OCT 12</span>
+</div>
+<div class="flex items-center gap-xs">
+<span class="material-symbols-outlined text-[18px]">schedule</span>
+<span class="font-label-caps">8 MIN READ</span>
+</div>
+</div>
+</div>
+</article>
+</div>
+</div>
+<!-- Overlapping "Soft Asymmetry" Breakout Section -->
+<section class="mt-xxl mb-xxl relative">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-0">
+<div class="md:col-span-8 bg-tertiary-container p-xl min-h-[400px] flex flex-col justify-center border border-on-background relative z-10">
+<h2 class="font-display-xl text-display-xl text-white mb-md">Material <br/> &amp; Memory.</h2>
+<p class="font-body-lg text-white max-w-sm">Curating the objects that define our era. A monthly digest of tangible design excellence.</p>
+</div>
+<div class="md:col-span-6 md:absolute right-0 top-12 bottom-12 w-full md:w-1/2 border border-on-background overflow-hidden z-20 shadow-[8px_8px_0px_#1c1b1b]">
+<img alt="Elegant interior" class="w-full h-full object-cover" data-alt="Sophisticated living room interior with high-end designer furniture, neutral tones, and a large piece of abstract art on the wall" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxRXxeFxSOkKoMZ-9Z5QOvx3Ow1hHzmsIw4kfjSL8o_bm-AhriikvK-hyvPuyil-562pJlWTxQ0d1YeKbDngugWKwMklI8-UO_zRpcGXyw6FBEdOOFXKG9XwUpPFaxkspMO8KWKs-3hpblhXahGFbQPI-r0QW4E6KqISjN0-EkGh7ZKzByiDU3EbWR-YPk2y9cK3OgA31artwoYnB0vN6HzLt00wykCNU2COGgSVgagSluX4Z0UaIQ7mYg_dXbMhowbaY1x6bLtJhS"/>
+</div>
+</div>
+</section>
+<!-- Newsletter / Archive Section -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-0 border border-on-background mb-xxl">
+<div class="md:col-span-1 grid-line-y p-lg bg-surface-container flex flex-col justify-between">
+<h3 class="font-headline-md text-headline-md">Weekly Chronicle.</h3>
+<p class="font-body-md opacity-80 mt-md mb-xl">Deep dives and curated links delivered to your inbox every Sunday.</p>
+<div class="flex flex-col gap-sm">
+<input class="bg-transparent border-b border-on-background py-sm font-label-caps outline-none focus:border-primary-container transition-colors" placeholder="YOUR EMAIL" type="email"/>
+<button class="bg-on-background text-white py-md font-label-caps mt-md">SUBSCRIBE</button>
+</div>
+</div>
+<div class="md:col-span-2 p-lg grid grid-cols-2 md:grid-cols-3 gap-lg bg-surface">
+<div class="flex flex-col gap-xs">
+<span class="font-label-caps text-primary-container">ARCHIVE 01</span>
+<h4 class="font-headline-md text-headline-md text-[20px]">Form Follows Feelings</h4>
+</div>
+<div class="flex flex-col gap-xs">
+<span class="font-label-caps text-primary-container">ARCHIVE 02</span>
+<h4 class="font-headline-md text-headline-md text-[20px]">The Concrete Poet</h4>
+</div>
+<div class="flex flex-col gap-xs">
+<span class="font-label-caps text-primary-container">ARCHIVE 03</span>
+<h4 class="font-headline-md text-headline-md text-[20px]">Light as Structure</h4>
+</div>
+<div class="flex flex-col gap-xs">
+<span class="font-label-caps text-primary-container">ARCHIVE 04</span>
+<h4 class="font-headline-md text-headline-md text-[20px]">Sustainable Brutalism</h4>
+</div>
+<div class="flex flex-col gap-xs">
+<span class="font-label-caps text-primary-container">ARCHIVE 05</span>
+<h4 class="font-headline-md text-headline-md text-[20px]">The Future of Craft</h4>
+</div>
+<div class="flex flex-col gap-xs">
+<span class="font-label-caps text-primary-container">ARCHIVE 06</span>
+<h4 class="font-headline-md text-headline-md text-[20px]">Minimalist Manifesto</h4>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-neutral-50 dark:bg-neutral-950 w-full border-t border-neutral-900 dark:border-neutral-50 mt-12 flex flex-col md:flex-row justify-between items-center px-6 py-10 gap-6">
+<div class="text-xl font-black tracking-tighter text-neutral-900 dark:text-neutral-50">CHRONICLE</div>
+<nav class="flex gap-8">
+<a class="font-['Epilogue'] text-[10px] tracking-[0.2em] uppercase text-neutral-400 dark:text-neutral-500 hover:text-[#8DAA91] transition-colors" href="#">INSTAGRAM</a>
+<a class="font-['Epilogue'] text-[10px] tracking-[0.2em] uppercase text-neutral-400 dark:text-neutral-500 hover:text-[#8DAA91] transition-colors" href="#">TWITTER</a>
+<a class="font-['Epilogue'] text-[10px] tracking-[0.2em] uppercase text-neutral-400 dark:text-neutral-500 hover:text-[#8DAA91] transition-colors" href="#">LINKEDIN</a>
+<a class="font-['Epilogue'] text-[10px] tracking-[0.2em] uppercase text-neutral-400 dark:text-neutral-500 hover:text-[#8DAA91] transition-colors" href="#">RSS</a>
+</nav>
+<div class="font-['Epilogue'] text-[10px] tracking-[0.2em] uppercase text-neutral-900 dark:text-neutral-50 opacity-60">
+            © 2024 CHRONICLE. ALL RIGHTS RESERVED.
+        </div>
+</footer>
+</body></html>

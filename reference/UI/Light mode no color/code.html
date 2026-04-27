@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;500;600;700;800;900&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-container-lowest": "#ffffff",
+                    "tertiary-container": "#1c1b1a",
+                    "tertiary-fixed-dim": "#cac6c4",
+                    "on-surface": "#1c1b1b",
+                    "tertiary-fixed": "#e6e2df",
+                    "tertiary": "#000000",
+                    "error": "#ba1a1a",
+                    "surface": "#fdf8f8",
+                    "outline-variant": "#c4c7c7",
+                    "on-tertiary-fixed": "#1c1b1a",
+                    "on-primary-fixed": "#1c1b1b",
+                    "outline": "#747878",
+                    "on-secondary-fixed-variant": "#2b4963",
+                    "surface-tint": "#5f5e5e",
+                    "surface-container": "#f1edec",
+                    "surface-variant": "#e5e2e1",
+                    "secondary-container": "#c1e0ff",
+                    "on-secondary-fixed": "#001d31",
+                    "inverse-surface": "#313030",
+                    "primary-container": "#1c1b1b",
+                    "on-background": "#1c1b1b",
+                    "primary-fixed": "#e5e2e1",
+                    "primary-fixed-dim": "#c8c6c5",
+                    "surface-dim": "#ddd9d8",
+                    "on-tertiary-fixed-variant": "#484645",
+                    "on-tertiary": "#ffffff",
+                    "on-error-container": "#93000a",
+                    "secondary-fixed-dim": "#abcae8",
+                    "secondary": "#43617c",
+                    "inverse-on-surface": "#f4f0ef",
+                    "secondary-fixed": "#cce5ff",
+                    "on-primary-container": "#858383",
+                    "on-surface-variant": "#444748",
+                    "on-error": "#ffffff",
+                    "on-primary": "#ffffff",
+                    "surface-bright": "#fdf8f8",
+                    "on-secondary": "#ffffff",
+                    "primary": "#000000",
+                    "on-primary-fixed-variant": "#474746",
+                    "inverse-primary": "#c8c6c5",
+                    "surface-container-high": "#ebe7e6",
+                    "on-secondary-container": "#46647e",
+                    "surface-container-highest": "#e5e2e1",
+                    "on-tertiary-container": "#868382",
+                    "background": "#fdf8f8",
+                    "error-container": "#ffdad6",
+                    "surface-container-low": "#f7f3f2"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0px",
+                    "lg": "0px",
+                    "xl": "0px",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "sm": "16px",
+                    "margin": "40px",
+                    "xs": "4px",
+                    "md": "32px",
+                    "lg": "64px",
+                    "gutter": "24px",
+                    "base": "8px",
+                    "xl": "128px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Epilogue"],
+                    "display-xl": ["Epilogue"],
+                    "body-md": ["Newsreader"],
+                    "body-lg": ["Newsreader"],
+                    "headline-lg": ["Epilogue"],
+                    "label-bold": ["Epilogue"],
+                    "label-sm": ["Epilogue"]
+            },
+            "fontSize": {
+                    "headline-md": ["32px", {"lineHeight": "110%", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "display-xl": ["84px", {"lineHeight": "90%", "letterSpacing": "-0.04em", "fontWeight": "800"}],
+                    "body-md": ["18px", {"lineHeight": "160%", "fontWeight": "400"}],
+                    "body-lg": ["22px", {"lineHeight": "160%", "fontWeight": "400"}],
+                    "headline-lg": ["48px", {"lineHeight": "100%", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "label-bold": ["14px", {"lineHeight": "120%", "fontWeight": "600"}],
+                    "label-sm": ["12px", {"lineHeight": "120%", "fontWeight": "500"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .grid-blueprint {
+            background-image: 
+                linear-gradient(to right, #1c1b1b 1px, transparent 1px),
+                linear-gradient(to bottom, #1c1b1b 1px, transparent 1px);
+            background-size: 100px 100px;
+            opacity: 0.05;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen selection:bg-primary selection:text-white">
+<header class="sticky top-0 z-50 bg-white dark:bg-zinc-950 border-b-2 border-zinc-900 dark:border-zinc-50 flex justify-between items-center w-full px-6 py-4 lg:px-12">
+<div class="font-['Epilogue'] uppercase tracking-tight font-bold text-4xl font-black tracking-tighter text-zinc-900 dark:text-zinc-50">
+            CHRONICLE
+        </div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="font-['Epilogue'] uppercase tracking-tight font-bold text-zinc-900 dark:text-zinc-50 border-b-4 border-zinc-900 dark:border-zinc-50 pb-1" href="#">Essays</a>
+<a class="font-['Epilogue'] uppercase tracking-tight font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50" href="#">Discourse</a>
+<a class="font-['Epilogue'] uppercase tracking-tight font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50" href="#">Archive</a>
+<a class="font-['Epilogue'] uppercase tracking-tight font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50" href="#">About</a>
+</nav>
+<div class="flex items-center gap-4">
+<div class="hidden lg:flex items-center border-b-2 border-zinc-900 px-2 py-1">
+<span class="material-symbols-outlined text-zinc-900" data-icon="search">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-xs font-label-bold uppercase w-32" placeholder="SEARCH" type="text"/>
+</div>
+<button class="hover:bg-zinc-900 hover:text-white dark:hover:bg-zinc-50 dark:hover:text-zinc-950 transition-colors duration-75 p-2">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+</div>
+</header>
+<main class="relative">
+<div class="absolute inset-0 grid-blueprint pointer-events-none"></div>
+<section class="relative px-6 lg:px-12 py-12 lg:py-24 border-b-2 border-zinc-900">
+<div class="grid grid-cols-12 gap-gutter">
+<div class="col-span-12 lg:col-span-8">
+<span class="font-label-bold text-label-bold uppercase text-on-surface-variant mb-4 block tracking-widest">Featured Narrative</span>
+<h1 class="font-display-xl text-display-xl mb-8">The Architecture of Silence in Modern Cities.</h1>
+</div>
+</div>
+</section>
+<section class="px-6 lg:px-12 py-12">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-y-12 md:gap-x-12 relative">
+<div class="md:col-span-7 border-r-0 md:border-r-2 border-zinc-900 pr-0 md:pr-12 pb-12">
+<article class="space-y-6">
+<img class="w-full aspect-[16/9] object-cover grayscale brightness-90" data-alt="dramatic high-contrast black and white photograph of a minimalist concrete building facade with sharp geometric shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuADa5r-jIi2F4JNgr_-_WFnPJzBkFV7kU5NwnopCwyoOpu1H1tqXWBZZoG86p7QrIj2p7vkWM6unHTHZ37EBXtKQHS-HYse97u3O48Zq0CZiFyAbQTJjquduO4fqYWaeuEDoFT2wsrjVe3zI4lkYfKWAS5yONTkqGoY-BnZOP1vLvLIuElgAlTzRsm4lNq9pAQbd-f4ZGLC0Rw4-ut-H90C0fCuB1tfiJi-mhxOLJMchkwMOa_Q6c_9oToGLp_7NyC_zvPaUQfHL2so"/>
+<div class="flex justify-between items-start pt-4">
+<h2 class="font-headline-lg text-headline-lg max-w-xl">A Manifesto for Functional Brutalism.</h2>
+<span class="font-label-sm text-label-sm border-2 border-primary px-3 py-1">01</span>
+</div>
+<p class="font-body-lg text-body-lg text-on-surface-variant leading-relaxed">
+                            Exploring the intersection of raw material and human necessity. Why we are returning to the structural honesty of the mid-century period.
+                        </p>
+<a class="inline-block font-label-bold text-label-bold uppercase border-2 border-primary px-8 py-3 hover:bg-primary hover:text-white transition-all duration-75" href="#">Read Discourse</a>
+</article>
+</div>
+<div class="md:col-span-5 space-y-24">
+<article class="space-y-4">
+<span class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant">Archive / 02</span>
+<img class="w-full aspect-square object-cover grayscale" data-alt="low angle black and white shot of a glass skyscraper reflecting dramatic storm clouds with high tonal contrast" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDlWpiXqCxsgp-9fY6qUdCRlamf9qu6G4eTyk3HGt2ZvsIgxp10PlkQadD_heW9zD_dGQMhLhgd20Df-pfg7c1wkJ7WvV4HLE8XTHWgYIZHa_RUgoM6HpW4lX0kLZtsEPO4BkLe8usDHu0FecIUewjfAL_pCmIWITbGRJXe96QPTlZD9fpJpjG_m7L8InBv6Km0haSeK6CqLO-EO76kGNdDJrdNCqDkszYaPiB_7oJ9kneHGFQhzc9bfc2uEHAxShWTsL8hRAoUyjhx"/>
+<h3 class="font-headline-md text-headline-md">Verticality and the Ego of Iron.</h3>
+<p class="font-body-md text-body-md">The psychological impact of skyscraper design on urban communities.</p>
+</article>
+<div class="border-t-2 border-zinc-900 pt-8">
+<article class="flex flex-col gap-4">
+<span class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant">Essays / 03</span>
+<h3 class="font-headline-md text-headline-md">The Typographic Soul of the Streets.</h3>
+<p class="font-body-md text-body-md">Finding poetry in weathered storefront signs and industrial labeling.</p>
+</article>
+</div>
+</div>
+<div class="md:col-span-12 border-y-4 border-primary py-12 my-12">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12">
+<div class="space-y-2">
+<span class="font-label-bold text-label-bold uppercase opacity-50">Issue No.</span>
+<div class="text-4xl font-black">42</div>
+</div>
+<div class="space-y-2">
+<span class="font-label-bold text-label-bold uppercase opacity-50">Contributors</span>
+<div class="text-4xl font-black">18</div>
+</div>
+<div class="space-y-2">
+<span class="font-label-bold text-label-bold uppercase opacity-50">Word Count</span>
+<div class="text-4xl font-black">12.4K</div>
+</div>
+<div class="space-y-2">
+<span class="font-label-bold text-label-bold uppercase opacity-50">Est. Reading</span>
+<div class="text-4xl font-black">45M</div>
+</div>
+</div>
+</div>
+<div class="md:col-span-4 border-r-2 border-zinc-900 pr-12">
+<article class="space-y-4">
+<img class="w-full aspect-[3/4] object-cover grayscale brightness-75" data-alt="high contrast black and white photo of a spiral staircase looking straight down, creating a hypnotic geometric pattern" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBt3eFpjYXknsCH53OH88r9CqbT6UpJA8U_5toyOaHqK1oUWtvCRmPagoBFIWRwBmPrnNPDDLcVvv1iiLNRWo0G7cDPJIXIcNk5Z-m64TNvJ9MHqlC15mmUYzpw8WhsLirEjOpA9hU1fyelrE55eqW72PizJIxbvxgZiIuy524oNepBG6imqFWa37Y6KROFa0vcgoeyNUvQNxOjeacIKqgd2WUgzntsjdzS9U3EVHxm3zldCxLpoPIy2etFkkgho69_p5KSyrRi6mPk"/>
+<h3 class="font-headline-md text-headline-md">The Infinite Loop.</h3>
+<p class="font-body-md text-body-md italic text-on-surface-variant">"Design is not for philosophy, it's for life."</p>
+</article>
+</div>
+<div class="md:col-span-8 flex flex-col justify-between">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+<article class="space-y-4">
+<span class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant">05 / Material</span>
+<h4 class="font-headline-md text-headline-md">Steel vs. Spirit</h4>
+<p class="font-body-md text-body-md">Comparing industrial resilience with the fragility of human attention in digital spaces.</p>
+</article>
+<article class="space-y-4">
+<span class="font-label-bold text-label-bold uppercase tracking-widest text-on-surface-variant">06 / Void</span>
+<h4 class="font-headline-md text-headline-md">Empty Canvas</h4>
+<p class="font-body-md text-body-md">The necessity of whitespace in an era of information overload and sensory noise.</p>
+</article>
+</div>
+<div class="mt-24 p-12 bg-primary text-white">
+<h2 class="font-headline-lg text-headline-lg mb-8">Join the Discourse. Weekly insights delivered with precision.</h2>
+<div class="flex flex-col md:flex-row gap-4">
+<input class="bg-transparent border-b-2 border-white focus:outline-none placeholder:text-zinc-500 font-label-bold uppercase py-2 flex-grow" placeholder="YOUR@EMAIL.COM" type="email"/>
+<button class="bg-white text-primary px-8 py-3 font-label-bold uppercase hover:bg-zinc-200 transition-colors">Subscribe</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<footer class="bg-white dark:bg-zinc-950 border-t-4 border-zinc-900 dark:border-zinc-50 w-full px-6 py-12 lg:px-12 flex flex-col md:flex-row justify-between items-start gap-8">
+<div class="space-y-6 max-w-md">
+<div class="text-lg font-black text-zinc-900 dark:text-zinc-50">CHRONICLE</div>
+<p class="font-body-md text-body-md">A publication dedicated to the critical examination of structure, space, and the written word in the 21st century.</p>
+<div class="font-['Epilogue'] text-xs font-bold uppercase tracking-widest text-zinc-900 dark:text-zinc-50">
+                © 2024 CHRONICLE EDITORIAL. STRIPPED OF ORNAMENTATION.
+            </div>
+</div>
+<div class="grid grid-cols-2 gap-x-12 gap-y-4">
+<a class="font-['Epilogue'] text-xs font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 hover:italic" href="#">Masthead</a>
+<a class="font-['Epilogue'] text-xs font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 hover:italic" href="#">Twitter</a>
+<a class="font-['Epilogue'] text-xs font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 hover:italic" href="#">Privacy</a>
+<a class="font-['Epilogue'] text-xs font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-50 hover:italic" href="#">RSS</a>
+</div>
+</footer>
+</body></html>

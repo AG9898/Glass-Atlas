@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CHRONICLE: Soft Asymmetry Dark</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@400;500;600;700;900&amp;family=Inter:wght@400;500&amp;family=Space+Grotesk:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "surface-variant": "#353435",
+                    "error-container": "#93000a",
+                    "surface-container-highest": "#353435",
+                    "on-background": "#e5e2e2",
+                    "secondary-fixed": "#f1e0c6",
+                    "surface-container": "#201f20",
+                    "on-tertiary-fixed-variant": "#464839",
+                    "on-surface": "#e5e2e2",
+                    "secondary-fixed-dim": "#d5c4ab",
+                    "on-secondary-fixed-variant": "#504532",
+                    "inverse-on-surface": "#313031",
+                    "on-secondary": "#392f1d",
+                    "on-tertiary-fixed": "#1b1d10",
+                    "on-tertiary": "#303224",
+                    "primary-fixed": "#e2e2ea",
+                    "surface": "#141314",
+                    "surface-container-low": "#1c1b1c",
+                    "tertiary-container": "#9c9d8a",
+                    "surface-container-lowest": "#0e0e0e",
+                    "tertiary": "#c7c8b4",
+                    "on-primary-fixed": "#1a1b21",
+                    "surface-dim": "#141314",
+                    "inverse-primary": "#5d5e65",
+                    "on-primary-fixed-variant": "#45464d",
+                    "secondary": "#d5c4ab",
+                    "on-primary-container": "#32333a",
+                    "secondary-container": "#534834",
+                    "surface-container-high": "#2a2a2a",
+                    "outline-variant": "#46464b",
+                    "error": "#ffb4ab",
+                    "outline": "#919095",
+                    "background": "#141314",
+                    "inverse-surface": "#e5e2e2",
+                    "on-error": "#690005",
+                    "surface-tint": "#c6c6ce",
+                    "on-secondary-fixed": "#231a0a",
+                    "on-tertiary-container": "#333426",
+                    "tertiary-fixed": "#e4e4cf",
+                    "on-primary": "#2f3037",
+                    "surface-bright": "#3a3939",
+                    "primary-fixed-dim": "#c6c6ce",
+                    "tertiary-fixed-dim": "#c7c8b4",
+                    "primary": "#c6c6ce",
+                    "on-error-container": "#ffdad6",
+                    "primary-container": "#9b9ba3",
+                    "on-surface-variant": "#c7c6cb",
+                    "on-secondary-container": "#c6b69e"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0px",
+                    "lg": "0px",
+                    "xl": "0px",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "xl": "64px",
+                    "container-max": "1440px",
+                    "lg": "32px",
+                    "margin": "48px",
+                    "unit": "4px",
+                    "xs": "4px",
+                    "md": "16px",
+                    "sm": "8px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "mono-label": ["Space Grotesk"],
+                    "mono-data": ["Space Grotesk"],
+                    "body-sm": ["Inter"],
+                    "body-main": ["Inter"],
+                    "headline-h2": ["Epilogue"],
+                    "headline-h1": ["Epilogue"],
+                    "display": ["Epilogue"]
+            },
+            "fontSize": {
+                    "mono-label": ["12px", {"lineHeight": "1", "letterSpacing": "0.1em", "fontWeight": "500"}],
+                    "mono-data": ["14px", {"lineHeight": "1.4", "letterSpacing": "0em", "fontWeight": "400"}],
+                    "body-sm": ["14px", {"lineHeight": "1.5", "letterSpacing": "0em", "fontWeight": "400"}],
+                    "body-main": ["16px", {"lineHeight": "1.6", "letterSpacing": "0em", "fontWeight": "400"}],
+                    "headline-h2": ["32px", {"lineHeight": "1.3", "letterSpacing": "-0.01em", "fontWeight": "500"}],
+                    "headline-h1": ["48px", {"lineHeight": "1.2", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                    "display": ["72px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+            font-size: 20px;
+        }
+        .grid-line-v { width: 1px; background-color: #2D2D2D; position: absolute; top: 0; bottom: 0; }
+        .grid-line-h { height: 1px; background-color: #2D2D2D; width: 100%; }
+        .accent-border { border: 1px solid #9B9BA3; }
+        .accent-bg { background-color: #9B9BA3; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-main selection:bg-primary-container selection:text-surface">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 bg-neutral-50 dark:bg-neutral-950 border-b border-neutral-900 dark:border-neutral-50">
+<div class="flex flex-col items-center w-full px-6 md:px-12">
+<h1 class="text-4xl md:text-6xl font-black tracking-tighter text-neutral-900 dark:text-neutral-50 py-4">CHRONICLE</h1>
+<nav class="hidden md:flex w-full justify-between items-center pb-4">
+<div class="flex gap-8">
+<a class="font-['Epilogue'] font-medium uppercase tracking-widest text-xs text-neutral-900 dark:text-neutral-50 border-b-2 border-neutral-900 dark:border-neutral-50 pb-1 hover:bg-[#8DAA91] hover:text-white transition-all duration-75 active:translate-x-0.5 active:translate-y-0.5" href="#">ESSAYS</a>
+<a class="font-['Epilogue'] font-medium uppercase tracking-widest text-xs text-neutral-500 dark:text-neutral-400 hover:bg-[#8DAA91] hover:text-white transition-all duration-75 active:translate-x-0.5 active:translate-y-0.5" href="#">DISCOURSE</a>
+<a class="font-['Epilogue'] font-medium uppercase tracking-widest text-xs text-neutral-500 dark:text-neutral-400 hover:bg-[#8DAA91] hover:text-white transition-all duration-75 active:translate-x-0.5 active:translate-y-0.5" href="#">ARCHIVE</a>
+<a class="font-['Epilogue'] font-medium uppercase tracking-widest text-xs text-neutral-500 dark:text-neutral-400 hover:bg-[#8DAA91] hover:text-white transition-all duration-75 active:translate-x-0.5 active:translate-y-0.5" href="#">ABOUT</a>
+</div>
+<div class="flex gap-6">
+<span class="material-symbols-outlined cursor-pointer text-neutral-900 dark:text-neutral-50" data-icon="search">search</span>
+<span class="material-symbols-outlined cursor-pointer text-neutral-900 dark:text-neutral-50" data-icon="menu">menu</span>
+</div>
+</nav>
+</div>
+</header>
+<main class="pt-[160px] md:pt-[220px] relative min-h-screen overflow-x-hidden">
+<!-- Structural Background Grids -->
+<div class="fixed inset-0 pointer-events-none z-0 opacity-20">
+<div class="grid-line-v left-1/4"></div>
+<div class="grid-line-v left-1/2"></div>
+<div class="grid-line-v left-3/4"></div>
+</div>
+<!-- Hero Section: Asymmetric & Experimental -->
+<section class="relative z-10 px-margin mb-xl">
+<div class="grid grid-cols-12 gap-gutter">
+<!-- Large Vertical Title -->
+<div class="col-span-12 md:col-span-1 flex flex-col justify-end">
+<span class="font-mono-label text-mono-label text-primary rotate-180 [writing-mode:vertical-lr] mb-md">ISSUE NO. 04 // 2024</span>
+</div>
+<!-- Central Content Cluster -->
+<div class="col-span-12 md:col-span-7 flex flex-col gap-lg">
+<div class="relative">
+<h2 class="font-display text-display text-on-surface leading-[0.9] tracking-tighter">
+                            THE SILENCE <br/>
+<span class="text-primary-container ml-lg">OF FORM</span>
+</h2>
+<!-- Injected text breaking grid -->
+<p class="absolute -bottom-8 -right-12 md:right-0 max-w-[280px] font-mono-data text-mono-data text-outline italic bg-surface p-4 border border-outline-variant">
+                            "Architecture starts when you carefully put two bricks together. There it begins."
+                        </p>
+</div>
+<div class="mt-xl flex flex-col gap-md">
+<div class="flex items-center gap-sm">
+<span class="w-12 h-[1px] bg-primary"></span>
+<span class="font-mono-label text-mono-label uppercase text-primary">Featured Essay</span>
+</div>
+<p class="font-body-main text-on-surface-variant max-w-xl">
+                            Exploring the intersection of brutalist honesty and the ethereal nature of light in modern digital sanctuaries. A study on how void space defines presence.
+                        </p>
+<button class="w-fit px-lg py-sm accent-border font-mono-label uppercase text-on-surface hover:bg-primary-container hover:text-surface transition-colors active:translate-x-1 active:translate-y-1">
+                            Read the manuscript
+                        </button>
+</div>
+</div>
+<!-- Atmospheric Image -->
+<div class="col-span-12 md:col-span-4 mt-lg md:mt-0">
+<div class="aspect-[3/4] border border-outline-variant p-2 overflow-hidden bg-surface-container-low group">
+<img class="w-full h-full object-cover grayscale brightness-75 group-hover:scale-105 transition-transform duration-700" data-alt="Monochrome architectural shot of a brutalist concrete building with sharp diagonal shadows and clear sky" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAO1GLSlA7WHF2DJD8XRudkdSdx7cbO7u_qecB-QMnW4cgxuKGe2W2ImDVXDOGPUGGhxGWvVEIHI7huHvzU42IKjCo2vkARc7V_EcmoNhtJvVhB8_Y_z_xP21aYA6LWQBMk2KEaDg99po0IYlHCFOggNh4DFnP29F_g7UE1gfO4TFo9BzhuVQIdea9h8bq9oZDahJMkSNJ4vn7t2dGeJ8yW6IK1l6CHHkhsYwB0nf1d-d1VOGCXLB-5gNrfpJFVyCwcpGELCYw2yHRy"/>
+</div>
+<div class="flex justify-between mt-sm">
+<span class="font-mono-label text-[10px] text-outline uppercase tracking-widest">Plate 01 // Structural Voids</span>
+<span class="font-mono-label text-[10px] text-outline">48.8566° N</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Asymmetric Grid Section -->
+<section class="relative z-10 px-margin py-xl border-t border-outline-variant">
+<div class="grid grid-cols-12 gap-gutter">
+<!-- Left Column: Small Entry -->
+<div class="col-span-12 md:col-span-3 flex flex-col gap-md pt-xl">
+<div class="aspect-square border border-outline-variant bg-surface-container overflow-hidden">
+<img class="w-full h-full object-cover grayscale opacity-50" data-alt="Close-up black and white texture of raw concrete with fine dust and geometric shadows" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBw_yipJX96KxeKNaa1uMCayVWquaiCZwNF-rGs-Ep2EyWkXM5gnpBaFlyRmX4LSCb2r-ED12rfCE1ZYlbH6cyYN_uFR8uIkVmhvDVF3L_snCAZMOJMjnXER4ki7Rpr9pKTUW0Gx3hR1zmXLGd1ycIWjwzENLq0e9O2IESMCrnxIqXGWh1xI254a_7DO5AdyfR_ToytNuh2dCCO8xin2aTB_CMfjzMNpdHAoF-2sNwZs_7vSnawaEmw53OdLOrbFCXiVrTtdEp4WkFo"/>
+</div>
+<div class="flex flex-col">
+<span class="font-mono-label text-mono-label text-primary uppercase mb-xs">Abstract</span>
+<h3 class="font-headline-h2 text-[20px] text-on-surface uppercase leading-tight mb-sm">The Texture of Nothingness</h3>
+<p class="font-body-sm text-on-surface-variant line-clamp-3">A journey through tactile minimalism and the philosophy of the unadorned surface.</p>
+</div>
+</div>
+<!-- Middle Column: Large Image + Overlapping Text -->
+<div class="col-span-12 md:col-span-6 relative">
+<div class="aspect-video w-full bg-surface-container-high border border-outline-variant overflow-hidden">
+<img class="w-full h-full object-cover grayscale" data-alt="Wide angle black and white shot of a minimalist gallery space with a single bench and dramatic window light" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBDPeAxZtbhawgqMui6TD9ALln32NmpAQFgd3BOpeeul75AZv89NTstn8FbTAJBw44LCcYYirRlGJFRmphG-xeyZY6UPLlmrybwNBgnYiub9u5wbK2F2f1mC8gP-xPVbiI9sQRWlEndt_KJd-RWrjfZ32lEBM8F-t7CCQYDuWbcsesUHlBif8_B6cFgHCccr0n2tl2o-sbhq9Ubk4iv43JDqmVCSex8eoCp1vx1MIYvN_BJnweO76qs_XnaWNvza2msZ8kOq2Li_Dk2"/>
+</div>
+<!-- Overlapping card -->
+<div class="md:absolute -bottom-12 -left-12 bg-surface border border-primary-container p-lg max-w-sm mt-md md:mt-0">
+<div class="flex gap-2 items-center mb-md">
+<span class="w-2 h-2 bg-primary"></span>
+<span class="font-mono-label text-mono-label uppercase tracking-widest">Longform</span>
+</div>
+<h4 class="font-headline-h2 text-on-surface mb-md">RECLAIMING THE PERIPHERY</h4>
+<p class="font-body-sm text-on-surface-variant mb-lg">How peripheral vision influences our spatial perception within digital interfaces.</p>
+<a class="font-mono-label text-primary uppercase flex items-center gap-sm group" href="#">
+                            Full Discourse 
+                            <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Right Column: List of Archive Pieces -->
+<div class="col-span-12 md:col-span-3 flex flex-col gap-lg border-l border-outline-variant pl-lg">
+<div class="flex flex-col">
+<span class="font-mono-label text-primary mb-md">// ARCHIVE SELECTS</span>
+<ul class="flex flex-col gap-md">
+<li class="group cursor-pointer">
+<span class="font-mono-label text-[10px] text-outline">01.04.24</span>
+<p class="font-mono-data text-on-surface uppercase group-hover:text-primary transition-colors">THE MONOLITHIC WEB</p>
+</li>
+<li class="grid-line-h opacity-50"></li>
+<li class="group cursor-pointer">
+<span class="font-mono-label text-[10px] text-outline">28.03.24</span>
+<p class="font-mono-data text-on-surface uppercase group-hover:text-primary transition-colors">BRUTALIST ACCENTS</p>
+</li>
+<li class="grid-line-h opacity-50"></li>
+<li class="group cursor-pointer">
+<span class="font-mono-label text-[10px] text-outline">15.03.24</span>
+<p class="font-mono-data text-on-surface uppercase group-hover:text-primary transition-colors">LINEAR RHYTHMS</p>
+</li>
+</ul>
+</div>
+<div class="mt-auto pt-xl">
+<div class="accent-bg h-1 w-12 mb-sm"></div>
+<p class="font-body-sm text-outline italic">
+                            All content is curated for the discerning mind. Every pixel follows the grid.
+                        </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Newsletter / CTA: Minimalist Block -->
+<section class="px-margin py-xl bg-surface-container-low border-y border-outline-variant my-xl">
+<div class="max-w-screen-md mx-auto flex flex-col items-center text-center gap-lg">
+<span class="font-mono-label text-primary uppercase tracking-[0.4em]">Dispatch Subscription</span>
+<h2 class="font-display text-headline-h1 text-on-surface uppercase leading-none">JOIN THE DISCOURSE</h2>
+<p class="font-body-main text-on-surface-variant">A weekly synthesis of architectural thought, design ethics, and cultural shifts delivered directly to your consciousness.</p>
+<div class="w-full flex flex-col md:flex-row gap-xs mt-md">
+<input class="flex-1 bg-surface border-b border-primary-container p-md font-mono-data focus:border-primary focus:ring-0 text-on-surface outline-none placeholder:text-outline-variant" placeholder="ADDRESS@DOMAIN.COM" type="email"/>
+<button class="bg-primary-container text-surface font-mono-label uppercase px-xl py-md hover:bg-primary transition-colors">Subscribe</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="w-full border-t border-neutral-900 dark:border-neutral-50 mt-12">
+<div class="flex flex-col md:flex-row justify-between items-center w-full px-6 py-10 gap-6">
+<div class="text-xl font-black tracking-tighter text-neutral-900 dark:text-neutral-50 uppercase">CHRONICLE</div>
+<div class="flex gap-8">
+<a class="font-['Epilogue'] text-[10px] tracking-[0.2em] uppercase text-neutral-400 dark:text-neutral-500 hover:text-[#8DAA91] transition-colors" href="#">INSTAGRAM</a>
+<a class="font-['Epilogue'] text-[10px] tracking-[0.2em] uppercase text-neutral-400 dark:text-neutral-500 hover:text-[#8DAA91] transition-colors" href="#">TWITTER</a>
+<a class="font-['Epilogue'] text-[10px] tracking-[0.2em] uppercase text-neutral-400 dark:text-neutral-500 hover:text-[#8DAA91] transition-colors" href="#">LINKEDIN</a>
+<a class="font-['Epilogue'] text-[10px] tracking-[0.2em] uppercase text-neutral-400 dark:text-neutral-500 hover:text-[#8DAA91] transition-colors" href="#">RSS</a>
+</div>
+<div class="font-['Epilogue'] text-[10px] tracking-[0.2em] uppercase text-neutral-900 dark:text-neutral-50">
+                © 2024 CHRONICLE. ALL RIGHTS RESERVED.
+            </div>
+</div>
+</footer>
+</body></html>

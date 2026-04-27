@@ -6,19 +6,6 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 
 ## Open Decisions
 
-### OPEN-01 — Wikilinks Implementation Approach
-
-**Question:** How should `[[wikilink]]` syntax be parsed, resolved, and stored — at render time, in a persistent link table, or both?
-**Context:** The plan defers wikilinks to a later phase and notes two viable approaches: inline parsing at render time versus a `note_links` join table. The choice affects whether backlinks and a graph view are feasible without a schema migration later. The `note_links` table design is already anticipated in the schema notes.
-**Options under consideration:**
-1. **Parse at render time** — Process `[[slug]]` syntax in the markdown renderer on every page load, resolving slugs to `/notes/[slug]` links. Tradeoff: Zero schema changes, but backlinks and graph view are not possible without a full-table scan on every request.
-2. **Maintain a `note_links` join table** — Populate `(source_id, target_id)` rows on note save. Tradeoff: Enables backlinks and graph view efficiently, but requires a migration and update logic on every note write.
-3. **Both — render-time parsing and link table** — Parse inline for display and also write to `note_links` for backlinks and graph. Tradeoff: Full capability, but most implementation work; table and renderer must stay in sync.
-**Blocking:** Nothing currently blocked. Wikilinks are not in Phase 1–5 scope.
-**See also:** ARCHITECTURE.md (schema notes), PRD.md
-
----
-
 ### OPEN-02 — Rate Limiting Implementation
 
 **Question:** How should per-IP rate limiting be enforced on the chat endpoint — via a Neon counter table, Upstash Redis, or an in-memory Map?
@@ -45,6 +32,36 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 ---
 
 ## Resolved Decisions
+
+### RESOLVED-08 — Wiki-link Implementation Approach (Both Render-time + Link Table)
+
+**Resolved:** 2026-04-27
+**Decision:** Option 3 — parse `[[slug]]` / `[[slug|text]]` at render time for display and maintain the `note_links` join table for backlinks and graph capability.
+**Why:** Render-time parsing alone cannot support backlinks or graph views without a full-table scan on every request. The join table enables `getBacklinks()` and `getOutlinks()` efficiently. The extra write cost (one `syncNoteLinks()` call per note save) is negligible for a single-author blog.
+**Alternatives rejected:** Render-time-only was rejected because it makes backlinks impractical at scale. Link-table-only was rejected because a render-time fallback is still needed for forward references (target note may not exist yet).
+**Affects:** `src/lib/utils/wiki-links.ts`, `src/lib/server/db/notes.ts` (`syncNoteLinks`), `src/lib/server/db/schema.ts` (`note_links` table), ARCHITECTURE.md
+
+---
+
+### RESOLVED-09 — Admin Markdown Editor: CodeMirror 6 + Split-Pane
+
+**Resolved:** 2026-04-27
+**Decision:** Use CodeMirror 6 with `@codemirror/lang-markdown` as the admin note editor, displayed as a split-pane layout (markdown source left, rendered preview right). TipTap WYSIWYG was rejected.
+**Why:** Note bodies are stored and processed as raw markdown throughout the pipeline — `parseWikiLinks`, `renderWikiLinks`, and the embedding pipeline all operate on the raw string. CodeMirror sources markdown natively with no serialization round-trip. The `@codemirror/autocomplete` package provides a first-class API for the `[[` wiki-link completion trigger. The split-pane tradeoff (author sees syntax) is acceptable for a single-author admin tool where source precision is more valuable than WYSIWYG feel.
+**Alternatives rejected:** TipTap was rejected because its `@tiptap/extension-markdown` serialization layer adds a format conversion step with no benefit here, and its Svelte 5 integration requires more boilerplate. Plain textarea + split-pane was rejected because it offers no wiki-link autocomplete without significant custom work.
+**Affects:** ARCHITECTURE.md, CONVENTIONS.md, `src/lib/components/MarkdownEditor.svelte` (to be created), admin note form routes
+
+---
+
+### RESOLVED-10 — LLM Note Critique: Free OpenRouter Model, Non-Blocking
+
+**Resolved:** 2026-04-27
+**Decision:** Add an optional "Review" button to the admin editor that streams an LLM critique of the note body via `POST /api/admin/notes/[slug]/review`, using a free-tier OpenRouter model (e.g. `google/gemini-2.0-flash-exp:free`). Critique is never a gate on saving or publishing.
+**Why:** A single author triggers at most a handful of reviews per day — well within the 200 req/day free-tier limit. Making critique optional and non-blocking means free model unavailability or rate-limit hits (`429`, `503`) never interrupt the authoring flow. Paid models were rejected for a quality-of-life feature on a personal tool.
+**Alternatives rejected:** Blocking save on critique was rejected — it couples publishing to free model availability. Running critique on every save automatically was rejected as wasteful and disruptive to flow.
+**Affects:** ARCHITECTURE.md, CONVENTIONS.md, `src/lib/server/ai/review.ts` (to be created), `src/routes/api/admin/notes/[slug]/review/+server.ts` (to be created)
+
+---
 
 ### RESOLVED-06 — Database Schema Strategy (Shared Neon, Separate Postgres Schema)
 

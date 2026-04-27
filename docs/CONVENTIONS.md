@@ -160,6 +160,56 @@ export const POST: RequestHandler = async ({ request }) => {
 
 **Slugs** — always generate via `src/lib/utils/slugify.ts`. Never construct slugs by hand.
 
+**CodeMirror 6 wiring** — initialize the CodeMirror `EditorView` inside `onMount` and tear it down in the returned cleanup function (or `$effect` cleanup). Svelte `$state` holds only the serialized markdown string; sync it from CodeMirror via an `updateListener` extension on every document change. Never wrap the `EditorView` instance in a Svelte store or reactive variable — it is not serializable.
+
+```svelte
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { EditorView, basicSetup } from 'codemirror';
+  import { markdown } from '@codemirror/lang-markdown';
+
+  let { value = $bindable('') }: { value: string } = $props();
+  let container: HTMLDivElement;
+
+  onMount(() => {
+    const view = new EditorView({
+      doc: value,
+      extensions: [
+        basicSetup,
+        markdown(),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) value = update.state.doc.toString();
+        }),
+      ],
+      parent: container,
+    });
+    return () => view.destroy();
+  });
+</script>
+
+<div bind:this={container}></div>
+```
+
+**Wiki-link autocomplete (CodeMirror)** — register a `CompletionSource` from `@codemirror/autocomplete` that triggers on `[[`. The completion item list is the full set of note `{ slug, title }` pairs, injected as a prop from `+page.server.ts` (fetched once on load, not on every keystroke). On completion, insert `[[slug]]` and advance the cursor past the closing `]]`.
+
+```ts
+import { autocompletion, type CompletionSource } from '@codemirror/autocomplete';
+
+function wikiLinkCompletions(notes: { slug: string; title: string }[]): CompletionSource {
+  return (context) => {
+    const match = context.matchBefore(/\[\[[^\]]*$/);
+    if (!match) return null;
+    const query = match.text.slice(2).toLowerCase();
+    return {
+      from: match.from + 2,
+      options: notes
+        .filter((n) => n.slug.includes(query) || n.title.toLowerCase().includes(query))
+        .map((n) => ({ label: n.slug, detail: n.title, apply: `${n.slug}]]` })),
+    };
+  };
+}
+```
+
 ### UI Primitives and Motion
 
 - Prefer Bits wrappers in local component files (for example under `src/lib/components/ui/`) rather than ad-hoc route-level usage.
@@ -269,6 +319,13 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 
 - All LLM calls go through `openrouter.ts`. Never call the OpenRouter API directly from `chat.ts` or route files.
 - The adapter exposes an OpenAI-compatible interface (streaming `chat.completions.create`).
+
+### Note Critique (`src/lib/server/ai/review.ts`)
+
+- The critique endpoint uses a free-tier OpenRouter model (`google/gemini-2.0-flash-exp:free` or equivalent). Never use a paid model for this feature.
+- The route handler must forward `429` (rate limited) and `503` (model unavailable) status codes to the client as-is — never silently swallow them or return a generic 500.
+- The client component must display a user-visible error when the review stream fails; never silently fail.
+- Critique is always optional. Never gate note save or publish on a successful review response.
 
 ---
 

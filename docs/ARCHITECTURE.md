@@ -39,6 +39,7 @@ The server is a persistent Bun process. In-memory state survives between request
 - `chat.ts` — builds the RAG prompt, calls OpenRouter for streaming completions, returns a `ReadableStream`
 - `embeddings.ts` — calls OpenRouter embedding endpoint; returns `vector(1536)`
 - `personality.ts` — exports the system prompt personality block as a string constant; never inlined elsewhere
+- `ai/review.ts` — builds the note critique prompt, calls a free-tier OpenRouter model, returns a `ReadableStream`; never reads from or writes to the database
 
 **Does not:** run in the browser; none of these modules are imported by client components
 
@@ -47,6 +48,7 @@ The server is a persistent Bun process. In-memory state survives between request
 - `POST /api/chat` — public; accepts `{ query, session_id, conversation_id? }`; embeds query, runs cosine similarity search, streams LLM response via SSE; rate-limited to 10 messages per IP per hour
 - `POST /api/admin/notes` — admin-only; creates a note row and generates + stores its embedding
 - `PATCH /api/admin/notes/[slug]` — admin-only; updates a note row and regenerates its embedding
+- `POST /api/admin/notes/[slug]/review` — admin-only; accepts the current note body; calls `ai/review.ts`; streams critique via SSE; does not read from or write to the database; free-tier OpenRouter model; returns `429` or `503` transparently when the model is unavailable
 
 ### Auth middleware (`src/hooks.server.ts`)
 
@@ -58,6 +60,7 @@ The server is a persistent Bun process. In-memory state survives between request
 
 - Render UI only; send fetch/SSE requests to API routes
 - Chat component manages optimistic UI state ("searching notes…"), token streaming, and citation link rendering
+- `MarkdownEditor.svelte` — CodeMirror 6 split-pane editor for the admin note form; left pane is the CodeMirror instance (initialized via `onMount`, torn down in `$effect` cleanup); right pane is a reactive preview rendered with `renderWikiLinks()`; note slug list for `[[` autocomplete is injected as a prop from `+page.server.ts`
 - No direct access to DB, LLM, or secrets
 
 ---

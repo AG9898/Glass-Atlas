@@ -97,10 +97,10 @@
       ]
     },
     {
-      "id": "ADMIN-01",
+      "id": "ADMIN-01a",
       "group_id": "ADMIN",
-      "title": "Notes DB query layer",
-      "description": "Implement all CRUD and search helpers in src/lib/server/db/notes.ts. Functions: listNotes(filter?: { topic?: string, status?: 'draft'|'published', q?: string }), getNoteBySlug(slug: string), createNote(data: CreateNoteInput), updateNote(slug: string, data: UpdateNoteInput), deleteNote(slug: string), searchNotesBySimilarity(embedding: number[], limit: number), recordCitations(slugs: string[]): Promise<void> (bulk-inserts one citation_events row per slug), getTotalCitations(): Promise<number> (returns COUNT(*) from citation_events). All functions must return typed plain objects — never raw Drizzle ORM objects. Similarity search uses Drizzle's sql template tag for the pgvector cosine distance operator (<=>). The q param in listNotes filters notes where title ILIKE '%q%' OR any element of tags ILIKE '%q%'. Export corresponding TypeScript types (Note, CreateNoteInput, UpdateNoteInput).",
+      "title": "Notes DB query layer — CRUD helpers",
+      "description": "Implement core CRUD helpers in src/lib/server/db/notes.ts. Functions: listNotes(filter?: { topic?: string, status?: 'draft'|'published', q?: string }), getNoteBySlug(slug: string), createNote(data: CreateNoteInput), updateNote(slug: string, data: UpdateNoteInput), deleteNote(slug: string). All functions must return typed plain objects — never raw Drizzle ORM objects. The q param in listNotes filters notes where title ILIKE '%q%' OR any element of tags ILIKE '%q%'. Export corresponding TypeScript types (Note, CreateNoteInput, UpdateNoteInput). Leave stub exports for searchNotesBySimilarity, recordCitations, and getTotalCitations — these are implemented in ADMIN-01b.",
       "status": "todo",
       "priority": "high",
       "depends_on": [
@@ -113,10 +113,36 @@
         "createNote() inserts and returns the created note",
         "updateNote() patches specified fields and returns the updated note",
         "deleteNote() removes the row",
-        "searchNotesBySimilarity() returns notes ordered by cosine distance",
+        "listNotes() filters by q with case-insensitive title and tag matching when provided",
+        "All return types are typed plain objects, no raw Drizzle types leaked",
+        "npm run lint passes"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md"
+      ],
+      "files": [
+        "src/lib/server/db/notes.ts"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "ADMIN-01b",
+      "group_id": "ADMIN",
+      "title": "Notes DB query layer — similarity search + citations",
+      "description": "Extend src/lib/server/db/notes.ts (built in ADMIN-01a) with the advanced query functions. Functions: searchNotesBySimilarity(embedding: number[], limit: number), recordCitations(slugs: string[]): Promise<void> (bulk-inserts one citation_events row per slug), getTotalCitations(): Promise<number> (returns COUNT(*) from citation_events). Similarity search uses Drizzle's sql template tag for the pgvector cosine distance operator (<=>). All functions must return typed plain objects.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "ADMIN-01a"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "searchNotesBySimilarity() returns notes ordered by cosine distance using the <=> operator",
         "recordCitations() bulk-inserts one citation_events row per slug passed",
         "getTotalCitations() returns the total COUNT(*) from citation_events",
-        "listNotes() filters by q with case-insensitive title and tag matching when provided",
         "All return types are typed plain objects, no raw Drizzle types leaked",
         "npm run lint passes"
       ],
@@ -140,7 +166,7 @@
       "priority": "high",
       "depends_on": [
         "SCAFFOLD-02",
-        "ADMIN-01"
+        "ADMIN-01a"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -195,25 +221,23 @@
       ]
     },
     {
-      "id": "ADMIN-04",
+      "id": "ADMIN-04a",
       "group_id": "ADMIN",
-      "title": "Admin note create and edit form pages",
-      "description": "Create +page.server.ts and +page.svelte for both /admin/notes/new and /admin/notes/[slug]/edit. Layout: two-column matching reference/UI/design_handoff_glass_atlas/Admin note editor dark.png — left column (title input, takeaway input, MarkdownEditor for body, tags multi-input, category select from note-taxonomy.ts), right sidebar (publishedAt date picker, status selector, series input, cover media URL input that maps to the `image` column — author can paste a JPEG/PNG/SVG/GIF/MP4 URL directly). Top bar: breadcrumb showing note title, DRAFT/PUBLISHED status badge, PREVIEW button (links to /notes/[slug]), SAVE DRAFT button, PUBLISH button. Slug auto-generated from title via src/lib/utils/slugify.ts on create. Form actions: create (new page), update, publish (sets status to published). After create, redirect to the edit page for the new slug. First-party upload control wiring is handled in ADMIN-07.",
+      "title": "Admin note create page",
+      "description": "Create src/routes/admin/notes/new/+page.server.ts and +page.svelte. Layout: two-column matching reference/UI/design_handoff_glass_atlas/Admin note editor dark.png — left column (title input, takeaway input, MarkdownEditor for body, tags multi-input, category select from note-taxonomy.ts), right sidebar (publishedAt date picker, status selector, series input, cover media URL input that maps to the `image` column — author can paste a JPEG/PNG/SVG/GIF/MP4 URL directly). Form action: create — slug auto-generated from title via src/lib/utils/slugify.ts. After create, redirect to the edit page for the new slug. First-party upload control wiring is handled in ADMIN-07.",
       "status": "todo",
       "priority": "high",
       "depends_on": [
-        "ADMIN-01",
+        "ADMIN-01a",
         "ADMIN-03"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
         "New note form creates a note and redirects to its edit page",
-        "Edit form loads existing note data into all fields",
-        "Save Draft updates the note without changing status",
-        "Publish action sets status to published",
-        "Breadcrumb shows note title and current status badge",
+        "Slug is auto-generated from the title via slugify.ts",
+        "All left-column and right-sidebar fields are present and functional",
+        "Cover media URL input saves to the `image` column",
         "Two-column layout matches the admin design reference",
-        "Cover media URL input appears in the right sidebar and saves to the `image` column",
         "npm run lint and npm run test:run pass"
       ],
       "docs": [
@@ -222,7 +246,38 @@
       ],
       "files": [
         "src/routes/admin/notes/new/+page.server.ts",
-        "src/routes/admin/notes/new/+page.svelte",
+        "src/routes/admin/notes/new/+page.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "ADMIN-04b",
+      "group_id": "ADMIN",
+      "title": "Admin note edit page + top bar",
+      "description": "Create src/routes/admin/notes/[slug]/edit/+page.server.ts and +page.svelte. Load existing note data into all fields using the same two-column layout as ADMIN-04a. Top bar: breadcrumb showing note title, DRAFT/PUBLISHED status badge, PREVIEW button (links to /notes/[slug]), SAVE DRAFT button, PUBLISH button. Form actions: update (patches fields, preserves status), publish (sets status to published). Match reference/UI/design_handoff_glass_atlas/Admin note editor dark.png. First-party upload control wiring is handled in ADMIN-07.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "ADMIN-04a"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Edit form loads existing note data into all fields",
+        "Save Draft updates the note without changing status",
+        "Publish action sets status to published",
+        "Breadcrumb shows note title and current status badge",
+        "PREVIEW button links to /notes/[slug]",
+        "Top bar and two-column layout match the admin design reference",
+        "npm run lint and npm run test:run pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
         "src/routes/admin/notes/[slug]/edit/+page.server.ts",
         "src/routes/admin/notes/[slug]/edit/+page.svelte"
       ],
@@ -235,11 +290,11 @@
       "id": "ADMIN-05",
       "group_id": "ADMIN",
       "title": "Embedding generation on note save",
-      "description": "Implement src/lib/server/embeddings.ts exporting embedText(text: string): Promise<number[]>. Call the OpenRouter embeddings endpoint (POST to the OpenAI-compatible /embeddings route) with the note body text. In the ADMIN-04 create and update form actions, call embedText(body) after saving the note row and update the note's embedding column. If the OpenRouter call fails, log the error but do not block the save — the note saves with a null embedding. Read OPENROUTER_API_KEY from $env/dynamic/private.",
+      "description": "Implement src/lib/server/embeddings.ts exporting embedText(text: string): Promise<number[]>. Call the OpenRouter embeddings endpoint (POST to the OpenAI-compatible /embeddings route) with the note body text. In the ADMIN-04a create and ADMIN-04b update form actions, call embedText(body) after saving the note row and update the note's embedding column. If the OpenRouter call fails, log the error but do not block the save — the note saves with a null embedding. Read OPENROUTER_API_KEY from $env/dynamic/private.",
       "status": "todo",
       "priority": "high",
       "depends_on": [
-        "ADMIN-04"
+        "ADMIN-04b"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -272,7 +327,7 @@
       "priority": "high",
       "depends_on": [
         "SCAFFOLD-03",
-        "ADMIN-01"
+        "ADMIN-01a"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -300,10 +355,10 @@
       ]
     },
     {
-      "id": "PUBLIC-02",
+      "id": "PUBLIC-02a",
       "group_id": "PUBLIC",
-      "title": "Note detail page (/notes/[slug])",
-      "description": "Create src/routes/notes/[slug]/+page.server.ts: load the note by slug (404 if not found or not published), load all published notes for the left sidebar catalog, derive 3 related notes (same topic or category). Create src/routes/notes/[slug]/+page.svelte with three-column layout matching reference/UI/design_handoff_glass_atlas/Note viewer dark.png: left sidebar (NEW CONVERSATION CTA button at top linking to /, then a scrollable list of all published notes by date with the current note highlighted), main column (if `note.image` is set, render it at the top of the main column above the title as a full-width `<img>` with aspect-ratio: 16/9 and object-fit: cover; then note title formatted as a question if applicable, full body rendered as Markdown with code block support using unified with remark-gfm and rehype-shiki), right sidebar (OTHER NOTES section with related note links, CITE THIS NOTE section with note slug/date/URL). Return 404 for unpublished or unknown slugs. See styleguide.md Section 6 for cover media rules.",
+      "title": "Note detail page — server + Markdown rendering",
+      "description": "Create src/routes/notes/[slug]/+page.server.ts: load the note by slug (404 if not found or not published), load all published notes for the left sidebar catalog, derive 3 related notes (same topic or category). Create the initial src/routes/notes/[slug]/+page.svelte scaffold: render the note title, cover image (if `note.image` is set, render it as a full-width `<img>` with aspect-ratio: 16/9 and object-fit: cover above the title), and the full note body rendered as Markdown using unified with remark-gfm and rehype-shiki for syntax-highlighted code blocks. Return 404 for unpublished or unknown slugs. Three-column layout and sidebars are wired in PUBLIC-02b. See styleguide.md Section 6 for cover media rules.",
       "status": "todo",
       "priority": "high",
       "depends_on": [
@@ -312,13 +367,10 @@
       "blocked_by": [],
       "acceptance_criteria": [
         "Note body renders as formatted Markdown with syntax-highlighted code blocks",
-        "Left sidebar lists all published notes with the current note visually highlighted",
-        "NEW CONVERSATION button links to /",
-        "Right sidebar shows 3 related notes and cite information",
         "Visiting an unpublished or non-existent slug returns a 404 response",
-        "Three-column layout matches the note viewer design reference",
         "Cover image renders full-width above the note title when `note.image` is set",
         "Note detail renders correctly with no cover image (no placeholder)",
+        "Page loads the note, all published notes, and 3 related notes in the server load function",
         "npm run lint and npm run test:run pass"
       ],
       "docs": [
@@ -335,6 +387,36 @@
       ]
     },
     {
+      "id": "PUBLIC-02b",
+      "group_id": "PUBLIC",
+      "title": "Note detail page — three-column layout + sidebars",
+      "description": "Extend src/routes/notes/[slug]/+page.svelte (built in PUBLIC-02a) with the full three-column layout from reference/UI/design_handoff_glass_atlas/Note viewer dark.png: left sidebar (NEW CONVERSATION CTA button at top linking to /, then a scrollable list of all published notes by date with the current note highlighted), main column (cover image + title + Markdown body from PUBLIC-02a, already in place), right sidebar (OTHER NOTES section with 3 related note links, CITE THIS NOTE section with note slug/date/URL). Ensure layout matches the design reference in both light and dark modes.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "PUBLIC-02a"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Left sidebar lists all published notes with the current note visually highlighted",
+        "NEW CONVERSATION button links to /",
+        "Right sidebar shows 3 related notes and cite information",
+        "Three-column layout matches the note viewer design reference",
+        "npm run lint and npm run test:run pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
+        "src/routes/notes/[slug]/+page.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
       "id": "CHAT-01",
       "group_id": "CHAT",
       "title": "OpenRouter adapter + personality block + RAG assembly",
@@ -342,7 +424,8 @@
       "status": "todo",
       "priority": "high",
       "depends_on": [
-        "ADMIN-05"
+        "ADMIN-05",
+        "ADMIN-01b"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -470,7 +553,8 @@
       "status": "todo",
       "priority": "low",
       "depends_on": [
-        "POLISH-01"
+        "POLISH-01",
+        "PUBLIC-02b"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -496,7 +580,7 @@
       "id": "PUBLIC-03",
       "group_id": "PUBLIC",
       "title": "Notes text search",
-      "description": "Extend listNotes() in src/lib/server/db/notes.ts to filter by q?: string — title ILIKE '%q%' OR any element of tags ILIKE '%q%' (case-insensitive; already specified in ADMIN-01). Update src/routes/notes/+page.server.ts to forward the ?q= query parameter into listNotes(). Update src/routes/notes/+page.svelte: add a text search input to the existing filter bar; on change/submit navigate to /notes?q=<value> (preserve any active ?topic= param). When the page loads with ?focus=search in the URL, auto-focus the search input via a Svelte action or bind:this + $effect. Wire the nav search icon in src/lib/components/Nav.svelte to navigate to /notes?focus=search on click.",
+      "description": "Extend listNotes() in src/lib/server/db/notes.ts to filter by q?: string — title ILIKE '%q%' OR any element of tags ILIKE '%q%' (case-insensitive; already specified in ADMIN-01a). Update src/routes/notes/+page.server.ts to forward the ?q= query parameter into listNotes(). Update src/routes/notes/+page.svelte: add a text search input to the existing filter bar; on change/submit navigate to /notes?q=<value> (preserve any active ?topic= param). When the page loads with ?focus=search in the URL, auto-focus the search input via a Svelte action or bind:this + $effect. Wire the nav search icon in src/lib/components/Nav.svelte to navigate to /notes?focus=search on click.",
       "status": "todo",
       "priority": "medium",
       "depends_on": [
@@ -535,7 +619,7 @@
       "status": "todo",
       "priority": "low",
       "depends_on": [
-        "ADMIN-04"
+        "ADMIN-04b"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -565,28 +649,59 @@
       ]
     },
     {
-      "id": "ADMIN-06",
+      "id": "ADMIN-06a",
       "group_id": "ADMIN",
-      "title": "Cover media type system (schema + admin + render dispatch)",
-      "description": "Implement the resolved media type scope from RESOLVED-14: JPEG, PNG, SVG, GIF, and MP4. Add a `media_type` text column to the `notes` table in schema.ts, defaulting to `image-jpeg`, accepting `image-jpeg` | `image-png` | `image-svg` | `image-gif` | `video-mp4`. Generate and run a Drizzle migration. Update CreateNoteInput and UpdateNoteInput types and all CRUD helpers in notes.ts to include `media_type`. Update the admin note form to add a media type selector with those five options. Update NoteCard.svelte and the note detail page to dispatch on `media_type`: render `<img>` for image types and render `<video controls preload=\"metadata\">` for `video-mp4` (no autoplay). Implement all rules from docs/styleguide.md Section 6.",
+      "title": "Cover media type system — schema + migration + helpers",
+      "description": "Implement the schema layer for the resolved media type scope (RESOLVED-14): JPEG, PNG, SVG, GIF, and MP4. Add a `media_type` text column to the `notes` table in schema.ts, defaulting to `image-jpeg`, accepting `image-jpeg` | `image-png` | `image-svg` | `image-gif` | `video-mp4`. Generate and run a Drizzle migration. Update CreateNoteInput and UpdateNoteInput types and all CRUD helpers in notes.ts (built in ADMIN-01b) to include `media_type`. Do not update UI components in this task — that is ADMIN-06b.",
       "status": "todo",
       "priority": "low",
       "depends_on": [
-        "ADMIN-07",
-        "PUBLIC-01",
-        "PUBLIC-02"
+        "ADMIN-01b",
+        "ADMIN-07"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
         "schema.ts has a `media_type` text column on the notes table defaulting to `image-jpeg`",
         "Migration applies cleanly against Neon without data loss",
+        "CreateNoteInput and UpdateNoteInput include `media_type`",
+        "All CRUD helpers in notes.ts pass `media_type` through correctly",
+        "npm run db:generate and npm run db:migrate succeed",
+        "npm run lint passes"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/DECISIONS.md"
+      ],
+      "files": [
+        "src/lib/server/db/schema.ts",
+        "src/lib/server/db/notes.ts"
+      ],
+      "commands": [
+        "npm run db:generate",
+        "npm run db:migrate",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "ADMIN-06b",
+      "group_id": "ADMIN",
+      "title": "Cover media type system — admin form + render dispatch",
+      "description": "Wire the `media_type` field (added in ADMIN-06a) into the admin UI and public render components. Update the admin new and edit note forms to add a media type selector with the five options (image-jpeg, image-png, image-svg, image-gif, video-mp4) next to the cover media URL input. Update NoteCard.svelte to dispatch on `media_type`: render `<img>` for image types and render `<video controls preload=\"metadata\">` for `video-mp4` (no autoplay). Update the note detail page to dispatch cover media at the top of the main column by `media_type`. Implement all rules from docs/styleguide.md Section 6.",
+      "status": "todo",
+      "priority": "low",
+      "depends_on": [
+        "ADMIN-06a",
+        "PUBLIC-01",
+        "PUBLIC-02b"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
         "Admin form has a media type selector (image-jpeg, image-png, image-svg, image-gif, video-mp4) next to the cover media input",
         "NoteCard renders `<img>` for image types and a 16/9 `<video controls preload=\"metadata\">` for video-mp4",
         "Note detail renders cover media at the top of the main column, dispatched by media_type",
         "All cover media containers enforce aspect-ratio: 16/9",
         "Video cover media never autoplays",
         "Notes with no cover media URL render correctly without a fallback image",
-        "npm run db:generate and npm run db:migrate succeed",
         "npm run lint and npm run test:run pass"
       ],
       "docs": [
@@ -595,18 +710,12 @@
         "docs/DECISIONS.md"
       ],
       "files": [
-        "src/lib/server/db/schema.ts",
-        "src/lib/server/db/notes.ts",
-        "src/routes/admin/notes/new/+page.server.ts",
         "src/routes/admin/notes/new/+page.svelte",
-        "src/routes/admin/notes/[slug]/edit/+page.server.ts",
         "src/routes/admin/notes/[slug]/edit/+page.svelte",
         "src/lib/components/NoteCard.svelte",
         "src/routes/notes/[slug]/+page.svelte"
       ],
       "commands": [
-        "npm run db:generate",
-        "npm run db:migrate",
         "npm run lint",
         "npm run test:run"
       ]

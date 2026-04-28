@@ -33,6 +33,14 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 
 ## Resolved Decisions
 
+### RESOLVED-12 — Audit-Driven Dependency Remediation Scope
+
+**Resolved:** 2026-04-28
+**Decision:** Apply `npm audit` remediation for direct high-risk dependencies now (`drizzle-orm` and `drizzle-kit`), and intentionally defer the remaining low/moderate transitive advisories tied to the `cookie` chain and Drizzle tooling internals.
+**Why:** `drizzle-orm@0.39.3` was below the patched threshold for GHSA-gpj5-g38j-94v9, so moving to `0.45.2` was a required production-safety fix. `drizzle-kit` was also upgraded (`0.30.6` -> `0.31.10`) to reduce tooling exposure while preserving current project compatibility. Remaining advisories are either low-severity and transitive via `@sveltejs/kit`/`cookie@0.6.x`, or moderate findings on dev tooling internals that do not currently have a clean, non-breaking path under the existing stack constraints.
+**Alternatives rejected:** Forcing `cookie` overrides or major framework shifts purely to silence low audit noise was rejected due to avoidable compatibility risk and unclear security payoff for this deployment profile.
+**Affects:** package.json, package-lock.json, AGENTS.md
+
 ### RESOLVED-08 — Wiki-link Implementation Approach (Both Render-time + Link Table)
 
 **Resolved:** 2026-04-27

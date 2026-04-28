@@ -22,7 +22,7 @@
     "@sveltejs/kit": "^2.0.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tailwindcss/vite": "^4.0.0",
-    "drizzle-kit": "^0.30.0",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9.0.0",
     "eslint-plugin-svelte": "^2.0.0",
     "globals": "^15.0.0",
@@ -41,8 +41,14 @@
     "@internationalized/date": "^3.12.1",
     "@neondatabase/serverless": "^0.10.0",
     "bits-ui": "^2.18.0",
-    "drizzle-orm": "^0.39.0",
+    "drizzle-orm": "^0.45.2",
     "gsap": "^3.15.0",
-    "openai": "^4.0.0"
+    "openai": "^4.0.0",
+    "rehype-shiki": "^0.0.9",
+    "rehype-stringify": "^10.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.1.2",
+    "unified": "^11.0.5"
   }
 }

@@ -271,3 +271,6 @@ Append under `## Discoveries` below. Keep each entry to 2–3 sentences with a d
 
 ### 2026-04-26 — `DATABASE_URL` uses `$env/dynamic/private`, not static
 `src/lib/server/db/index.ts` reads `DATABASE_URL` at runtime so the dev server starts without a configured database. Queries throw at the call site when the URL is missing, not at import time. Do not change this to `$env/static/private`.
+
+### 2026-04-28 — `npm audit` remediation policy for current stack
+Apply direct high-impact fixes promptly (for example `drizzle-orm` security patches), then re-run lint/tests and audit. Low/transitive findings tied to framework-held dependencies (such as the `@sveltejs/kit` -> `cookie` chain) can be intentionally deferred when there is no clean, non-breaking upgrade path. Record the deferral rationale in `docs/DECISIONS.md` so future agents do not churn dependency versions without context.

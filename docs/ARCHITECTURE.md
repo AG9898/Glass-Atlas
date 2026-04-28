@@ -12,6 +12,7 @@ Glass Atlas is a SvelteKit-based editorial site where the author publishes notes
 |---|---|
 | SvelteKit app (UI + API routes) | Railway (persistent Bun HTTP server; SvelteKit node adapter; auto-deploy on push to `main`) |
 | PostgreSQL database (notes, citation_events, conversations, messages, Auth.js tables) | Neon (serverless HTTP driver; `glass_atlas` Postgres schema; production project + dev branch) |
+| Object storage (note media uploads) | Railway Storage Buckets (private, S3-compatible; presigned URL upload + delivery) |
 | LLM inference (chat completions, streaming) | OpenRouter API (remote, HTTP) |
 | Embedding generation (query + note body vectors) | OpenRouter API (remote, HTTP) |
 | GitHub OAuth provider | GitHub (remote, HTTP) |
@@ -106,6 +107,8 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 9. Browser navigates to the edit page
 ```
 
+**Cover media:** The `image` column on the `notes` table stores a plain URL. Asset storage strategy is resolved: first-party uploads use Railway Storage Buckets with presigned URLs (private bucket, direct browser upload, presigned GET for public delivery; backend proxy only when transformation/access control is required). The current admin flow still accepts pasted URLs; upload UI/API wiring is planned work. Supported media formats are fixed to JPEG, PNG, SVG, GIF, and MP4 video (`<video controls>`, no autoplay).
+
 ### Wiki-link data model
 
 Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to link between notes. These are stored as rows in the `note_links` table on every save:
@@ -138,6 +141,7 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 | Dependency | Role | Required | Notes |
 |---|---|---|---|
 | Neon PostgreSQL | Primary database (notes, conversations, messages, auth tables) | Yes | Accessed via Neon serverless HTTP driver; pgvector extension required for embedding storage and cosine similarity search |
+| Railway Storage Buckets | First-party note media object storage | Planned | Private-only buckets; media served via presigned URLs by default |
 | OpenRouter API | LLM completions (streaming) + embedding generation | Yes | Default model: `google/gemini-2.0-flash-001`; embedding model: `text-embedding-3-small` (vector dimension: 1536) |
 | GitHub OAuth | Admin authentication provider | Yes | Only the author's GitHub account is permitted; OAuth app credentials stored as environment variables |
 | Railway | Hosting, persistent Bun HTTP server | Yes | Auto-deploys on push to `main` via GitHub integration; Hobby plan (~$5/mo) |

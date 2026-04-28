@@ -282,6 +282,16 @@ Fonts are **self-hosted**.
 - Color photos are allowed primarily in landing hero/editorial feature contexts.
 - Never rely on image effects to create hierarchy that should come from layout/type/rules.
 
+### Cover Media Technical Rules
+
+- **All cover media is optional.** NoteCard and note detail must render correctly when no media URL is set. Never use a placeholder or fallback image.
+- **All cover media containers enforce `aspect-ratio: 16/9`.** Use `object-fit: cover` for raster images and GIFs. No exceptions.
+- **Allowed cover media formats are fixed:** JPEG, PNG, SVG, GIF, and MP4.
+- **JPEG/PNG/SVG/GIF** render via `<img>`. GIFs animate automatically — no hover-to-play interaction needed.
+- **MP4 video** renders via `<video controls preload="metadata">` inside a `16/9` aspect-ratio container. Autoplay is not permitted; muted looping background video is not permitted.
+- **Media type dispatch** is driven by `media_type` (`image-jpeg` / `image-png` / `image-svg` / `image-gif` / `video-mp4`).
+- **First-party uploaded media** is stored in private Railway Storage Buckets and delivered via presigned URLs. Do not assume permanent public bucket URLs.
+
 ---
 
 ## 7) Accessibility and Quality Gates

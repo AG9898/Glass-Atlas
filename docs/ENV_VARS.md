@@ -25,6 +25,11 @@
 | `AUTH_TRUST_HOST` | No | — | — | `$env/static/private` | Vercel-specific workaround — not required on Railway. Do not set. |
 | `CHAT_RATE_LIMIT` | No | All | `10` | `$env/static/private` | Max chat messages allowed per IP per hour. |
 | `PUBLIC_SITE_URL` | Yes (production) | All | `http://localhost:5173` | `$env/static/public` | Canonical site URL used for OG tags and sitemap generation. |
+| `BUCKET` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | — | `$env/static/private` | Railway bucket name for S3-compatible API calls. Use Railway bucket variable references. |
+| `ENDPOINT` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | `https://storage.railway.app` | `$env/static/private` | Railway bucket S3 endpoint. |
+| `REGION` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | `auto` | `$env/static/private` | Railway bucket region value for S3 client configuration. |
+| `ACCESS_KEY_ID` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | — | `$env/static/private` | Railway bucket S3 access key ID. |
+| `SECRET_ACCESS_KEY` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | — | `$env/static/private` | Railway bucket S3 secret access key. |
 
 ---
 
@@ -60,6 +65,13 @@ AUTH_GITHUB_SECRET=your_github_client_secret
 
 # Public
 PUBLIC_SITE_URL=http://localhost:5173
+
+# Optional (only if testing first-party uploads locally with a Railway bucket)
+BUCKET=your-bucket-name
+ENDPOINT=https://storage.railway.app
+REGION=auto
+ACCESS_KEY_ID=your_bucket_access_key_id
+SECRET_ACCESS_KEY=your_bucket_secret
 ```
 
 Optional overrides (only set if you need to change defaults):
@@ -69,6 +81,16 @@ OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 OPENROUTER_MODEL=google/gemini-2.0-flash-001
 EMBEDDING_MODEL=text-embedding-3-small
 CHAT_RATE_LIMIT=10
+```
+
+Optional upload variables (set only when implementing/testing first-party uploads):
+
+```dotenv
+BUCKET=your-bucket-name
+ENDPOINT=https://storage.railway.app
+REGION=auto
+ACCESS_KEY_ID=your_bucket_access_key_id
+SECRET_ACCESS_KEY=your_bucket_secret
 ```
 
 The committed `.env.example` file contains all variable names with placeholder values. Keep it up to date whenever a new variable is added.
@@ -92,6 +114,8 @@ Set in `.env.local` (gitignored).
 
 `AUTH_TRUST_HOST` is not needed locally.
 
+If testing uploads locally, also set: `BUCKET`, `ENDPOINT`, `REGION`, `ACCESS_KEY_ID`, `SECRET_ACCESS_KEY`.
+
 ### Production (Railway)
 
 Set via Railway dashboard under Project > Service > Variables. Railway encrypts variables at rest and never exposes them in build logs.
@@ -104,9 +128,14 @@ Set via Railway dashboard under Project > Service > Variables. Railway encrypts 
 | `AUTH_GITHUB_ID` | Production GitHub OAuth app client ID |
 | `AUTH_GITHUB_SECRET` | Production GitHub OAuth app client secret |
 | `PUBLIC_SITE_URL` | `https://yourdomain.com` |
+| `BUCKET` | Railway bucket name (variable reference) |
+| `ENDPOINT` | Railway bucket endpoint (`https://storage.railway.app`) |
+| `REGION` | Railway bucket region (`auto`) |
+| `ACCESS_KEY_ID` | Railway bucket access key ID (variable reference) |
+| `SECRET_ACCESS_KEY` | Railway bucket secret key (variable reference) |
 
 `AUTH_TRUST_HOST` is not needed on Railway — do not set it.
 
 Use separate GitHub OAuth apps for local and production so callback URLs stay distinct and credentials can be rotated independently.
 
-Optional variables (`CHAT_RATE_LIMIT`, `OPENROUTER_MODEL`, `EMBEDDING_MODEL`, `OPENROUTER_BASE_URL`) only need to be set in Railway if you want to override the defaults in production.
+Optional variables (`CHAT_RATE_LIMIT`, `OPENROUTER_MODEL`, `EMBEDDING_MODEL`, `OPENROUTER_BASE_URL`) only need to be set in Railway if you want to override the defaults in production. Bucket variables are required only when the first-party media upload path is enabled.

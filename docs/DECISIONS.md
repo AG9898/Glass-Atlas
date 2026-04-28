@@ -33,6 +33,22 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 
 ## Resolved Decisions
 
+### RESOLVED-14 — Media Type Scope for Notes (JPEG/PNG/SVG/GIF/MP4)
+
+**Resolved:** 2026-04-28
+**Decision:** Support these cover media types only: JPEG, PNG, SVG, GIF, and MP4 video. Implement with a `media_type` column that accepts `'image-jpeg' | 'image-png' | 'image-svg' | 'image-gif' | 'video-mp4'`.
+**Why:** This set covers current editorial needs (still captures, lightweight diagrams, animated GIF demos, and short MP4 demos) without introducing broad codec/embed complexity. Restricting to explicit formats keeps validation, rendering behavior, and accessibility requirements deterministic across admin and public surfaces.
+**Alternatives rejected:** Third-party video embeds were rejected (no iframe provider dependency, no autoplay/embed policy complexity). Open-ended "any image/video URL" support was rejected due validation and UX inconsistency risk.
+**Affects:** docs/ARCHITECTURE.md, docs/PRD.md, docs/styleguide.md, docs/workboard.json (ADMIN-06 chain)
+
+### RESOLVED-13 — Asset Storage Strategy (Railway Bucket + Presigned URLs)
+
+**Resolved:** 2026-04-28
+**Decision:** Use Railway Storage Buckets for first-party note media uploads, with presigned URLs for both upload and public delivery. Bucket objects remain private; public media access is granted via time-limited presigned GET URLs (or backend proxy only when transformation/access-control logic is required).
+**Why:** The app already deploys on Railway, so bucket credentials and environment scoping integrate cleanly with current operations. Railway Buckets are S3-compatible and align with project scale/cost goals. S3 was rejected due higher bandwidth cost profile for this use case; adding an extra external provider (R2) was rejected because Railway now offers native buckets with the required functionality.
+**Alternatives rejected:** URL-reference-only was rejected as the long-term default because it keeps hosting responsibility outside the app and blocks first-party upload UX. Cloudflare R2 was rejected for now because it adds another provider without enough upside over Railway-native buckets for this project. AWS S3 was rejected for higher expected egress cost and added account/policy overhead.
+**Affects:** docs/ARCHITECTURE.md, docs/ENV_VARS.md, docs/styleguide.md, ADMIN-06 planning assumptions
+
 ### RESOLVED-12 — Audit-Driven Dependency Remediation Scope
 
 **Resolved:** 2026-04-28

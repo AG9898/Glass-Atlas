@@ -198,7 +198,7 @@
       "id": "ADMIN-04",
       "group_id": "ADMIN",
       "title": "Admin note create and edit form pages",
-      "description": "Create +page.server.ts and +page.svelte for both /admin/notes/new and /admin/notes/[slug]/edit. Layout: two-column matching reference/UI/design_handoff_glass_atlas/Admin note editor dark.png — left column (title input, takeaway input, MarkdownEditor for body, tags multi-input, category select from note-taxonomy.ts), right sidebar (publishedAt date picker, status selector, series input). Top bar: breadcrumb showing note title, DRAFT/PUBLISHED status badge, PREVIEW button (links to /notes/[slug]), SAVE DRAFT button, PUBLISH button. Slug auto-generated from title via src/lib/utils/slugify.ts on create. Form actions: create (new page), update, publish (sets status to published). After create, redirect to the edit page for the new slug.",
+      "description": "Create +page.server.ts and +page.svelte for both /admin/notes/new and /admin/notes/[slug]/edit. Layout: two-column matching reference/UI/design_handoff_glass_atlas/Admin note editor dark.png — left column (title input, takeaway input, MarkdownEditor for body, tags multi-input, category select from note-taxonomy.ts), right sidebar (publishedAt date picker, status selector, series input, cover media URL input that maps to the `image` column — author can paste a JPEG/PNG/SVG/GIF/MP4 URL directly). Top bar: breadcrumb showing note title, DRAFT/PUBLISHED status badge, PREVIEW button (links to /notes/[slug]), SAVE DRAFT button, PUBLISH button. Slug auto-generated from title via src/lib/utils/slugify.ts on create. Form actions: create (new page), update, publish (sets status to published). After create, redirect to the edit page for the new slug. First-party upload control wiring is handled in ADMIN-07.",
       "status": "todo",
       "priority": "high",
       "depends_on": [
@@ -213,6 +213,7 @@
         "Publish action sets status to published",
         "Breadcrumb shows note title and current status badge",
         "Two-column layout matches the admin design reference",
+        "Cover media URL input appears in the right sidebar and saves to the `image` column",
         "npm run lint and npm run test:run pass"
       ],
       "docs": [
@@ -266,7 +267,7 @@
       "id": "PUBLIC-01",
       "group_id": "PUBLIC",
       "title": "NoteCard component + notes browse page",
-      "description": "Create src/lib/components/NoteCard.svelte: displays note number (zero-padded to 3 digits, e.g. 042), publishedAt date, tag badges, title, excerpt (first ~150 chars of body), and a READ NOTE link to /notes/[slug]. Match the note row design from reference/UI/design_handoff_glass_atlas/Landing dark.png 'latest field notes' section — row-separated layout, no rounded cards. Create src/routes/notes/+page.server.ts: load all published notes, accept optional ?topic= query param for filtering via listNotes(). Create src/routes/notes/+page.svelte: page heading 'The latest field notes.', filter bar with topic select and sort controls, then a list of NoteCard rows.",
+      "description": "Create src/lib/components/NoteCard.svelte: displays note number (zero-padded to 3 digits, e.g. 042), publishedAt date, tag badges, title, excerpt (first ~150 chars of body), and a READ NOTE link to /notes/[slug]. If `note.image` is set, render it above the excerpt using an `<img>` tag (aspect-ratio: 16/9, object-fit: cover). When no image is set, render the row without any placeholder. See styleguide.md Section 6 for cover media rules. Match the note row design from reference/UI/design_handoff_glass_atlas/Landing dark.png 'latest field notes' section — row-separated layout, no rounded cards. Create src/routes/notes/+page.server.ts: load all published notes, accept optional ?topic= query param for filtering via listNotes(). Create src/routes/notes/+page.svelte: page heading 'The latest field notes.', filter bar with topic select and sort controls, then a list of NoteCard rows.",
       "status": "todo",
       "priority": "high",
       "depends_on": [
@@ -280,6 +281,8 @@
         "NoteCard renders number, date, tags, title, excerpt, and read link",
         "Empty state is shown when no notes match the filter",
         "Row layout with dividers matches the design reference",
+        "NoteCard renders cover image above the excerpt when `note.image` is set",
+        "NoteCard renders correctly with no cover image (no placeholder)",
         "npm run lint and npm run test:run pass"
       ],
       "docs": [
@@ -300,7 +303,7 @@
       "id": "PUBLIC-02",
       "group_id": "PUBLIC",
       "title": "Note detail page (/notes/[slug])",
-      "description": "Create src/routes/notes/[slug]/+page.server.ts: load the note by slug (404 if not found or not published), load all published notes for the left sidebar catalog, derive 3 related notes (same topic or category). Create src/routes/notes/[slug]/+page.svelte with three-column layout matching reference/UI/design_handoff_glass_atlas/Note viewer dark.png: left sidebar (NEW CONVERSATION CTA button at top linking to /, then a scrollable list of all published notes by date with the current note highlighted), main column (note title formatted as a question if applicable, full body rendered as Markdown with code block support using unified with remark-gfm and rehype-shiki), right sidebar (OTHER NOTES section with related note links, CITE THIS NOTE section with note slug/date/URL). Return 404 for unpublished or unknown slugs.",
+      "description": "Create src/routes/notes/[slug]/+page.server.ts: load the note by slug (404 if not found or not published), load all published notes for the left sidebar catalog, derive 3 related notes (same topic or category). Create src/routes/notes/[slug]/+page.svelte with three-column layout matching reference/UI/design_handoff_glass_atlas/Note viewer dark.png: left sidebar (NEW CONVERSATION CTA button at top linking to /, then a scrollable list of all published notes by date with the current note highlighted), main column (if `note.image` is set, render it at the top of the main column above the title as a full-width `<img>` with aspect-ratio: 16/9 and object-fit: cover; then note title formatted as a question if applicable, full body rendered as Markdown with code block support using unified with remark-gfm and rehype-shiki), right sidebar (OTHER NOTES section with related note links, CITE THIS NOTE section with note slug/date/URL). Return 404 for unpublished or unknown slugs. See styleguide.md Section 6 for cover media rules.",
       "status": "todo",
       "priority": "high",
       "depends_on": [
@@ -314,6 +317,8 @@
         "Right sidebar shows 3 related notes and cite information",
         "Visiting an unpublished or non-existent slug returns a 404 response",
         "Three-column layout matches the note viewer design reference",
+        "Cover image renders full-width above the note title when `note.image` is set",
+        "Note detail renders correctly with no cover image (no placeholder)",
         "npm run lint and npm run test:run pass"
       ],
       "docs": [
@@ -518,6 +523,90 @@
         "src/lib/components/Nav.svelte"
       ],
       "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "ADMIN-07",
+      "group_id": "ADMIN",
+      "title": "Railway bucket upload flow (presigned, admin-only)",
+      "description": "Implement first-party media upload for admin note editing using Railway Storage Buckets (RESOLVED-13). Add admin-only presign endpoint(s) that return short-lived signed upload URLs for direct browser upload. Enforce MIME allowlist: image/jpeg, image/png, image/svg+xml, image/gif, video/mp4. Wire admin note forms to upload files and write the resulting object key/URL into the existing `image` field. Keep bucket objects private; do not rely on permanent public bucket URLs.",
+      "status": "todo",
+      "priority": "low",
+      "depends_on": [
+        "ADMIN-04"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Admin-only upload endpoint returns short-lived signed upload URLs",
+        "Unsupported MIME types are rejected server-side before signing",
+        "Admin new/edit forms can upload a file and populate the cover media field from the upload result",
+        "Upload flow works for JPEG, PNG, SVG, GIF, and MP4",
+        "Bucket objects remain private; delivery path does not assume public bucket URLs",
+        "npm run lint and npm run test:run pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/ENV_VARS.md",
+        "docs/DECISIONS.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
+        "src/lib/server/storage/bucket.ts",
+        "src/routes/api/admin/media/upload-url/+server.ts",
+        "src/routes/api/admin/media/access-url/+server.ts",
+        "src/routes/admin/notes/new/+page.svelte",
+        "src/routes/admin/notes/[slug]/edit/+page.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "ADMIN-06",
+      "group_id": "ADMIN",
+      "title": "Cover media type system (schema + admin + render dispatch)",
+      "description": "Implement the resolved media type scope from RESOLVED-14: JPEG, PNG, SVG, GIF, and MP4. Add a `media_type` text column to the `notes` table in schema.ts, defaulting to `image-jpeg`, accepting `image-jpeg` | `image-png` | `image-svg` | `image-gif` | `video-mp4`. Generate and run a Drizzle migration. Update CreateNoteInput and UpdateNoteInput types and all CRUD helpers in notes.ts to include `media_type`. Update the admin note form to add a media type selector with those five options. Update NoteCard.svelte and the note detail page to dispatch on `media_type`: render `<img>` for image types and render `<video controls preload=\"metadata\">` for `video-mp4` (no autoplay). Implement all rules from docs/styleguide.md Section 6.",
+      "status": "todo",
+      "priority": "low",
+      "depends_on": [
+        "ADMIN-07",
+        "PUBLIC-01",
+        "PUBLIC-02"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "schema.ts has a `media_type` text column on the notes table defaulting to `image-jpeg`",
+        "Migration applies cleanly against Neon without data loss",
+        "Admin form has a media type selector (image-jpeg, image-png, image-svg, image-gif, video-mp4) next to the cover media input",
+        "NoteCard renders `<img>` for image types and a 16/9 `<video controls preload=\"metadata\">` for video-mp4",
+        "Note detail renders cover media at the top of the main column, dispatched by media_type",
+        "All cover media containers enforce aspect-ratio: 16/9",
+        "Video cover media never autoplays",
+        "Notes with no cover media URL render correctly without a fallback image",
+        "npm run db:generate and npm run db:migrate succeed",
+        "npm run lint and npm run test:run pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/styleguide.md",
+        "docs/DECISIONS.md"
+      ],
+      "files": [
+        "src/lib/server/db/schema.ts",
+        "src/lib/server/db/notes.ts",
+        "src/routes/admin/notes/new/+page.server.ts",
+        "src/routes/admin/notes/new/+page.svelte",
+        "src/routes/admin/notes/[slug]/edit/+page.server.ts",
+        "src/routes/admin/notes/[slug]/edit/+page.svelte",
+        "src/lib/components/NoteCard.svelte",
+        "src/routes/notes/[slug]/+page.svelte"
+      ],
+      "commands": [
+        "npm run db:generate",
+        "npm run db:migrate",
         "npm run lint",
         "npm run test:run"
       ]

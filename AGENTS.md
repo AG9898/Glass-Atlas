@@ -106,6 +106,8 @@ Docs navigation: [`docs/INDEX.md`](docs/INDEX.md)
 - Auth is enforced in `src/hooks.server.ts` — no client-side-only guards on `/admin` routes.
 - The personality block always loads from `personality.ts` — never hardcoded in `chat.ts`.
 - Chat responses stream via `ReadableStream` (SSE) — never buffered JSON.
+- First-party media uploads use Railway Storage Buckets with presigned URLs; buckets are private-only.
+- Cover media formats are fixed to JPEG, PNG, SVG, GIF, and MP4.
 - Config is read from environment variables only. No hardcoded secrets.
 - Schema changes use Drizzle migrations only — never `ALTER TABLE` directly.
 
@@ -222,7 +224,7 @@ Stop and report (do not continue) when:
 
 See [`docs/ENV_VARS.md`](docs/ENV_VARS.md) for the canonical variable and secret matrix.
 
-Key variables: `DATABASE_URL`, `OPENROUTER_API_KEY`, `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `PUBLIC_SITE_URL`. (`AUTH_TRUST_HOST` is not used — Railway does not require it.)
+Key variables: `DATABASE_URL`, `OPENROUTER_API_KEY`, `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `PUBLIC_SITE_URL`. For first-party media uploads, configure Railway bucket vars: `BUCKET`, `ENDPOINT`, `REGION`, `ACCESS_KEY_ID`, `SECRET_ACCESS_KEY`. (`AUTH_TRUST_HOST` is not used — Railway does not require it.)
 
 ---
 
@@ -274,3 +276,9 @@ Append under `## Discoveries` below. Keep each entry to 2–3 sentences with a d
 
 ### 2026-04-28 — `npm audit` remediation policy for current stack
 Apply direct high-impact fixes promptly (for example `drizzle-orm` security patches), then re-run lint/tests and audit. Low/transitive findings tied to framework-held dependencies (such as the `@sveltejs/kit` -> `cookie` chain) can be intentionally deferred when there is no clean, non-breaking upgrade path. Record the deferral rationale in `docs/DECISIONS.md` so future agents do not churn dependency versions without context.
+
+### 2026-04-28 — Railway Buckets are private-only for media delivery
+Railway Storage Buckets do not provide public bucket URLs; serve uploaded note media through presigned GET URLs by default. Proxy streaming through the app is optional for transforms/access control, but it incurs Railway service egress and should not be the default path.
+
+### 2026-04-28 — Cover media type scope is closed
+Use only JPEG, PNG, SVG, GIF, and MP4 for note cover media. Do not reintroduce YouTube/Vimeo iframe embeds unless a new decision explicitly reopens that scope.

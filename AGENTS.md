@@ -171,7 +171,7 @@ The canonical task queue is `docs/workboard.json`.
 Schema and usage contract: [`docs/workboard.md`](docs/workboard.md).
 Machine validation schema: [`docs/workboard.schema.json`](docs/workboard.schema.json).
 
-Use the `/query-workboard` skill to inspect it. Use the `/start-task` skill to execute a task end-to-end. Never dump the full board into context — use targeted `jq` queries.
+Use the `/query-workboard` skill to inspect it. Use the `/start-task` skill to execute a task end-to-end. Use the `/edit-workboard` skill to author new tasks, edit fields, and split heavy tasks. Never dump the full board into context — use targeted `jq` queries.
 
 A task is startable when:
 - `status == "todo"`
@@ -182,6 +182,7 @@ Targeted edit rules:
 - Never rewrite the full `workboard.json`.
 - Only update the status fields of the task currently being worked.
 - Roll back `in_progress → todo` if blocked mid-task and unresolved.
+- Use `/edit-workboard` for all structural changes (new tasks, field edits, splits, blocking) — never hand-edit the JSON directly.
 
 Task group IDs for this project: `SCAFFOLD`, `ADMIN`, `PUBLIC`, `CHAT`, `POLISH`.
 

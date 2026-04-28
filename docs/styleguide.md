@@ -21,7 +21,7 @@ Glass Atlas uses **Soft Editorial Brutalism**:
 ### Non-Negotiable Traits
 
 - `Light + Dark` parity is required.
-- One brand accent family only: drained tonal matcha/sage.
+- Accent system is fixed to two families from the handoff token source: primary sage (`--color-accent-*`) + secondary warm taupe (`--color-accent2-*`).
 - Structural geometry is strict: `0px` corner radius.
 - Divider hierarchy is fixed: `1px`, `2px`, `4px`.
 - Feed/list browsing is row-first (not card-heavy).
@@ -42,7 +42,7 @@ Glass Atlas uses **Soft Editorial Brutalism**:
 - Use horizontal and vertical dividers to structure content density.
 - Avoid decorative cards for standard note previews.
 
-### Note Detail (`/notes/[slug]`)
+### Note View / Main Blog (`/notes/[slug]`)
 
 - Prioritize reading comfort and scanability.
 - Use the same type and spacing scales as the index, with fewer layout disruptions.
@@ -64,7 +64,7 @@ Glass Atlas uses **Soft Editorial Brutalism**:
 
 ## 3) Token Contract
 
-Token names below are normative implementation targets.
+Token names and values below are normative implementation targets and must stay in sync with `reference/UI/design_handoff_glass_atlas/tokens.css`.
 
 ### 3.1 Color Tokens
 
@@ -86,25 +86,55 @@ Token names below are normative implementation targets.
 
 | Token | Value | Usage |
 |---|---|---|
-| `--color-bg` | `#10100E` | App/page background |
-| `--color-surface-1` | `#171714` | Primary panels |
-| `--color-surface-2` | `#20201C` | Alternate panels |
-| `--color-line-1` | `#2E2D28` | Subtle separators |
-| `--color-line-2` | `#4D4B44` | Standard borders |
-| `--color-line-3` | `#D8D4C9` | High-emphasis rules |
-| `--color-text-strong` | `#E8E3D7` | Headings, key labels |
-| `--color-text` | `#D3CEC3` | Body text |
-| `--color-text-muted` | `#A9A396` | Secondary metadata |
+| `--color-bg` | `#1C1A15` | App/page background |
+| `--color-surface-1` | `#232019` | Primary panels |
+| `--color-surface-2` | `#2C281F` | Alternate panels |
+| `--color-line-1` | `#38342B` | Subtle separators |
+| `--color-line-2` | `#5A554A` | Standard borders |
+| `--color-line-3` | `#C9C2B2` | High-emphasis rules |
+| `--color-text-strong` | `#E8E1CE` | Headings, key labels |
+| `--color-text` | `#CFC8B7` | Body text |
+| `--color-text-muted` | `#968F80` | Secondary metadata |
 
-#### Accent Scale (Single Family: Matcha/Sage)
+#### Accent Scale (Primary Sage — Light)
 
 | Token | Value | Usage |
 |---|---|---|
-| `--color-accent-100` | `#E8EFE3` | Light fills, subtle highlights |
-| `--color-accent-300` | `#C5D3BC` | Soft emphasis surfaces |
+| `--color-accent-100` | `#E5EEDF` | Light fills, subtle highlights |
+| `--color-accent-300` | `#C2D3B8` | Soft emphasis surfaces |
+| `--color-accent-500` | `#93B184` | Primary accent |
+| `--color-accent-700` | `#6B8A5C` | Active emphasis |
+| `--color-accent-900` | `#3F5634` | High-contrast accent text/icons |
+
+#### Accent Scale (Primary Sage — Dark)
+
+| Token | Value | Usage |
+|---|---|---|
+| `--color-accent-100` | `#1A2118` | Accent-adjacent low-emphasis surfaces |
+| `--color-accent-300` | `#2E3B29` | Secondary emphasis surfaces |
 | `--color-accent-500` | `#8EA481` | Primary accent |
-| `--color-accent-700` | `#607556` | Active emphasis |
-| `--color-accent-900` | `#3D4D37` | High-contrast accent text/icons |
+| `--color-accent-700` | `#A8BE9B` | Active emphasis |
+| `--color-accent-900` | `#C5D3BC` | High-contrast accent text/icons |
+
+#### Accent2 Scale (Secondary Warm Taupe — Light)
+
+| Token | Value | Usage |
+|---|---|---|
+| `--color-accent2-100` | `#F1EADD` | Subtle alternate highlight surfaces |
+| `--color-accent2-300` | `#DFCEAF` | Soft alternate emphasis |
+| `--color-accent2-500` | `#BBA079` | Secondary accent base |
+| `--color-accent2-700` | `#8C7551` | Secondary accent active emphasis |
+| `--color-accent2-900` | `#54422A` | Secondary accent high contrast text/icons |
+
+#### Accent2 Scale (Secondary Warm Taupe — Dark)
+
+| Token | Value | Usage |
+|---|---|---|
+| `--color-accent2-100` | `#2A241A` | Subtle alternate highlight surfaces |
+| `--color-accent2-300` | `#463B28` | Soft alternate emphasis |
+| `--color-accent2-500` | `#BBA079` | Secondary accent base |
+| `--color-accent2-700` | `#CFB58E` | Secondary accent active emphasis |
+| `--color-accent2-900` | `#E4D2B0` | Secondary accent high contrast text/icons |
 
 #### Semantic Utility Tokens
 
@@ -268,7 +298,7 @@ Fonts are **self-hosted**.
 
 - Rounded corners on structural UI.
 - Shadow-heavy elevation systems.
-- Multiple accent hue families.
+- Additional accent families beyond the defined `accent` + `accent2` token sets.
 - Dense card mosaics as the default notes browsing pattern.
 - Decorative gradients or texture overlays that reduce legibility.
 - Unconstrained asymmetry that breaks reading flow on mobile.
@@ -279,3 +309,34 @@ Fonts are **self-hosted**.
 
 - Use [bits-ui.md](bits-ui.md) as the default interactive component implementation policy.
 - Use [GSAP.md](GSAP.md) as the animation planning reference; do not treat it as a finalized motion standard yet.
+
+---
+
+## 10) Design Reference
+
+Canonical visual mockups are in `reference/UI/design_handoff_glass_atlas/`. These are the authority for pixel-level layout and surface decisions. When in doubt, the reference image wins over any written description.
+
+| File | Surface |
+|---|---|
+| `Landing light.png` | `/` — light mode |
+| `Landing dark.png` | `/` — dark mode |
+| `Note viewer light.png` | `/notes/[slug]` (Note View / Main Blog) — light mode |
+| `Note viewer dark.png` | `/notes/[slug]` (Note View / Main Blog) — dark mode |
+| `Admin note editor light.png` | `/admin/notes/[slug]/edit` — light mode |
+| `Admin note editor dark.png` | `/admin/notes/[slug]/edit` — dark mode |
+
+### Per-page layout notes
+
+**Landing (`/`):**
+- Two-column hero: left ~40% = large Literata serif headline + CTA; right ~60% = Chat panel.
+- Stats row (4 stats) below the hero.
+- "The latest field notes." section with rule-separated NoteCard rows.
+- **Dark mode chat panel**: use `--color-surface-1` (`#232019`) from the handoff tokens. No additional panel token should be created.
+
+**Note View / Main Blog (`/notes/[slug]`):**
+- Three-column layout: left sidebar (notes catalog — all published notes listed by date, NEW CONVERSATION CTA at top), main column (note Markdown body), right sidebar (related notes + cite section).
+- Structural pattern aligns with the chat surface conventions (line-led rails, citations, and grounded response framing), but this route remains the canonical note-view/main-blog page.
+
+**Admin Note Editor (`/admin/notes/[slug]/edit`):**
+- Two-column: left = title / takeaway / CodeMirror body / tags + categories; right sidebar = date, status, series, related notes.
+- Top bar: breadcrumb + DRAFT/PUBLISHED status badge + PREVIEW / SAVE DRAFT / PUBLISH buttons.

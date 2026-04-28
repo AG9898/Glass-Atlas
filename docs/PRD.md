@@ -36,13 +36,13 @@ Project skeleton: `package.json`, `svelte.config.js`, `vite.config.ts`, Drizzle 
 Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note editor with Markdown input and section scaffolding. Embedding generated and stored on save.
 
 ### Phase 3 — Public Notes
-`/notes` — browsable, filterable, searchable note index. `/notes/[slug]` — individual note detail page. `NoteCard` component.
+`/notes` — browsable, filterable, and text-searchable note index (title and tag ILIKE search via `?q=` param). `/notes/[slug]` — individual note detail page. `NoteCard` component. Nav search icon links to `/notes?focus=search`.
 
 ### Phase 4 — Chat
 `/api/chat` RAG endpoint with IP-based rate limiting (10 messages/hour, 429 on the 11th). Semantic search against pgvector embeddings. Streaming SSE responses. `Chat.svelte` component. `personality.ts` system prompt that enforces grounding.
 
 ### Phase 5 — Landing + Polish
-`/` landing page with chat front-and-center and note preview cards. SEO meta tags, `sitemap.xml`, final design pass.
+`/` landing page with chat front-and-center and note preview cards. SEO meta tags, `sitemap.xml`, final design pass. The canonical visual target for all pages is `docs/styleguide.md` (Section 10) and the reference mockups in `reference/UI/design_handoff_glass_atlas/`.
 
 ---
 
@@ -77,7 +77,7 @@ Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note ed
 - **No visitor PII** — visitor session IDs for rate limiting must be anonymous (IP hash or similar). No personal data stored.
 - **Rate limiting** — 10 chat messages per IP per hour, enforced server-side, to control LLM API costs.
 - **Auth scope** — GitHub OAuth is for the single author only. No OAuth flows for visitors.
-- **Stateless deployment** — hosted on Vercel; no persistent in-memory state between requests. All state lives in Neon PostgreSQL.
+- **Stateless deployment** — hosted on Railway as a persistent Bun HTTP server. In-memory state (e.g. the rate-limit Map) is valid and survives between requests on the same instance. State that must survive across deploys lives in Neon PostgreSQL.
 - **Stack is fixed** — SvelteKit + Svelte 5 (runes), TypeScript, Tailwind CSS v4, Bits UI, GSAP (for advanced motion), Neon PostgreSQL + pgvector, Drizzle ORM, OpenRouter (Gemini Flash default), Auth.js, Vitest.
 
 ---

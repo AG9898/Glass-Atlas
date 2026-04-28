@@ -11,7 +11,7 @@ Glass Atlas is a SvelteKit-based editorial site where the author publishes notes
 | Service | Where it runs |
 |---|---|
 | SvelteKit app (UI + API routes) | Railway (persistent Bun HTTP server; SvelteKit node adapter; auto-deploy on push to `main`) |
-| PostgreSQL database (notes, conversations, messages, Auth.js tables) | Neon (serverless HTTP driver; `glass_atlas` Postgres schema; production project + dev branch) |
+| PostgreSQL database (notes, citation_events, conversations, messages, Auth.js tables) | Neon (serverless HTTP driver; `glass_atlas` Postgres schema; production project + dev branch) |
 | LLM inference (chat completions, streaming) | OpenRouter API (remote, HTTP) |
 | Embedding generation (query + note body vectors) | OpenRouter API (remote, HTTP) |
 | GitHub OAuth provider | GitHub (remote, HTTP) |
@@ -34,7 +34,7 @@ The server is a persistent Bun process. In-memory state survives between request
 ### Server-side lib (`src/lib/server/`)
 
 - `db/index.ts` — Drizzle ORM client wired to the Neon HTTP driver; all SQL goes through here
-- `db/schema.ts` — Drizzle table definitions: `notes`, `note_links`, Auth.js tables, `chat_rate_limits`
+- `db/schema.ts` — Drizzle table definitions: `notes`, `note_links`, `citation_events`, Auth.js tables
 - `db/notes.ts` — note CRUD helpers: `createNote`, `updateNote`, `deleteNote`, `getNoteBySlug`, `getPublishedNotes`, `findSimilarNotes` (pgvector cosine), `getBacklinks`, `getOutlinks`, `syncNoteLinks`
 - `chat.ts` — builds the RAG prompt, calls OpenRouter for streaming completions, returns a `ReadableStream`
 - `embeddings.ts` — calls OpenRouter embedding endpoint; returns `vector(1536)`
@@ -46,9 +46,9 @@ The server is a persistent Bun process. In-memory state survives between request
 ### API routes
 
 - `POST /api/chat` — public; accepts `{ query, session_id, conversation_id? }`; embeds query, runs cosine similarity search, streams LLM response via SSE; rate-limited to 10 messages per IP per hour
-- `POST /api/admin/notes` — admin-only; creates a note row and generates + stores its embedding
-- `PATCH /api/admin/notes/[slug]` — admin-only; updates a note row and regenerates its embedding
 - `POST /api/admin/notes/[slug]/review` — admin-only; accepts the current note body; calls `ai/review.ts`; streams critique via SSE; does not read from or write to the database; free-tier OpenRouter model; returns `429` or `503` transparently when the model is unavailable
+
+Admin note create, update, and delete are handled by **SvelteKit form actions** in `+page.server.ts` files (not API routes). Form actions are the correct pattern for these mutations: they use progressive enhancement, integrate with SvelteKit's redirect flow, and do not require a separate client-side fetch.
 
 ### Auth middleware (`src/hooks.server.ts`)
 
@@ -83,8 +83,8 @@ The server is a persistent Bun process. In-memory state survives between request
 7. API route calls OpenRouter (google/gemini-2.0-flash-001) with stream: true
 8. OpenRouter streams tokens → API route pipes them as SSE to the frontend
 9. Frontend renders tokens as they arrive
-10. On stream end, API route saves user message + assistant message
-    (with cited_note_ids) to the messages table
+10. Before starting the stream, API route calls recordCitations(citedSlugs) to insert
+    citation_events rows for each retrieved note slug (fire-and-forget; does not block streaming)
 11. Frontend appends citation links for cited note slugs
 ```
 
@@ -94,16 +94,16 @@ The server is a persistent Bun process. In-memory state survives between request
 
 ```
 1. Admin submits the note form in the browser
-2. Browser POSTs (new) or PATCHes (edit) to the appropriate admin API route
+2. Browser submits a SvelteKit form action (create or update) to the admin +page.server.ts handler
 3. Auth.js session verified by middleware before the handler runs
-4. API route upserts the note row in the notes table (Drizzle ORM)
-5. API route calls OpenRouter embedding endpoint with the full note body
+4. Form action upserts the note row in the notes table (Drizzle ORM)
+5. Form action calls OpenRouter embedding endpoint with the full note body
    → receives vector(1536)
-6. API route stores the embedding in notes.embedding for the upserted row
+6. Form action stores the embedding in notes.embedding for the upserted row
 7. db/notes.ts syncNoteLinks() parses [[slug]] / [[slug|text]] wiki-links from
    the body, deletes prior outgoing links for this note, and re-inserts into note_links
-8. API route responds with the note slug
-9. Browser redirects to /notes/[slug]
+8. Form action calls SvelteKit redirect() to send the browser to /admin/notes/[slug]/edit
+9. Browser navigates to the edit page
 ```
 
 ### Wiki-link data model
@@ -129,7 +129,7 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 
 **Credential verification:** `src/hooks.server.ts` calls `auth()` on every incoming request. Any request to an `/admin` or `/api/admin` path without a valid session is redirected to the GitHub OAuth flow. No `/admin` route handler is ever reached without a confirmed session.
 
-**Visitor chat sessions:** The browser generates a UUID `session_id` on first load. This ID is sent with every chat request to group messages into a conversation. It is never verified server-side and carries no privileges — it exists only to associate messages in the `conversations` and `messages` tables for conversation history.
+**Visitor chat sessions:** Chat history is not persisted in Phase 1 — it lives exclusively in the `Chat.svelte` component's `$state` and clears on page reload. The `conversations` and `messages` tables exist in the schema and are reserved for a future persistence phase. The only chat-related data written to the database per request is citation_events rows (one per note retrieved by the RAG search), which power the landing page "total citations served" stat.
 
 ---
 

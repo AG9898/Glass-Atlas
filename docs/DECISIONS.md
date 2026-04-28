@@ -130,3 +130,13 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 **Why:** Reduces prompt token count, which lowers generation latency and cost. The Takeaway section is explicitly designed to be the LLM's anchor — a dense summary of the note's core argument — making it the highest-signal content per token.
 **Alternatives rejected:** Sending full note bodies was rejected for higher latency, higher per-request cost, and context dilution that can degrade response quality.
 **Affects:** ARCHITECTURE.md, src/lib/server/chat.ts
+
+---
+
+### RESOLVED-11 — Public Note Renderer: unified + remark-gfm + rehype-shiki
+
+**Resolved:** 2026-04-28
+**Decision:** Render public note bodies using `unified` with `remark-gfm` and `rehype-shiki` for syntax-highlighted code blocks.
+**Why:** The wiki-link pipeline (`renderWikiLinks`) already requires an AST-aware pass to avoid matching inside code fences. A `remark` plugin integrates at the AST level and eliminates that fragility. `rehype-shiki` produces high-quality, theme-aware syntax highlighting with no extra configuration. `unified` is the most future-proof foundation — additional plugins (footnotes, callouts, etc.) can be added without changing the rendering architecture.
+**Alternatives rejected:** `marked` was rejected because its plugin system is thin and wiki-link handling would remain a regex pass. `markdown-it` was rejected as a smaller ecosystem with less idiomatic Svelte/Vite integration.
+**Affects:** src/routes/notes/[slug]/+page.svelte, PUBLIC-02 workboard task

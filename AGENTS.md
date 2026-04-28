@@ -81,8 +81,6 @@ src/
         [slug]/edit/+page.svelte
     api/
       chat/+server.ts                   — public RAG endpoint (rate-limited, streaming)
-      admin/notes/+server.ts
-      admin/notes/[slug]/+server.ts
   hooks.server.ts                       — Auth.js middleware + /admin route guard
 docs/
   INDEX.md              — documentation navigation map

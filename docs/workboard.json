@@ -1,6 +1,526 @@
 {
   "$schema": "./workboard.schema.json",
   "schema_version": "1.0.0",
-  "last_updated": "2026-04-23",
-  "tasks": []
+  "last_updated": "2026-04-28",
+  "tasks": [
+    {
+      "id": "SCAFFOLD-01",
+      "group_id": "SCAFFOLD",
+      "title": "Neon DB connection + Drizzle migrations",
+      "description": "Configure drizzle.config.ts for the glass_atlas Postgres schema. Add db:generate, db:migrate, db:studio scripts to package.json. Verify src/lib/server/db/index.ts uses DATABASE_URL via $env/dynamic/private (already in place — confirm and document). Add a citation_events table to schema.ts (columns: id serial PK, note_slug text NOT NULL, cited_at timestamp NOT NULL DEFAULT now()) — this lightweight counter records each time a note is retrieved by the chat RAG pipeline and powers the landing page 'total citations served' stat. Generate the initial migration from the existing schema.ts, then run it against Neon. The pgvector extension must be enabled in the Neon console before migrating. All tables must use the glass_atlas schema prefix (pgSchema('glass_atlas') in Drizzle).",
+      "status": "todo",
+      "priority": "critical",
+      "depends_on": [],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "npm run db:generate produces migration files under drizzle/",
+        "npm run db:migrate applies the migration against Neon without errors",
+        "All glass_atlas schema tables exist in Neon (notes, citation_events, conversations, messages, auth tables)",
+        "pgvector extension is enabled on the Neon project",
+        "npm run lint passes"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/ENV_VARS.md"
+      ],
+      "files": [
+        "src/lib/server/db/schema.ts",
+        "src/lib/server/db/index.ts",
+        "drizzle.config.ts",
+        "package.json"
+      ],
+      "commands": [
+        "npm run db:generate",
+        "npm run db:migrate",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "SCAFFOLD-02",
+      "group_id": "SCAFFOLD",
+      "title": "Auth.js GitHub OAuth + admin route guard",
+      "description": "Configure SvelteKitAuth in src/auth.ts with the GitHub provider using AUTH_GITHUB_ID and AUTH_GITHUB_SECRET env vars. Sessions are stateless JWT — no DrizzleAdapter needed. Implement hooks.server.ts to intercept all requests to /admin/** and redirect unauthenticated users to the GitHub OAuth flow. Read session from event.locals.session only — never read cookies manually. AUTH_TRUST_HOST must NOT be set (Railway deployment, not Vercel).",
+      "status": "todo",
+      "priority": "critical",
+      "depends_on": [],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "GET /admin redirects to GitHub OAuth login when no session exists",
+        "After completing GitHub OAuth, session is available in event.locals.session",
+        "GET /admin loads successfully when authenticated",
+        "Public routes (/, /notes, /api/chat) are unaffected by the auth guard",
+        "npm run lint and npm run test:run pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/ENV_VARS.md"
+      ],
+      "files": [
+        "src/auth.ts",
+        "src/hooks.server.ts"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "SCAFFOLD-03",
+      "group_id": "SCAFFOLD",
+      "title": "Root layout + global nav shell",
+      "description": "Update src/routes/+layout.svelte to render Nav.svelte and a <slot /> (or {@render children()} in Svelte 5). Create src/lib/components/Nav.svelte: Glass Atlas logo centered, NOTES and CHAT links on the left, search icon (non-functional placeholder — wired in PUBLIC-03) + login-or-logout link + dark mode toggle on the right. Dark mode toggle: reads prefers-color-scheme on first load, persists preference to localStorage, and applies a .dark class to <html>. Update src/app.css to add a .dark selector block mirroring the existing @media (prefers-color-scheme: dark) tokens so the class-toggle approach works. Match the nav design from reference/UI/design_handoff_glass_atlas/Landing dark.png and Landing light.png.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "SCAFFOLD-02"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Nav renders logo, left nav links, and right controls on all pages",
+        "Dark mode toggle switches themes and the choice persists on reload",
+        "Login link shows GitHub login when unauthenticated; logout link when authenticated",
+        "Nav layout matches the design reference in both light and dark modes",
+        "npm run lint and npm run test:run pass"
+      ],
+      "docs": [
+        "docs/styleguide.md",
+        "docs/ARCHITECTURE.md"
+      ],
+      "files": [
+        "src/routes/+layout.svelte",
+        "src/lib/components/Nav.svelte",
+        "src/app.css"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "ADMIN-01",
+      "group_id": "ADMIN",
+      "title": "Notes DB query layer",
+      "description": "Implement all CRUD and search helpers in src/lib/server/db/notes.ts. Functions: listNotes(filter?: { topic?: string, status?: 'draft'|'published', q?: string }), getNoteBySlug(slug: string), createNote(data: CreateNoteInput), updateNote(slug: string, data: UpdateNoteInput), deleteNote(slug: string), searchNotesBySimilarity(embedding: number[], limit: number), recordCitations(slugs: string[]): Promise<void> (bulk-inserts one citation_events row per slug), getTotalCitations(): Promise<number> (returns COUNT(*) from citation_events). All functions must return typed plain objects — never raw Drizzle ORM objects. Similarity search uses Drizzle's sql template tag for the pgvector cosine distance operator (<=>). The q param in listNotes filters notes where title ILIKE '%q%' OR any element of tags ILIKE '%q%'. Export corresponding TypeScript types (Note, CreateNoteInput, UpdateNoteInput).",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "SCAFFOLD-01"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "listNotes() returns Note[] sorted by publishedAt desc",
+        "getNoteBySlug() returns Note or null",
+        "createNote() inserts and returns the created note",
+        "updateNote() patches specified fields and returns the updated note",
+        "deleteNote() removes the row",
+        "searchNotesBySimilarity() returns notes ordered by cosine distance",
+        "recordCitations() bulk-inserts one citation_events row per slug passed",
+        "getTotalCitations() returns the total COUNT(*) from citation_events",
+        "listNotes() filters by q with case-insensitive title and tag matching when provided",
+        "All return types are typed plain objects, no raw Drizzle types leaked",
+        "npm run lint passes"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md"
+      ],
+      "files": [
+        "src/lib/server/db/notes.ts"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "ADMIN-02",
+      "group_id": "ADMIN",
+      "title": "Admin dashboard + notes list page",
+      "description": "Create src/routes/admin/+page.server.ts: load function calls listNotes() with no filter to return all notes. Create src/routes/admin/+page.svelte: table-style list of notes with columns for note number, title, status badge (DRAFT/PUBLISHED), publishedAt date, edit link (/admin/notes/[slug]/edit), and a delete form action. Include a 'New Note' CTA button linking to /admin/notes/new. Add a DELETE form action that calls deleteNote(slug). Match the admin surface rules from docs/styleguide.md (Section 2 Admin).",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "SCAFFOLD-02",
+        "ADMIN-01"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "GET /admin lists all notes with correct columns",
+        "Status badge correctly shows DRAFT or PUBLISHED",
+        "Edit link navigates to /admin/notes/[slug]/edit",
+        "Delete action removes the note and refreshes the list",
+        "New Note button navigates to /admin/notes/new",
+        "npm run lint and npm run test:run pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
+        "src/routes/admin/+page.server.ts",
+        "src/routes/admin/+page.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "ADMIN-03",
+      "group_id": "ADMIN",
+      "title": "MarkdownEditor component (CodeMirror 6)",
+      "description": "Create src/lib/components/MarkdownEditor.svelte. Use Svelte 5 $props() for: value (bindable string), placeholder (optional string). Initialize CodeMirror EditorView in onMount with the markdown() language extension. Sync edits back to parent via an updateListener extension that calls a callback prop on every doc change. Teardown EditorView in onDestroy. Style the editor surface using --color-surface-2 background in light mode and --color-surface-1 in dark mode (matching the admin design reference blueprint panel recipe from docs/styleguide.md Section 5.6). Do not implement wiki-link autocomplete in this task.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "SCAFFOLD-03"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Editor renders in both light and dark modes with correct surface colors",
+        "Typing updates the bound value string",
+        "Editor initializes with the provided value on mount",
+        "onDestroy cleans up the EditorView instance",
+        "npm run lint passes"
+      ],
+      "docs": [
+        "docs/CONVENTIONS.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
+        "src/lib/components/MarkdownEditor.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "ADMIN-04",
+      "group_id": "ADMIN",
+      "title": "Admin note create and edit form pages",
+      "description": "Create +page.server.ts and +page.svelte for both /admin/notes/new and /admin/notes/[slug]/edit. Layout: two-column matching reference/UI/design_handoff_glass_atlas/Admin note editor dark.png — left column (title input, takeaway input, MarkdownEditor for body, tags multi-input, category select from note-taxonomy.ts), right sidebar (publishedAt date picker, status selector, series input). Top bar: breadcrumb showing note title, DRAFT/PUBLISHED status badge, PREVIEW button (links to /notes/[slug]), SAVE DRAFT button, PUBLISH button. Slug auto-generated from title via src/lib/utils/slugify.ts on create. Form actions: create (new page), update, publish (sets status to published). After create, redirect to the edit page for the new slug.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "ADMIN-01",
+        "ADMIN-03"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "New note form creates a note and redirects to its edit page",
+        "Edit form loads existing note data into all fields",
+        "Save Draft updates the note without changing status",
+        "Publish action sets status to published",
+        "Breadcrumb shows note title and current status badge",
+        "Two-column layout matches the admin design reference",
+        "npm run lint and npm run test:run pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
+        "src/routes/admin/notes/new/+page.server.ts",
+        "src/routes/admin/notes/new/+page.svelte",
+        "src/routes/admin/notes/[slug]/edit/+page.server.ts",
+        "src/routes/admin/notes/[slug]/edit/+page.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "ADMIN-05",
+      "group_id": "ADMIN",
+      "title": "Embedding generation on note save",
+      "description": "Implement src/lib/server/embeddings.ts exporting embedText(text: string): Promise<number[]>. Call the OpenRouter embeddings endpoint (POST to the OpenAI-compatible /embeddings route) with the note body text. In the ADMIN-04 create and update form actions, call embedText(body) after saving the note row and update the note's embedding column. If the OpenRouter call fails, log the error but do not block the save — the note saves with a null embedding. Read OPENROUTER_API_KEY from $env/dynamic/private.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "ADMIN-04"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Creating a note generates and stores a non-null embedding in the DB",
+        "Editing a note body regenerates the embedding",
+        "If the OpenRouter call fails, the note saves successfully with a null embedding and the error is logged",
+        "OPENROUTER_API_KEY is read from env, never hardcoded",
+        "npm run lint passes"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/ENV_VARS.md"
+      ],
+      "files": [
+        "src/lib/server/embeddings.ts",
+        "src/routes/admin/notes/new/+page.server.ts",
+        "src/routes/admin/notes/[slug]/edit/+page.server.ts"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "PUBLIC-01",
+      "group_id": "PUBLIC",
+      "title": "NoteCard component + notes browse page",
+      "description": "Create src/lib/components/NoteCard.svelte: displays note number (zero-padded to 3 digits, e.g. 042), publishedAt date, tag badges, title, excerpt (first ~150 chars of body), and a READ NOTE link to /notes/[slug]. Match the note row design from reference/UI/design_handoff_glass_atlas/Landing dark.png 'latest field notes' section — row-separated layout, no rounded cards. Create src/routes/notes/+page.server.ts: load all published notes, accept optional ?topic= query param for filtering via listNotes(). Create src/routes/notes/+page.svelte: page heading 'The latest field notes.', filter bar with topic select and sort controls, then a list of NoteCard rows.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "SCAFFOLD-03",
+        "ADMIN-01"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Published notes appear in reverse-chronological order",
+        "?topic= query param filters the list to matching notes",
+        "NoteCard renders number, date, tags, title, excerpt, and read link",
+        "Empty state is shown when no notes match the filter",
+        "Row layout with dividers matches the design reference",
+        "npm run lint and npm run test:run pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
+        "src/lib/components/NoteCard.svelte",
+        "src/routes/notes/+page.server.ts",
+        "src/routes/notes/+page.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "PUBLIC-02",
+      "group_id": "PUBLIC",
+      "title": "Note detail page (/notes/[slug])",
+      "description": "Create src/routes/notes/[slug]/+page.server.ts: load the note by slug (404 if not found or not published), load all published notes for the left sidebar catalog, derive 3 related notes (same topic or category). Create src/routes/notes/[slug]/+page.svelte with three-column layout matching reference/UI/design_handoff_glass_atlas/Note viewer dark.png: left sidebar (NEW CONVERSATION CTA button at top linking to /, then a scrollable list of all published notes by date with the current note highlighted), main column (note title formatted as a question if applicable, full body rendered as Markdown with code block support using unified with remark-gfm and rehype-shiki), right sidebar (OTHER NOTES section with related note links, CITE THIS NOTE section with note slug/date/URL). Return 404 for unpublished or unknown slugs.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "PUBLIC-01"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Note body renders as formatted Markdown with syntax-highlighted code blocks",
+        "Left sidebar lists all published notes with the current note visually highlighted",
+        "NEW CONVERSATION button links to /",
+        "Right sidebar shows 3 related notes and cite information",
+        "Visiting an unpublished or non-existent slug returns a 404 response",
+        "Three-column layout matches the note viewer design reference",
+        "npm run lint and npm run test:run pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
+        "src/routes/notes/[slug]/+page.server.ts",
+        "src/routes/notes/[slug]/+page.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "CHAT-01",
+      "group_id": "CHAT",
+      "title": "OpenRouter adapter + personality block + RAG assembly",
+      "description": "Implement src/lib/server/ai/openrouter.ts: a streaming fetch client for OpenRouter's OpenAI-compatible chat completions endpoint. Use native fetch, not the openai SDK. Implement src/lib/server/personality.ts: export a SYSTEM_PROMPT string that instructs the LLM to answer only from retrieved note context, cite note slugs, and decline off-topic questions with 'I don't have a note on that.' Implement src/lib/server/chat.ts: export assembleContext(query: string): Promise<{ context: string; citedSlugs: string[] }> which calls searchNotesBySimilarity from notes.ts with a query embedding, formats the top-N results as 'Takeaway: ... First paragraph: ...' snippets (never full bodies), assembles the final prompt string, and returns it alongside the list of retrieved note slugs so the caller can record citations. Chat responses must stream via ReadableStream.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "ADMIN-05"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "openrouter.ts sends a valid streaming request to OpenRouter and returns a ReadableStream",
+        "personality.ts exports a non-empty SYSTEM_PROMPT string",
+        "chat.ts assembleContext() returns { context: string; citedSlugs: string[] } from top-N similar notes",
+        "Full note bodies are never passed to the LLM — only takeaway and first paragraph",
+        "npm run lint passes"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/ENV_VARS.md"
+      ],
+      "files": [
+        "src/lib/server/ai/openrouter.ts",
+        "src/lib/server/personality.ts",
+        "src/lib/server/chat.ts"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "CHAT-02",
+      "group_id": "CHAT",
+      "title": "Chat API endpoint with IP-based rate limiting",
+      "description": "Create src/routes/api/chat/+server.ts handling POST requests with body { message: string }. Rate limiting: maintain an in-memory Map keyed by a SHA-256 hash of the requester's IP address (read from request.headers.get('x-forwarded-for') or getClientAddress()). Each entry tracks { count: number, windowStart: number }. On each request, if count >= 10 within the current 1-hour window, return a 429 Response with JSON { error: 'Rate limit exceeded' }. Otherwise increment count and call assembleContext(message) from chat.ts to get { context, citedSlugs }, then immediately call recordCitations(citedSlugs) from notes.ts (fire-and-forget — do not await, do not block the stream on it). Pass context to the streaming OpenRouter call. Return new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } }). Never use SvelteKit's json() helper for this endpoint.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "CHAT-01"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "POST /api/chat returns a text/event-stream response that streams tokens",
+        "The 11th request within a 1-hour window from the same IP returns HTTP 429",
+        "The requester IP is hashed with SHA-256 before use as the rate-limit key",
+        "The response uses new Response(stream), not json()",
+        "npm run lint passes"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md"
+      ],
+      "files": [
+        "src/routes/api/chat/+server.ts"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "CHAT-03",
+      "group_id": "CHAT",
+      "title": "Chat.svelte component",
+      "description": "Create src/lib/components/Chat.svelte using Svelte 5 runes. Props via $props(): compact (boolean, defaults to false). State: messages $state([]), input $state(''), loading $state(false), error $state(''), onSubmit handler POSTs to /api/chat using fetch + ReadableStream (not EventSource — POST body is required). While awaiting the first token, show an optimistic 'Searching notes…' message. Stream tokens into the last assistant message as they arrive. On 429, show 'Rate limit reached — try again in an hour.' Chat history lives in component $state only — it is never persisted and clears on page reload. Compact mode constrains the height for use in the landing hero panel. Matches the chat panel design from reference/UI/design_handoff_glass_atlas/Landing dark.png. Input placeholder: 'Ask anything grounded in these notes…'",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "CHAT-02"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Typing a message and submitting sends a POST to /api/chat",
+        "Response tokens stream into the UI one by one",
+        "Loading state shows 'Searching notes…' before first token arrives",
+        "A 429 response shows the rate limit message",
+        "Chat history clears on page reload (no persistence)",
+        "Compact mode fits within the landing hero panel column",
+        "npm run lint and npm run test:run pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/styleguide.md",
+        "docs/CONVENTIONS.md"
+      ],
+      "files": [
+        "src/lib/components/Chat.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "POLISH-01",
+      "group_id": "POLISH",
+      "title": "Landing page",
+      "description": "Replace the 'Coming soon' placeholder in src/routes/+page.svelte. Create src/routes/+page.server.ts: load 4 stats (count of published notes, count of distinct topics, average word count across notes, total note citations served through chat via getTotalCitations() from notes.ts), and fetch the 3 most recent published notes. Layout per reference/UI/design_handoff_glass_atlas/Landing dark.png: top nav (from SCAFFOLD-03), two-column hero (left ~40%: large Literata serif headline 'Notes from a developer who would rather show his work.' + READ THE LATEST CTA button linking to /notes; right ~60%: Chat component in compact mode). The chat panel background in dark mode must use --color-surface-1 (#232019) — this is the fix; the design reference incorrectly shows a custom olive-green surface, use the standard token instead. Stats row below hero (4 stats). 'The latest field notes.' section with 3 NoteCard rows.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [
+        "SCAFFOLD-03",
+        "CHAT-03",
+        "PUBLIC-01"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Hero renders editorial headline and Chat compact panel side by side",
+        "Chat panel background uses --color-surface-1 in dark mode (not a custom token)",
+        "Stats row shows live counts from the database",
+        "3 most recent published notes appear as NoteCards below the stats",
+        "Both light and dark modes match the design reference",
+        "npm run lint and npm run test:run pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
+        "src/routes/+page.svelte",
+        "src/routes/+page.server.ts"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "POLISH-02",
+      "group_id": "POLISH",
+      "title": "SEO meta tags + sitemap.xml",
+      "description": "Update src/routes/+layout.svelte to add a <svelte:head> block with site-level meta: title ('Glass Atlas'), description, and Open Graph tags (og:title, og:description, og:type, og:url). Update src/routes/notes/[slug]/+page.svelte to add per-note <svelte:head> with the note title and first sentence as description. Create src/routes/sitemap.xml/+server.ts: GET handler that queries all published notes, builds a sitemap XML string with <url> entries for /, /notes, and each /notes/[slug], and returns it with content-type application/xml.",
+      "status": "todo",
+      "priority": "low",
+      "depends_on": [
+        "POLISH-01"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "/ has a <title> and og:title meta tag",
+        "/notes/[slug] has the note title as <title> and the first sentence as meta description",
+        "GET /sitemap.xml returns valid XML with entries for all published notes",
+        "npm run build passes with no errors"
+      ],
+      "docs": [
+        "docs/PRD.md"
+      ],
+      "files": [
+        "src/routes/+layout.svelte",
+        "src/routes/notes/[slug]/+page.svelte",
+        "src/routes/sitemap.xml/+server.ts"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run build"
+      ]
+    },
+    {
+      "id": "PUBLIC-03",
+      "group_id": "PUBLIC",
+      "title": "Notes text search",
+      "description": "Extend listNotes() in src/lib/server/db/notes.ts to filter by q?: string — title ILIKE '%q%' OR any element of tags ILIKE '%q%' (case-insensitive; already specified in ADMIN-01). Update src/routes/notes/+page.server.ts to forward the ?q= query parameter into listNotes(). Update src/routes/notes/+page.svelte: add a text search input to the existing filter bar; on change/submit navigate to /notes?q=<value> (preserve any active ?topic= param). When the page loads with ?focus=search in the URL, auto-focus the search input via a Svelte action or bind:this + $effect. Wire the nav search icon in src/lib/components/Nav.svelte to navigate to /notes?focus=search on click.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [
+        "PUBLIC-01",
+        "SCAFFOLD-03"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "?q=<term> filters /notes to notes whose title or any tag matches (case-insensitive)",
+        "Empty state is shown when no notes match the search term",
+        "Clicking the nav search icon navigates to /notes?focus=search and focuses the search input",
+        "?q= and ?topic= params compose correctly — both can be active simultaneously",
+        "Clearing the search input navigates back to the unfiltered list",
+        "npm run lint and npm run test:run pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
+        "src/lib/server/db/notes.ts",
+        "src/routes/notes/+page.server.ts",
+        "src/routes/notes/+page.svelte",
+        "src/lib/components/Nav.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    }
+  ]
 }

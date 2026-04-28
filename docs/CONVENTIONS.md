@@ -77,8 +77,6 @@ src/
         [slug]/edit/+page.svelte
     api/
       chat/+server.ts                 — public, rate-limited, streaming SSE
-      admin/notes/+server.ts
-      admin/notes/[slug]/+server.ts
   hooks.server.ts                     — Auth.js middleware + admin route guard
 ```
 
@@ -113,7 +111,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 **API endpoints** — typed request/response, serialize explicitly:
 
 ```ts
-// src/routes/api/admin/notes/+server.ts
+// Generic admin API endpoint pattern — auth check first, serialize explicitly, never raw ORM
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -227,7 +225,7 @@ function wikiLinkCompletions(notes: { slug: string; title: string }[]): Completi
 
 ### Connection
 
-- Use the Neon serverless HTTP driver (`@neondatabase/serverless`). Never use a TCP/WebSocket pool — it is incompatible with Vercel edge.
+- Use the Neon serverless HTTP driver (`@neondatabase/serverless`). Never use a TCP/WebSocket pool — the HTTP driver is the established pattern for this project and avoids connection-pool lifecycle issues in the Bun server environment.
 - The database client is exported from `src/lib/server/db/index.ts`. Import from there everywhere.
 
 ### Schema (`src/lib/server/db/schema.ts`)
@@ -333,7 +331,7 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 
 - Auth.js manages sessions. Session data is attached to `event.locals.session` in `hooks.server.ts`.
 - The `hooks.server.ts` file guards every route under `/admin` and `/api/admin`. Never add per-route auth checks as a substitute for the hook guard — they can be forgotten.
-- Rate limiting for `/api/chat` is tracked per IP in Neon or Vercel edge KV. The limit check runs in `hooks.server.ts` or at the top of the `+server.ts` handler before any LLM call.
+- Rate limiting for `/api/chat` is enforced via an in-memory `Map` keyed by SHA-256 hash of the requester's IP, tracking `{ count: number; windowStart: number }` per entry. The limit check runs at the top of the `/api/chat` `+server.ts` handler before any embedding or LLM call. This works correctly because the server is a persistent Bun process — the Map survives between requests on the same instance.
 - Never expose internal error messages or stack traces in API responses. Return generic error strings to the client.
 
 ---

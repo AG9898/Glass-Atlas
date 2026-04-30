@@ -1,7 +1,7 @@
 {
   "$schema": "./workboard.schema.json",
   "schema_version": "1.0.0",
-  "last_updated": "2026-04-30",
+  "last_updated": "2026-04-30T09:14",
   "tasks": [
     {
       "id": "SCAFFOLD-01",
@@ -421,7 +421,7 @@
       "group_id": "CHAT",
       "title": "OpenRouter adapter + personality block + RAG assembly",
       "description": "Implement src/lib/server/ai/openrouter.ts: a streaming fetch client for OpenRouter's OpenAI-compatible chat completions endpoint. Use native fetch, not the openai SDK. Implement src/lib/server/personality.ts: export a SYSTEM_PROMPT string that instructs the LLM to answer only from retrieved note context, cite note slugs, and decline off-topic questions with 'I don't have a note on that.' Implement src/lib/server/chat.ts: export assembleContext(query: string): Promise<{ context: string; citedSlugs: string[] }> which calls searchNotesBySimilarity from notes.ts with a query embedding, formats the top-N results as 'Takeaway: ... First paragraph: ...' snippets (never full bodies), assembles the final prompt string, and returns it alongside the list of retrieved note slugs so the caller can record citations. Chat responses must stream via ReadableStream.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "ADMIN-05",

@@ -1,4 +1,4 @@
-import { PUBLIC_SITE_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 import { listNotes } from '$lib/server/db/notes';
 import type { RequestHandler } from './$types';
 
@@ -19,8 +19,9 @@ function urlEntry(loc: string): string {
   return `<url><loc>${escapeXml(loc)}</loc></url>`;
 }
 
-export const GET: RequestHandler = async () => {
-  const siteUrl = normalizeSiteUrl(PUBLIC_SITE_URL);
+export const GET: RequestHandler = async ({ url }) => {
+  const configuredSiteUrl = env.PUBLIC_SITE_URL?.trim();
+  const siteUrl = normalizeSiteUrl(configuredSiteUrl || url.origin);
   const publishedNotes = await listNotes({ status: 'published' });
 
   const entries = [

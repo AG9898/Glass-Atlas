@@ -9,7 +9,19 @@ if (!env.DATABASE_URL) {
   console.warn('[db] DATABASE_URL is not set — database operations will fail. See docs/ENV_VARS.md.');
 }
 
-export const db = drizzle(
-  neon(env.DATABASE_URL ?? 'postgresql://not-configured'),
-  { schema },
-);
+function createMissingDbClient(): ReturnType<typeof drizzle> {
+  return new Proxy(
+    {},
+    {
+      get(_target, prop) {
+        throw new Error(
+          `DATABASE_URL is not set — attempted database access via db.${String(prop)}. See docs/ENV_VARS.md.`,
+        );
+      },
+    },
+  ) as ReturnType<typeof drizzle>;
+}
+
+export const db = env.DATABASE_URL
+  ? drizzle(neon(env.DATABASE_URL), { schema })
+  : createMissingDbClient();

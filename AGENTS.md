@@ -301,3 +301,15 @@ The admin note editor tasks require `image`, `published_at`, and `series` fields
 
 ### 2026-04-30 — `/api/admin/**` routes need explicit auth checks until hook coverage is expanded
 `src/hooks.server.ts` currently guards `/admin` pages but does not automatically block `/api/admin/**` endpoints. New admin API handlers should call `event.locals.auth()` and return `401` when unauthenticated to avoid accidental exposure. Keep this route-level check in place unless the global hook is broadened in a dedicated task.
+
+### 2026-04-30 — Bucket env vars must be runtime-loaded to keep Docker/Railway builds green
+Importing `BUCKET`/`ACCESS_KEY_ID`/`SECRET_ACCESS_KEY` from `$env/static/private` makes `vite build` fail when upload vars are not present at build time. Load bucket vars from `$env/dynamic/private` inside `src/lib/server/storage/bucket.ts` and fail only when upload endpoints are actually used.
+
+### 2026-04-30 — `PUBLIC_SITE_URL` should be runtime-loaded with fallback
+Using `$env/static/public` for `PUBLIC_SITE_URL` can fail `vite build` if the var is unset in the build environment. Use `$env/dynamic/public` and fall back to `url.origin` (sitemap) or `http://localhost:5173` (layout metadata) so builds stay reproducible while production still sets the canonical domain.
+
+### 2026-04-30 — Docker builds should use `npm ci` (not `bun install`) for this lockfile
+`package-lock.json` resolves `vscode-textmate` to `git+ssh://git@github.com/...`, which makes `bun install` fail during lockfile migration in container builds. In Docker, install `git`, `python3`, `make`, `g++`, and `npm`, then run `npm ci` before `bun run build`.
+
+### 2026-04-30 — Railway Dockerfile builds need `ARG` for build-time env access
+When deploying with a custom Dockerfile, Railway-provided/service variables are only available to `RUN` steps if declared with `ARG` in that build stage. This matters for `$env/static/private` imports like Auth.js credentials, which must exist during `vite build`.

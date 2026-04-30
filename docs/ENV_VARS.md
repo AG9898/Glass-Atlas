@@ -24,12 +24,12 @@
 | `AUTH_GITHUB_SECRET` | Yes | All | — | `$env/static/private` | GitHub OAuth app Client Secret. |
 | `AUTH_TRUST_HOST` | No | — | — | `$env/static/private` | Vercel-specific workaround — not required on Railway. Do not set. |
 | `CHAT_RATE_LIMIT` | No | All | `10` | `$env/static/private` | Max chat messages allowed per IP per hour. |
-| `PUBLIC_SITE_URL` | Yes (production) | All | `http://localhost:5173` | `$env/static/public` | Canonical site URL used for OG tags and sitemap generation. |
-| `BUCKET` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | — | `$env/static/private` | Railway bucket name for S3-compatible API calls. Use Railway bucket variable references. |
-| `ENDPOINT` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | `https://storage.railway.app` | `$env/static/private` | Railway bucket S3 endpoint. |
-| `REGION` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | `auto` | `$env/static/private` | Railway bucket region value for S3 client configuration. |
-| `ACCESS_KEY_ID` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | — | `$env/static/private` | Railway bucket S3 access key ID. |
-| `SECRET_ACCESS_KEY` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | — | `$env/static/private` | Railway bucket S3 secret access key. |
+| `PUBLIC_SITE_URL` | Yes (production) | All | `http://localhost:5173` | `$env/dynamic/public` | Canonical site URL used for OG tags and sitemap generation. Runtime import allows safe local/build fallback, but set this in production. |
+| `BUCKET` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | — | `$env/dynamic/private` | Railway bucket name for S3-compatible API calls. Use Railway bucket variable references. Runtime import avoids build-time failure when uploads are not configured. |
+| `ENDPOINT` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | `https://storage.railway.app` | `$env/dynamic/private` | Railway bucket S3 endpoint. |
+| `REGION` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | `auto` | `$env/dynamic/private` | Railway bucket region value for S3 client configuration. |
+| `ACCESS_KEY_ID` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | — | `$env/dynamic/private` | Railway bucket S3 access key ID. |
+| `SECRET_ACCESS_KEY` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | — | `$env/dynamic/private` | Railway bucket S3 secret access key. |
 
 ---
 

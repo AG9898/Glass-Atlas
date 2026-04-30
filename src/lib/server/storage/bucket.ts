@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { ACCESS_KEY_ID, BUCKET, ENDPOINT, REGION, SECRET_ACCESS_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 export const SUPPORTED_MEDIA_MIME_TYPES = [
   'image/jpeg',
@@ -41,20 +41,40 @@ const UPLOAD_URL_TTL_SECONDS = 300;
 const ACCESS_URL_TTL_SECONDS = 300;
 
 let s3Client: S3Client | null = null;
+let bucketName: string | null = null;
+
+function getBucketName(): string {
+  if (bucketName) return bucketName;
+
+  const configuredBucket = env.BUCKET?.trim();
+
+  if (!configuredBucket) {
+    throw new Error('Bucket credentials are not configured.');
+  }
+
+  bucketName = configuredBucket;
+  return bucketName;
+}
 
 function getBucketClient(): S3Client {
   if (s3Client) return s3Client;
 
-  if (!BUCKET || !ACCESS_KEY_ID || !SECRET_ACCESS_KEY) {
+  const accessKeyId = env.ACCESS_KEY_ID?.trim();
+  const secretAccessKey = env.SECRET_ACCESS_KEY?.trim();
+
+  if (!accessKeyId || !secretAccessKey) {
     throw new Error('Bucket credentials are not configured.');
   }
 
+  const region = env.REGION?.trim() || 'auto';
+  const endpoint = env.ENDPOINT?.trim() || 'https://storage.railway.app';
+
   s3Client = new S3Client({
-    region: REGION || 'auto',
-    endpoint: ENDPOINT || 'https://storage.railway.app',
+    region,
+    endpoint,
     credentials: {
-      accessKeyId: ACCESS_KEY_ID,
-      secretAccessKey: SECRET_ACCESS_KEY,
+      accessKeyId,
+      secretAccessKey,
     },
   });
 
@@ -109,10 +129,11 @@ export async function createPresignedUploadUrl(input: UploadUrlInput): Promise<U
   }
 
   const key = createObjectKey(contentType, input.filename);
+  const bucket = getBucketName();
   const client = getBucketClient();
 
   const command = new PutObjectCommand({
-    Bucket: BUCKET,
+    Bucket: bucket,
     Key: key,
     ContentType: contentType,
   });
@@ -136,10 +157,11 @@ export async function createPresignedAccessUrl(key: string): Promise<string> {
     throw new Error('Invalid object key.');
   }
 
+  const bucket = getBucketName();
   const client = getBucketClient();
 
   const command = new GetObjectCommand({
-    Bucket: BUCKET,
+    Bucket: bucket,
     Key: key,
   });
 

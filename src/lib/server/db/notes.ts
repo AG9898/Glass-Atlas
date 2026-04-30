@@ -18,6 +18,7 @@ export type Note = {
   category: string | null;
   tags: string[] | null;
   image: string | null;
+  mediaType: 'image-jpeg' | 'image-png' | 'image-svg' | 'image-gif' | 'video-mp4';
   publishedAt: Date | null;
   series: string | null;
   status: 'draft' | 'published';
@@ -34,6 +35,7 @@ export type CreateNoteInput = {
   category?: string | null;
   tags?: string[] | null;
   image?: string | null;
+  mediaType?: 'image-jpeg' | 'image-png' | 'image-svg' | 'image-gif' | 'video-mp4';
   publishedAt?: Date | null;
   series?: string | null;
   status?: 'draft' | 'published';
@@ -47,6 +49,7 @@ export type UpdateNoteInput = {
   category?: string | null;
   tags?: string[] | null;
   image?: string | null;
+  mediaType?: 'image-jpeg' | 'image-png' | 'image-svg' | 'image-gif' | 'video-mp4';
   publishedAt?: Date | null;
   series?: string | null;
   status?: 'draft' | 'published';
@@ -124,6 +127,7 @@ export async function createNote(data: CreateNoteInput): Promise<Note> {
       category: data.category ?? null,
       tags: data.tags ?? null,
       image: data.image ?? null,
+      mediaType: data.mediaType ?? 'image-jpeg',
       publishedAt: data.publishedAt ?? null,
       series: data.series ?? null,
       status: data.status ?? 'draft',
@@ -241,6 +245,12 @@ function toNote(row: typeof notes.$inferSelect): Note {
     category: row.category,
     tags: row.tags,
     image: row.image,
+    mediaType: row.mediaType as
+      | 'image-jpeg'
+      | 'image-png'
+      | 'image-svg'
+      | 'image-gif'
+      | 'video-mp4',
     publishedAt: row.publishedAt,
     series: row.series,
     status: row.status as 'draft' | 'published',

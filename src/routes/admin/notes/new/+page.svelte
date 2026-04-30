@@ -4,7 +4,26 @@
   import type { ActionData } from './$types';
 
   type NoteStatus = 'draft' | 'published';
+  type NoteMediaType = 'image-jpeg' | 'image-png' | 'image-svg' | 'image-gif' | 'video-mp4';
   type FormValues = NonNullable<ActionData>['values'];
+  type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
+  type UploadResponse = {
+    key: string;
+    uploadUrl: string;
+    uploadMethod: 'PUT';
+    uploadHeaders: {
+      'Content-Type': string;
+    };
+    imageUrl: string;
+  };
+
+  const MEDIA_TYPE_OPTIONS: Array<{ value: NoteMediaType; label: string }> = [
+    { value: 'image-jpeg', label: 'JPEG image' },
+    { value: 'image-png', label: 'PNG image' },
+    { value: 'image-svg', label: 'SVG image' },
+    { value: 'image-gif', label: 'GIF image' },
+    { value: 'video-mp4', label: 'MP4 video' },
+  ];
 
   let { form }: { form: ActionData } = $props();
 
@@ -22,8 +41,11 @@
   let publishedAt = $state(initialValues?.publishedAt ?? '');
   let series = $state(initialValues?.series ?? '');
   let image = $state(initialValues?.image ?? '');
+  let mediaType = $state<NoteMediaType>(initialValues?.mediaType ?? 'image-jpeg');
   let tags = $state<string[]>(initialValues?.tags ?? []);
   let tagDraft = $state('');
+  let uploadStatus = $state<UploadStatus>('idle');
+  let uploadMessage = $state('');
 
   let formValues = $derived(valuesFromForm());
   let tagsValue = $derived(
@@ -43,6 +65,7 @@
     publishedAt = formValues.publishedAt;
     series = formValues.series;
     image = formValues.image;
+    mediaType = formValues.mediaType;
     tags = formValues.tags;
   });
 
@@ -80,6 +103,77 @@
 
     event.preventDefault();
     addTag();
+  }
+
+  function inferMediaTypeFromMime(mimeType: string): NoteMediaType {
+    if (mimeType === 'image/png') return 'image-png';
+    if (mimeType === 'image/svg+xml') return 'image-svg';
+    if (mimeType === 'image/gif') return 'image-gif';
+    if (mimeType === 'video/mp4') return 'video-mp4';
+    return 'image-jpeg';
+  }
+
+  function isUploadResponse(value: unknown): value is UploadResponse {
+    if (typeof value !== 'object' || value === null) return false;
+
+    const candidate = value as Record<string, unknown>;
+    return (
+      typeof candidate.key === 'string' &&
+      typeof candidate.uploadUrl === 'string' &&
+      typeof candidate.imageUrl === 'string' &&
+      typeof candidate.uploadHeaders === 'object' &&
+      candidate.uploadHeaders !== null
+    );
+  }
+
+  async function handleCoverUpload(event: Event): Promise<void> {
+    const input = event.currentTarget;
+    if (!(input instanceof HTMLInputElement)) return;
+
+    const file = input.files?.[0];
+    if (!file) return;
+
+    uploadStatus = 'uploading';
+    uploadMessage = 'Requesting upload URL...';
+
+    try {
+      const response = await fetch('/api/admin/media/upload-url', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+        }),
+      });
+
+      const payload: unknown = await response.json();
+      if (!response.ok || !isUploadResponse(payload)) {
+        throw new Error('Unable to prepare upload.');
+      }
+
+      uploadMessage = 'Uploading file...';
+
+      const uploadResult = await fetch(payload.uploadUrl, {
+        method: payload.uploadMethod,
+        headers: payload.uploadHeaders,
+        body: file,
+      });
+
+      if (!uploadResult.ok) {
+        throw new Error('Upload failed.');
+      }
+
+      image = payload.imageUrl;
+      mediaType = inferMediaTypeFromMime(file.type);
+      uploadStatus = 'success';
+      uploadMessage = `Uploaded ${file.name}`;
+      input.value = '';
+    } catch {
+      uploadStatus = 'error';
+      uploadMessage = 'Upload failed. Check bucket credentials/CORS and try again.';
+    }
   }
 </script>
 
@@ -204,10 +298,33 @@
           <input bind:value={series} name="series" placeholder="Optional series name" />
         </label>
         <label>
-          <span>Cover media URL</span>
-          <input bind:value={image} name="image" inputmode="url" placeholder="https://.../cover.png" />
+          <span>Upload cover media</span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/svg+xml,image/gif,video/mp4"
+            onchange={handleCoverUpload}
+          />
         </label>
-        <p class="hint">Accepts pasted JPEG, PNG, SVG, GIF, or MP4 URLs. First-party upload controls are handled in ADMIN-07.</p>
+        <div class="cover-fields">
+          <label>
+            <span>Media type</span>
+            <select bind:value={mediaType} name="mediaType">
+              {#each MEDIA_TYPE_OPTIONS as option (option.value)}
+                <option value={option.value}>{option.label}</option>
+              {/each}
+            </select>
+          </label>
+          <label>
+            <span>Cover media URL</span>
+            <input bind:value={image} name="image" inputmode="url" placeholder="https://.../cover.png" />
+          </label>
+        </div>
+        <p class="hint">Supports JPEG, PNG, SVG, GIF, and MP4. Upload sets a private-bucket access URL in this field.</p>
+        {#if uploadStatus !== 'idle'}
+          <p class:success={uploadStatus === 'success'} class:error={uploadStatus === 'error'} class="hint upload-status">
+            {uploadMessage}
+          </p>
+        {/if}
       </section>
 
       <section class="sidebar-card checklist">
@@ -472,10 +589,24 @@
     gap: 0.5rem;
   }
 
+  .cover-fields {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+  }
+
   .hint {
     color: var(--color-text-muted);
     line-height: 1.5;
     text-transform: none;
+  }
+
+  .upload-status.success {
+    color: var(--color-success);
+  }
+
+  .upload-status.error {
+    color: var(--color-error);
   }
 
   .checklist span {
@@ -526,6 +657,10 @@
 
     .editor-sidebar {
       border-top: var(--line-std) solid var(--color-line-3);
+    }
+
+    .cover-fields {
+      grid-template-columns: 1fr;
     }
 
     .status-panel div + div,

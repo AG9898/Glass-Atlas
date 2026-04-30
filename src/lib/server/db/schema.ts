@@ -49,6 +49,12 @@ export const notes = glassAtlas.table('notes', {
   tags: text('tags').array(),
   // Optional cover media URL. Media type dispatch is added in ADMIN-06a.
   image: text('image'),
+  // Constrained cover media type for render-time dispatch in UI surfaces.
+  mediaType: text('media_type', {
+    enum: ['image-jpeg', 'image-png', 'image-svg', 'image-gif', 'video-mp4'],
+  })
+    .default('image-jpeg')
+    .notNull(),
   // Optional publication metadata shown in admin/public note surfaces.
   publishedAt: timestamp('published_at', { withTimezone: true }),
   series: text('series'),

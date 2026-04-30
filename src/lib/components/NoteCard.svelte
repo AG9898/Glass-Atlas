@@ -20,14 +20,7 @@
       (note.body.trim().length > 150 ? '…' : ''),
   );
 
-  /**
-   * Determine whether the image URL points to an MP4 video.
-   * Only checks for the .mp4 extension in the URL path — sufficient for
-   * the accepted cover media types (JPEG, PNG, SVG, GIF, MP4).
-   */
-  const isVideo = $derived(
-    note.image ? /\.mp4(\?.*)?$/i.test(note.image) : false,
-  );
+  const isVideo = $derived(note.mediaType === 'video-mp4');
 </script>
 
 <article class="note-row" aria-label={note.title}>

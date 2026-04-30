@@ -42,7 +42,7 @@ Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note ed
 `/api/chat` RAG endpoint with IP-based rate limiting (10 messages/hour, 429 on the 11th). Semantic search against pgvector embeddings. Streaming SSE responses. `Chat.svelte` component. `personality.ts` system prompt that enforces grounding.
 
 ### Phase 5 — Landing + Polish
-`/` landing page with chat front-and-center and note preview cards. SEO meta tags, `sitemap.xml`, final design pass. The canonical visual target for all pages is `docs/styleguide.md` (Section 10) and the reference mockups in `reference/UI/design_handoff_glass_atlas/`.
+`/` landing page with chat front-and-center and note preview cards. SEO includes site-level Open Graph metadata, per-note `<title>` + first-sentence descriptions on `/notes/[slug]`, and `sitemap.xml` entries for `/`, `/notes`, and each published note slug. The canonical visual target for all pages is `docs/styleguide.md` (Section 10) and the reference mockups in `reference/UI/design_handoff_glass_atlas/`.
 
 ---
 

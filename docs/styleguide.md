@@ -35,12 +35,15 @@ Glass Atlas uses **Soft Editorial Brutalism**:
 - Highest visual expression in the product.
 - Asymmetry, overlaps, and offset blocks are allowed when content remains readable.
 - Hero modules may break grid symmetry; body modules must return to structural rhythm.
+- Default landing hero split is editorial copy (~40%) and compact chat (~60%) on desktop; collapse to single-column on narrow viewports.
+- The landing chat panel must use the standard neutral surface token in dark mode: `--color-surface-1` (`#232019`), not a custom olive override.
 
 ### Notes Index (`/notes`)
 
 - Default pattern is **rule-separated rows**.
 - Use horizontal and vertical dividers to structure content density.
 - Avoid decorative cards for standard note previews.
+- Keep a compact filter bar with `Search`, `Topic`, and `Sort`; search and topic filters must compose in the URL (`?q=` + `?topic=`).
 
 ### Note View / Main Blog (`/notes/[slug]`)
 
@@ -260,7 +263,8 @@ Fonts are **self-hosted**.
 - Use direct, linear form sections with consistent row dividers.
 - Accent usage in admin is sparse; reserve for focus, primary action, and success state.
 - Markdown body editing uses `MarkdownEditor.svelte` with the blueprint technical panel recipe: `2px` border, uppercase header strip, `surface-2` in light mode, and `surface-1` in dark mode.
-- The note create/edit form uses a two-column editor: main column for title, takeaway, category, tags, and Markdown body; right sidebar for status, published date, series, and cover media URL.
+- The note create/edit form uses a two-column editor: main column for title, takeaway, category, tags, and Markdown body; right sidebar for status, published date, series, and cover media controls.
+- Cover media controls must place the `media_type` selector next to the cover media URL field in the same row on desktop (stack on mobile).
 - The edit form top bar must keep the breadcrumb, visible `DRAFT`/`PUBLISHED` status badge, `PREVIEW`, `SAVE DRAFT`, and `PUBLISH` controls on the same structural row on desktop; mobile may stack the controls but must preserve the order.
 
 ### 5.6 Admin Lists
@@ -301,6 +305,7 @@ Fonts are **self-hosted**.
 - **MP4 video** renders via `<video controls preload="metadata">` inside a `16/9` aspect-ratio container. Autoplay is not permitted; muted looping background video is not permitted.
 - **Media type dispatch** is driven by `media_type` (`image-jpeg` / `image-png` / `image-svg` / `image-gif` / `video-mp4`).
 - **First-party uploaded media** is stored in private Railway Storage Buckets and delivered via presigned URLs. Do not assume permanent public bucket URLs.
+- **Admin upload UX** (`/admin/notes/new`, `/admin/notes/[slug]/edit`) must provide file upload controls for JPEG, PNG, SVG, GIF, and MP4 and persist a stable app access path (`/api/admin/media/access-url?key=...`) in the `image` field.
 
 ---
 

@@ -5,6 +5,7 @@ import { createNote, getNoteBySlug, updateNote } from '$lib/server/db/notes';
 import { slugify } from '$lib/utils/slugify';
 
 type NoteStatus = 'draft' | 'published';
+type NoteMediaType = 'image-jpeg' | 'image-png' | 'image-svg' | 'image-gif' | 'video-mp4';
 
 type CreateFormValues = {
   title: string;
@@ -16,9 +17,11 @@ type CreateFormValues = {
   publishedAt: string;
   series: string;
   image: string;
+  mediaType: NoteMediaType;
 };
 
 const STATUS_VALUES = new Set<NoteStatus>(['draft', 'published']);
+const MEDIA_TYPE_VALUES = new Set<NoteMediaType>(['image-jpeg', 'image-png', 'image-svg', 'image-gif', 'video-mp4']);
 
 function readString(formData: FormData, key: string): string {
   const value = formData.get(key);
@@ -27,6 +30,10 @@ function readString(formData: FormData, key: string): string {
 
 function parseStatus(value: string): NoteStatus {
   return STATUS_VALUES.has(value as NoteStatus) ? (value as NoteStatus) : 'draft';
+}
+
+function parseMediaType(value: string): NoteMediaType {
+  return MEDIA_TYPE_VALUES.has(value as NoteMediaType) ? (value as NoteMediaType) : 'image-jpeg';
 }
 
 function parseTags(value: string): string[] {
@@ -54,6 +61,7 @@ function readValues(formData: FormData): CreateFormValues {
     publishedAt: readString(formData, 'publishedAt'),
     series: readString(formData, 'series'),
     image: readString(formData, 'image'),
+    mediaType: parseMediaType(readString(formData, 'mediaType')),
   };
 }
 
@@ -103,6 +111,7 @@ export const actions: Actions = {
       category: values.category || null,
       tags: values.tags.length > 0 ? values.tags : null,
       image: values.image || null,
+      mediaType: values.mediaType,
       publishedAt: parsePublishedAt(values.publishedAt),
       series: values.series || null,
       status: values.status,

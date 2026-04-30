@@ -40,6 +40,7 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 **Why:** This set covers current editorial needs (still captures, lightweight diagrams, animated GIF demos, and short MP4 demos) without introducing broad codec/embed complexity. Restricting to explicit formats keeps validation, rendering behavior, and accessibility requirements deterministic across admin and public surfaces.
 **Alternatives rejected:** Third-party video embeds were rejected (no iframe provider dependency, no autoplay/embed policy complexity). Open-ended "any image/video URL" support was rejected due validation and UX inconsistency risk.
 **Affects:** docs/ARCHITECTURE.md, docs/PRD.md, docs/styleguide.md, docs/workboard.json (ADMIN-06 chain)
+**Implementation status (2026-04-30):** `ADMIN-06a` + `ADMIN-06b` are shipped. `notes.media_type` is persisted through admin create/edit form actions, admin forms expose the five-option media type selector beside the cover URL input, and public note renderers dispatch by `media_type` (`<img>` for image types, `<video controls preload="metadata">` for `video-mp4`) inside 16/9 containers with no autoplay.
 
 ### RESOLVED-13 — Asset Storage Strategy (Railway Bucket + Presigned URLs)
 
@@ -48,6 +49,7 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 **Why:** The app already deploys on Railway, so bucket credentials and environment scoping integrate cleanly with current operations. Railway Buckets are S3-compatible and align with project scale/cost goals. S3 was rejected due higher bandwidth cost profile for this use case; adding an extra external provider (R2) was rejected because Railway now offers native buckets with the required functionality.
 **Alternatives rejected:** URL-reference-only was rejected as the long-term default because it keeps hosting responsibility outside the app and blocks first-party upload UX. Cloudflare R2 was rejected for now because it adds another provider without enough upside over Railway-native buckets for this project. AWS S3 was rejected for higher expected egress cost and added account/policy overhead.
 **Affects:** docs/ARCHITECTURE.md, docs/ENV_VARS.md, docs/styleguide.md, ADMIN-06 planning assumptions
+**Implementation status (2026-04-30):** `ADMIN-07` ships this decision with `POST /api/admin/media/upload-url` (admin-only MIME-validated presigned `PUT`) and `GET /api/admin/media/access-url?key=...` (public redirect to presigned `GET`). Admin new/edit forms now upload directly to the bucket and persist the stable app access path in `notes.image`.
 
 ### RESOLVED-12 — Audit-Driven Dependency Remediation Scope
 

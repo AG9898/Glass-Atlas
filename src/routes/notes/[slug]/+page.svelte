@@ -25,20 +25,22 @@
     note.publishedAt ? shortDateFormatter.format(note.publishedAt) : null,
   );
 
-  /**
-   * Determine whether the image URL points to an MP4 video.
-   * Only checks for the .mp4 extension — sufficient for the allowed media
-   * types (JPEG, PNG, SVG, GIF, MP4).
-   */
-  const isVideo = $derived(
-    note.image ? /\.mp4(\?.*)?$/i.test(note.image) : false,
-  );
+  function firstSentence(text: string): string {
+    const normalized = text.replace(/\s+/g, ' ').trim();
+    if (!normalized) return '';
+    const match = normalized.match(/^(.+?[.!?])(?:\s|$)/);
+    return (match?.[1] ?? normalized).trim();
+  }
+
+  const metaDescription = $derived(firstSentence(note.body) || note.title);
+
+  const isVideo = $derived(note.mediaType === 'video-mp4');
 
 </script>
 
 <svelte:head>
   <title>{note.title} | Glass Atlas</title>
-  <meta name="description" content={note.takeaway ?? note.title} />
+  <meta name="description" content={metaDescription} />
 </svelte:head>
 
 <div class="note-viewer">

@@ -93,6 +93,8 @@ ACCESS_KEY_ID=your_bucket_access_key_id
 SECRET_ACCESS_KEY=your_bucket_secret
 ```
 
+With `ADMIN-07` implemented, admin uploads use `POST /api/admin/media/upload-url` and direct browser `PUT` requests to the returned presigned URL. Ensure bucket CORS allows `PUT` from your app origin and allows the `Content-Type` request header.
+
 The committed `.env.example` file contains all variable names with placeholder values. Keep it up to date whenever a new variable is added.
 
 ---

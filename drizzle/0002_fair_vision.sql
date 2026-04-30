@@ -1,0 +1,1 @@
+ALTER TABLE "glass_atlas"."notes" ADD COLUMN "media_type" text DEFAULT 'image-jpeg' NOT NULL;

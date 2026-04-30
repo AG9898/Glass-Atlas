@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
+  import { page } from '$app/stores';
   import NoteCard from '$lib/components/NoteCard.svelte';
   import { CATEGORIES } from '$lib/utils/note-taxonomy';
   import type { PageData } from './$types';
@@ -7,30 +9,63 @@
 
   let selectedTopic = $state('');
   let selectedSort = $state('newest');
+  let searchQuery = $state('');
+  let searchInput: HTMLInputElement | null = null;
 
   $effect(() => {
     selectedTopic = data.topic ?? '';
     selectedSort = data.sort ?? 'newest';
+    searchQuery = data.q ?? '';
   });
 
-  function applyFilters(): void {
+  function buildFilterPath(next: { topic?: string; sort?: string; q?: string }): string {
     const params = new URLSearchParams();
-    if (selectedTopic) params.set('topic', selectedTopic);
-    if (selectedSort && selectedSort !== 'newest') params.set('sort', selectedSort);
+    const topic = next.topic ?? '';
+    const sort = next.sort ?? 'newest';
+    const q = (next.q ?? '').trim();
+
+    if (topic) params.set('topic', topic);
+    if (q) params.set('q', q);
+    if (sort !== 'newest') params.set('sort', sort);
 
     const query = params.toString();
-    window.location.href = `/notes${query ? `?${query}` : ''}`;
+    return `/notes${query ? `?${query}` : ''}`;
+  }
+
+  function applyFilters(next?: { topic?: string; sort?: string; q?: string }): void {
+    void goto(
+      buildFilterPath({
+        topic: next?.topic ?? selectedTopic,
+        sort: next?.sort ?? selectedSort,
+        q: next?.q ?? searchQuery,
+      }),
+    );
   }
 
   function handleTopicChange(event: Event): void {
     selectedTopic = (event.currentTarget as HTMLSelectElement).value;
-    applyFilters();
+    applyFilters({ topic: selectedTopic });
   }
 
   function handleSortChange(event: Event): void {
     selectedSort = (event.currentTarget as HTMLSelectElement).value;
-    applyFilters();
+    applyFilters({ sort: selectedSort });
   }
+
+  function handleSearchChange(event: Event): void {
+    searchQuery = (event.currentTarget as HTMLInputElement).value;
+    applyFilters({ q: searchQuery });
+  }
+
+  function handleSearchSubmit(event: SubmitEvent): void {
+    event.preventDefault();
+    applyFilters({ q: searchQuery });
+  }
+
+  $effect(() => {
+    if ($page.url.searchParams.get('focus') !== 'search') return;
+    searchInput?.focus();
+  });
 </script>
 
 <svelte:head>
@@ -48,7 +83,26 @@
       <h1 id="notes-title">The latest field notes.</h1>
     </div>
 
-    <form class="filter-bar" method="GET" action="/notes" aria-label="Filter notes">
+    <form
+      class="filter-bar"
+      method="GET"
+      action="/notes"
+      aria-label="Filter notes"
+      onsubmit={handleSearchSubmit}
+    >
+      <label class="filter-field filter-field--search">
+        <span class="filter-label">Search</span>
+        <input
+          bind:this={searchInput}
+          type="search"
+          name="q"
+          value={searchQuery}
+          onchange={handleSearchChange}
+          placeholder="Title or tag"
+          aria-label="Search notes by title or tag"
+        />
+      </label>
+
       <label class="filter-field">
         <span class="filter-label">Topic</span>
         <select
@@ -86,7 +140,7 @@
   {#if data.notes.length === 0}
     <section class="empty-state" aria-label="No notes found">
       <p class="eyebrow">No results</p>
-      <h2>No notes match this filter.</h2>
+      <h2>{data.q ? `No notes match "${data.q}".` : 'No notes match this filter.'}</h2>
       <p>
         Try a different topic or{' '}
         <a href="/notes">view all notes</a>.
@@ -166,6 +220,7 @@
     text-transform: uppercase;
   }
 
+  input,
   select {
     border: 0;
     border-bottom: var(--line-std) solid var(--color-line-3);
@@ -176,10 +231,22 @@
     font-size: 0.8rem;
     font-weight: 500;
     padding: 0.35rem 0;
-    cursor: pointer;
     min-width: 10rem;
   }
 
+  input {
+    min-width: 12rem;
+  }
+
+  select {
+    cursor: pointer;
+  }
+
+  .filter-field--search {
+    min-width: 14rem;
+  }
+
+  input:focus,
   select:focus {
     outline: var(--line-std) solid var(--color-accent-700);
     outline-offset: 3px;

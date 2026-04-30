@@ -298,3 +298,6 @@ Adding a new route that imports `./$types` can make `npm run lint` fail until `s
 
 ### 2026-04-30 — Admin editor metadata must be schema-backed
 The admin note editor tasks require `image`, `published_at`, and `series` fields to persist through `createNote()`/`updateNote()`. Keep these fields on the `notes` table and in the DB helper plain-object types; do not handle them with inline route SQL or client-only form state.
+
+### 2026-04-30 — `/api/admin/**` routes need explicit auth checks until hook coverage is expanded
+`src/hooks.server.ts` currently guards `/admin` pages but does not automatically block `/api/admin/**` endpoints. New admin API handlers should call `event.locals.auth()` and return `401` when unauthenticated to avoid accidental exposure. Keep this route-level check in place unless the global hook is broadened in a dedicated task.

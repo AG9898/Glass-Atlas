@@ -82,7 +82,7 @@
 
     <!-- Right controls -->
     <div class="ga-nav__controls-right">
-      <!-- Search icon (non-functional placeholder — wired in PUBLIC-03) -->
+      <!-- Search icon -->
       <a
         href="/notes?focus=search"
         class="ga-nav__icon-btn"

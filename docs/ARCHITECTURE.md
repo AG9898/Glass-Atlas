@@ -26,7 +26,7 @@ The server is a persistent Bun process. In-memory state survives between request
 
 ### SvelteKit route handlers (`src/routes/`)
 
-- Render public pages: landing (`/`), notes list (`/notes`), note detail (`/notes/[slug]`)
+- Render public pages: landing (`/`), notes list (`/notes`), note detail (`/notes/[slug]`). The landing `+page.server.ts` loads live homepage metrics (published note count, distinct topic count, average words per published note, total citations served) and the 3 most recent published notes via `db/notes.ts` helpers.
 - Render admin pages: dashboard (`/admin`), new note form, edit/delete note forms. The `/admin` dashboard loads all notes with `listNotes()` and deletes rows through a named SvelteKit form action that calls `deleteNote(slug)`. The new note form posts to a named `create` action, generates the slug from the title with `slugify.ts`, calls `createNote()`, attempts to generate/store an embedding, and redirects to `/admin/notes/[slug]/edit`. The edit form loads the existing note with `getNoteBySlug(slug)`, saves field patches through `updateNote(slug, data)`, regenerates the embedding after Save Draft/Publish, preserves status on Save Draft, and sets `status: 'published'` only through the Publish action.
 - Own the request/response boundary; delegate all business logic to server-side lib modules
 
@@ -36,7 +36,7 @@ The server is a persistent Bun process. In-memory state survives between request
 
 - `db/index.ts` — Drizzle ORM client wired to the Neon HTTP driver; all SQL goes through here
 - `db/schema.ts` — Drizzle table definitions: `notes`, `note_links`, `citation_events`, Auth.js tables
-- `db/notes.ts` — note CRUD helpers: `listNotes(filter?)`, `getNoteBySlug`, `createNote`, `updateNote`, `deleteNote`, `getBacklinks`, `getOutlinks`; RAG helpers: `searchNotesBySimilarity` (published notes ordered by pgvector cosine distance), `recordCitations`, `getTotalCitations`. Exports plain-object types `Note`, `CreateNoteInput`, `UpdateNoteInput`, including note metadata (`image`, `publishedAt`, `series`).
+- `db/notes.ts` — note CRUD helpers: `listNotes(filter?)`, `getNoteBySlug`, `createNote`, `updateNote`, `deleteNote`, `getBacklinks`, `getOutlinks`; RAG helpers: `searchNotesBySimilarity` (published notes ordered by pgvector cosine distance), `recordCitations`, `getTotalCitations`. Exports plain-object types `Note`, `CreateNoteInput`, `UpdateNoteInput`, including note metadata (`image`, `mediaType`, `publishedAt`, `series`).
 - `chat.ts` — builds the RAG prompt, calls OpenRouter for streaming completions, returns a `ReadableStream`
 - `embeddings.ts` — calls the OpenRouter-compatible `/embeddings` endpoint with `OPENROUTER_API_KEY` from `$env/dynamic/private`; returns `vector(1536)` arrays for storage in `notes.embedding`
 - `personality.ts` — exports the system prompt personality block as a string constant; never inlined elsewhere
@@ -47,6 +47,8 @@ The server is a persistent Bun process. In-memory state survives between request
 ### API routes
 
 - `POST /api/chat` — public; accepts `{ query, session_id, conversation_id? }`; embeds query, runs cosine similarity search, streams LLM response via SSE; rate-limited to 10 messages per IP per hour
+- `POST /api/admin/media/upload-url` — admin-only; accepts `{ filename, contentType }`; validates MIME allowlist (`image/jpeg`, `image/png`, `image/svg+xml`, `image/gif`, `video/mp4`) and returns a short-lived presigned `PUT` URL for direct browser upload to Railway Buckets
+- `GET /api/admin/media/access-url?key=...` — public redirect endpoint; converts a stored object key into a short-lived presigned `GET` URL so bucket objects remain private while note media stays embeddable from stable app URLs
 - `POST /api/admin/notes/[slug]/review` — admin-only; accepts the current note body; calls `ai/review.ts`; streams critique via SSE; does not read from or write to the database; free-tier OpenRouter model; returns `429` or `503` transparently when the model is unavailable
 
 Admin note create, update, and delete are handled by **SvelteKit form actions** in `+page.server.ts` files (not API routes). Form actions are the correct pattern for these mutations: they use progressive enhancement, integrate with SvelteKit's redirect flow, and do not require a separate client-side fetch.
@@ -60,7 +62,7 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 ### Client components (`src/lib/components/`)
 
 - Render UI only; send fetch/SSE requests to API routes
-- `Nav.svelte` — global navigation shell rendered in `+layout.svelte` on every page. Receives `session` prop from `+layout.server.ts` (loaded via `event.locals.auth()`). Dark mode toggle reads `localStorage('ga-theme')` on mount (falls back to `prefers-color-scheme`), persists the preference, and applies/removes a `.dark` class on `<html>`. Login/logout uses Auth.js sign-in (`/auth/signin`) and sign-out form action (`/auth/signout`). Search icon is a non-functional placeholder linking to `/notes?focus=search` (wired in PUBLIC-03).
+- `Nav.svelte` — global navigation shell rendered in `+layout.svelte` on every page. Receives `session` prop from `+layout.server.ts` (loaded via `event.locals.auth()`). Dark mode toggle reads `localStorage('ga-theme')` on mount (falls back to `prefers-color-scheme`), persists the preference, and applies/removes a `.dark` class on `<html>`. Login/logout uses Auth.js sign-in (`/auth/signin`) and sign-out form action (`/auth/signout`). Search icon links to `/notes?focus=search`, which opens the notes index and auto-focuses the search field.
 - Chat component manages optimistic UI state ("searching notes…"), token streaming, and citation link rendering
 - `MarkdownEditor.svelte` — CodeMirror 6 split-pane editor for the admin note form; left pane is the CodeMirror instance (initialized via `onMount`, torn down in `$effect` cleanup); right pane is a reactive preview rendered with `renderWikiLinks()`; note slug list for `[[` autocomplete is injected as a prop from `+page.server.ts`
 - No direct access to DB, LLM, or secrets
@@ -96,6 +98,8 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 
 ```
 1. Admin submits the note form in the browser
+   - Cover media controls include a `media_type` selector (`image-jpeg` / `image-png` / `image-svg` / `image-gif` / `video-mp4`) paired with the cover media URL field
+   - Optional: cover media file upload calls `POST /api/admin/media/upload-url`, uploads directly to Railway Bucket via presigned `PUT`, then writes `/api/admin/media/access-url?key=...` into the form `image` field
 2. Browser submits a SvelteKit form action (create or update) to the admin +page.server.ts handler
 3. Auth.js session verified by middleware before the handler runs
 4. Create actions generate the slug from the title with `slugify.ts`; edit actions keep the slug immutable and patch the note row in the notes table through `db/notes.ts` helpers, which also sync wiki-link rows when the body changes
@@ -106,7 +110,7 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 8. Browser navigates to the edit page
 ```
 
-**Cover media and publication metadata:** The `image` column on the `notes` table stores a plain cover media URL. `published_at` and `series` store optional admin-entered publication metadata. Asset storage strategy is resolved: first-party uploads use Railway Storage Buckets with presigned URLs (private bucket, direct browser upload, presigned GET for public delivery; backend proxy only when transformation/access control is required). The current admin flow accepts pasted URLs; upload UI/API wiring is planned work. Supported media formats are fixed to JPEG, PNG, SVG, GIF, and MP4 video (`<video controls>`, no autoplay).
+**Cover media and publication metadata:** The `image` column on the `notes` table stores either a pasted external URL or a stable app access path (`/api/admin/media/access-url?key=...`) generated after first-party upload. The `media_type` column stores one of `image-jpeg`, `image-png`, `image-svg`, `image-gif`, or `video-mp4` and defaults to `image-jpeg`. `published_at` and `series` store optional admin-entered publication metadata. First-party uploads use Railway Storage Buckets with short-lived presigned `PUT` URLs from `POST /api/admin/media/upload-url`, then render through short-lived presigned `GET` redirects from `GET /api/admin/media/access-url?key=...`. Public note surfaces dispatch by `media_type`: image types render with `<img>`, `video-mp4` renders with `<video controls preload="metadata">` (no autoplay), and cover containers enforce `aspect-ratio: 16/9`. If `image` is unset, no placeholder media is rendered. Bucket objects remain private; no permanent public bucket URLs are assumed.
 
 ### Wiki-link data model
 

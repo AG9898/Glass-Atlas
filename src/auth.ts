@@ -2,8 +2,9 @@ import { SvelteKitAuth } from '@auth/sveltekit';
 import GitHub from '@auth/sveltekit/providers/github';
 import { AUTH_GITHUB_ID, AUTH_GITHUB_SECRET, AUTH_SECRET } from '$env/static/private';
 
-// Using JWT sessions (no DB adapter). Auth_TRUST_HOST must NOT be set on Railway —
-// the SvelteKit Auth.js adapter sets trustHost appropriately via its own defaults.
+// Using JWT sessions (no DB adapter).
+// @auth/sveltekit@1.0.0 can resolve trustHost=false in production on Docker/Railway,
+// so keep trustHost explicitly true here.
 // To switch to DB-backed sessions, add adapter: DrizzleAdapter(db) here.
 export const { handle, signIn, signOut } = SvelteKitAuth({
   providers: [
@@ -13,4 +14,5 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
     }),
   ],
   secret: AUTH_SECRET,
+  trustHost: true,
 });

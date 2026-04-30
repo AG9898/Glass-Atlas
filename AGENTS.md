@@ -313,3 +313,6 @@ Using `$env/static/public` for `PUBLIC_SITE_URL` can fail `vite build` if the va
 
 ### 2026-04-30 — Railway Dockerfile builds need `ARG` for build-time env access
 When deploying with a custom Dockerfile, Railway-provided/service variables are only available to `RUN` steps if declared with `ARG` in that build stage. This matters for `$env/static/private` imports like Auth.js credentials, which must exist during `vite build`.
+
+### 2026-04-30 — `@auth/sveltekit@1.0.0` on Railway requires explicit `trustHost: true`
+With this package version, `setEnvDefaults()` initializes `config.trustHost` from `dev` before core env defaults run, so production can remain `false` and raise `UntrustedHost` even when `AUTH_TRUST_HOST` is set. Set `trustHost: true` directly in `src/auth.ts` for Docker/Railway deployments; keep `AUTH_URL` at the site origin only (no `/auth` suffix) to avoid `env-url-basepath-redundant` warnings.

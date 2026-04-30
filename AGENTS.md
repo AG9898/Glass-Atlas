@@ -283,3 +283,9 @@ Railway Storage Buckets do not provide public bucket URLs; serve uploaded note m
 
 ### 2026-04-28 — Cover media type scope is closed
 Use only JPEG, PNG, SVG, GIF, and MP4 for note cover media. Do not reintroduce YouTube/Vimeo iframe embeds unless a new decision explicitly reopens that scope.
+
+### 2026-04-30 — `drizzle-kit migrate` hangs in WSL2 (websocket limitation)
+`drizzle-kit migrate` uses `@neondatabase/serverless` websockets which fail silently (hangs indefinitely) in WSL2 and non-interactive CI shells. Use `npm run db:migrate:http` (`scripts/migrate.js`) instead — it reads the journal, applies each SQL file via the Neon HTTP driver, and updates `public.__drizzle_migrations`. The Railway production deploy environment is not affected (Linux, no WSL2).
+
+### 2026-04-30 — All schema tables must use `pgSchema('glass_atlas')`, not `pgTable`
+Using bare `pgTable` puts tables in the `public` schema, which is owned by the Techy project on the same Neon database. Always use `const glassAtlas = pgSchema('glass_atlas')` and `glassAtlas.table(...)` for every table definition. Also set `schemaFilter: ['glass_atlas']` in `drizzle.config.ts` so drizzle-kit does not manage or drop `public` schema objects.

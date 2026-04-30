@@ -8,7 +8,7 @@
       "group_id": "SCAFFOLD",
       "title": "Neon DB connection + Drizzle migrations",
       "description": "Configure drizzle.config.ts for the glass_atlas Postgres schema. Add db:generate, db:migrate, db:studio scripts to package.json. Verify src/lib/server/db/index.ts uses DATABASE_URL via $env/dynamic/private (already in place — confirm and document). Add a citation_events table to schema.ts (columns: id serial PK, note_slug text NOT NULL, cited_at timestamp NOT NULL DEFAULT now()) — this lightweight counter records each time a note is retrieved by the chat RAG pipeline and powers the landing page 'total citations served' stat. Generate the initial migration from the existing schema.ts, then run it against Neon. The pgvector extension must be enabled in the Neon console before migrating. All tables must use the glass_atlas schema prefix (pgSchema('glass_atlas') in Drizzle).",
-      "status": "todo",
+      "status": "done",
       "priority": "critical",
       "depends_on": [],
       "blocked_by": [],

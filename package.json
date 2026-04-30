@@ -13,6 +13,7 @@
     "lint": "tsc --noEmit && eslint .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate:http": "node scripts/migrate.js",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio"
   },

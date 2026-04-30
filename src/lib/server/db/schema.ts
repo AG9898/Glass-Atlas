@@ -1,7 +1,7 @@
 import {
   customType,
   integer,
-  pgTable,
+  pgSchema,
   primaryKey,
   serial,
   text,
@@ -9,6 +9,10 @@ import {
   unique,
 } from 'drizzle-orm/pg-core';
 import type { AdapterAccountType } from '@auth/core/adapters';
+
+// All Glass Atlas tables live in the glass_atlas Postgres schema (not public).
+// The Techy project owns the public schema on the same Neon database.
+const glassAtlas = pgSchema('glass_atlas');
 
 // pgvector column — requires `CREATE EXTENSION IF NOT EXISTS vector;` on the Neon project.
 // Embeddings are generated at note save time (see src/lib/server/embeddings.ts).
@@ -32,7 +36,7 @@ const vector = customType<{
 // Notes
 // ---------------------------------------------------------------------------
 
-export const notes = pgTable('notes', {
+export const notes = glassAtlas.table('notes', {
   id: serial('id').primaryKey(),
   slug: text('slug').unique().notNull(),
   title: text('title').notNull(),
@@ -62,7 +66,7 @@ export type NewNote = typeof notes.$inferInsert;
 // source_slug FK-cascades on note delete; target_slug is a soft reference
 // (the target note may not exist yet — forward references are valid).
 
-export const noteLinks = pgTable(
+export const noteLinks = glassAtlas.table(
   'note_links',
   {
     id: serial('id').primaryKey(),
@@ -81,10 +85,24 @@ export const noteLinks = pgTable(
 export type NoteLink = typeof noteLinks.$inferSelect;
 
 // ---------------------------------------------------------------------------
+// Citation events
+// ---------------------------------------------------------------------------
+// One row per note retrieved by the chat RAG pipeline. Powers the landing page
+// "total citations served" stat. Written as fire-and-forget before streaming starts.
+
+export const citationEvents = glassAtlas.table('citation_events', {
+  id: serial('id').primaryKey(),
+  noteSlug: text('note_slug').notNull(),
+  citedAt: timestamp('cited_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
+export type CitationEvent = typeof citationEvents.$inferSelect;
+
+// ---------------------------------------------------------------------------
 // Auth.js — session / account tables (used by DrizzleAdapter when enabled)
 // ---------------------------------------------------------------------------
 
-export const users = pgTable('user', {
+export const users = glassAtlas.table('user', {
   id: text('id')
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
@@ -94,7 +112,7 @@ export const users = pgTable('user', {
   image: text('image'),
 });
 
-export const accounts = pgTable(
+export const accounts = glassAtlas.table(
   'account',
   {
     userId: text('userId')
@@ -116,7 +134,7 @@ export const accounts = pgTable(
   ],
 );
 
-export const sessions = pgTable('session', {
+export const sessions = glassAtlas.table('session', {
   sessionToken: text('sessionToken').primaryKey(),
   userId: text('userId')
     .notNull()
@@ -124,7 +142,7 @@ export const sessions = pgTable('session', {
   expires: timestamp('expires', { mode: 'date' }).notNull(),
 });
 
-export const verificationTokens = pgTable(
+export const verificationTokens = glassAtlas.table(
   'verificationToken',
   {
     identifier: text('identifier').notNull(),
@@ -139,7 +157,7 @@ export const verificationTokens = pgTable(
 // ---------------------------------------------------------------------------
 // Keyed by hashed IP. Window resets each hour; 10 messages max (see PRD).
 
-export const chatRateLimits = pgTable('chat_rate_limits', {
+export const chatRateLimits = glassAtlas.table('chat_rate_limits', {
   id: serial('id').primaryKey(),
   ipHash: text('ip_hash').unique().notNull(),
   messageCount: integer('message_count').default(0).notNull(),

@@ -4,6 +4,5 @@ build/
 .env
 .env.local
 .env.*.local
-drizzle/
 *.db
 .DS_Store

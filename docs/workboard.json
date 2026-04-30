@@ -40,7 +40,7 @@
       "group_id": "SCAFFOLD",
       "title": "Auth.js GitHub OAuth + admin route guard",
       "description": "Configure SvelteKitAuth in src/auth.ts with the GitHub provider using AUTH_GITHUB_ID and AUTH_GITHUB_SECRET env vars. Sessions are stateless JWT — no DrizzleAdapter needed. Implement hooks.server.ts to intercept all requests to /admin/** and redirect unauthenticated users to the GitHub OAuth flow. Read session from event.locals.session only — never read cookies manually. AUTH_TRUST_HOST must NOT be set (Railway deployment, not Vercel).",
-      "status": "todo",
+      "status": "done",
       "priority": "critical",
       "depends_on": [],
       "blocked_by": [],

@@ -289,3 +289,6 @@ Use only JPEG, PNG, SVG, GIF, and MP4 for note cover media. Do not reintroduce Y
 
 ### 2026-04-30 — All schema tables must use `pgSchema('glass_atlas')`, not `pgTable`
 Using bare `pgTable` puts tables in the `public` schema, which is owned by the Techy project on the same Neon database. Always use `const glassAtlas = pgSchema('glass_atlas')` and `glassAtlas.table(...)` for every table definition. Also set `schemaFilter: ['glass_atlas']` in `drizzle.config.ts` so drizzle-kit does not manage or drop `public` schema objects.
+
+### 2026-04-30 — Never set `trustHost` explicitly in `src/auth.ts` for Railway
+Setting `trustHost: Boolean(env.AUTH_TRUST_HOST)` forces `trustHost: false` in production (since `AUTH_TRUST_HOST` must not be set on Railway), breaking the OAuth callback. The `@auth/sveltekit` adapter's action path defaults `trustHost ??= true`, but explicit `false` overrides this. Omit `trustHost` from the `SvelteKitAuth` config entirely — let the adapter set it. The `AUTH_SECRET`, `AUTH_GITHUB_ID`, and `AUTH_GITHUB_SECRET` vars must use `$env/static/private` (not dynamic).

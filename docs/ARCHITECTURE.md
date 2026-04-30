@@ -128,9 +128,11 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 | Anonymous visitor | None (no session) | All public routes and `POST /api/chat` |
 | Admin (site author) | GitHub OAuth via Auth.js | All `/admin/**` routes and `/api/admin/**` endpoints |
 
-**Credential issuance:** The author signs in via GitHub OAuth. Auth.js validates the OAuth callback, issues a server-side session, and stores it in the `sessions` table (managed by Auth.js). Only the author's specific GitHub account should be permitted — enforced via an Auth.js callback that checks the GitHub user identity.
+**Credential issuance:** The author signs in via GitHub OAuth. Auth.js validates the OAuth callback and issues a **stateless JWT session** (no DrizzleAdapter; no database session storage). Sessions are signed with `AUTH_SECRET` and stored in an HTTP-only cookie. Only the author's specific GitHub account should be permitted — enforced via an Auth.js callback that checks the GitHub user identity.
 
-**Credential verification:** `src/hooks.server.ts` calls `auth()` on every incoming request. Any request to an `/admin` or `/api/admin` path without a valid session is redirected to the GitHub OAuth flow. No `/admin` route handler is ever reached without a confirmed session.
+**`trustHost` handling:** `AUTH_TRUST_HOST` is NOT set on Railway. The `trustHost` option is not set explicitly in `src/auth.ts` — the SvelteKit Auth.js adapter sets it via its own defaults (`true` in the actions path, `dev` in the session path), which is correct for Railway's reverse-proxy environment. Never set `trustHost: Boolean(env.AUTH_TRUST_HOST)` — that would force `false` in production and break the OAuth callback.
+
+**Credential verification:** `src/hooks.server.ts` calls `event.locals.auth()` on every `/admin/**` request. Any request to an `/admin` or `/api/admin` path without a valid session is redirected to `/auth/signin` (the Auth.js sign-in page, which initiates the GitHub OAuth flow). No `/admin` route handler is ever reached without a confirmed session.
 
 **Visitor chat sessions:** Chat history is not persisted in Phase 1 — it lives exclusively in the `Chat.svelte` component's `$state` and clears on page reload. The `conversations` and `messages` tables exist in the schema and are reserved for a future persistence phase. The only chat-related data written to the database per request is citation_events rows (one per note retrieved by the RAG search), which power the landing page "total citations served" stat.
 

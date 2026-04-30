@@ -36,7 +36,7 @@ The server is a persistent Bun process. In-memory state survives between request
 
 - `db/index.ts` — Drizzle ORM client wired to the Neon HTTP driver; all SQL goes through here
 - `db/schema.ts` — Drizzle table definitions: `notes`, `note_links`, `citation_events`, Auth.js tables
-- `db/notes.ts` — note CRUD helpers: `createNote`, `updateNote`, `deleteNote`, `getNoteBySlug`, `getPublishedNotes`, `findSimilarNotes` (pgvector cosine), `getBacklinks`, `getOutlinks`, `syncNoteLinks`
+- `db/notes.ts` — note CRUD helpers: `listNotes(filter?)`, `getNoteBySlug`, `createNote`, `updateNote`, `deleteNote`, `getBacklinks`, `getOutlinks`; stubs for `searchNotesBySimilarity` (pgvector cosine, ADMIN-01b), `recordCitations`, `getTotalCitations` (ADMIN-01b). Exports plain-object types `Note`, `CreateNoteInput`, `UpdateNoteInput`.
 - `chat.ts` — builds the RAG prompt, calls OpenRouter for streaming completions, returns a `ReadableStream`
 - `embeddings.ts` — calls OpenRouter embedding endpoint; returns `vector(1536)`
 - `personality.ts` — exports the system prompt personality block as a string constant; never inlined elsewhere

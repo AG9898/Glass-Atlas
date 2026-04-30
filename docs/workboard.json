@@ -101,7 +101,7 @@
       "group_id": "ADMIN",
       "title": "Notes DB query layer — CRUD helpers",
       "description": "Implement core CRUD helpers in src/lib/server/db/notes.ts. Functions: listNotes(filter?: { topic?: string, status?: 'draft'|'published', q?: string }), getNoteBySlug(slug: string), createNote(data: CreateNoteInput), updateNote(slug: string, data: UpdateNoteInput), deleteNote(slug: string). All functions must return typed plain objects — never raw Drizzle ORM objects. The q param in listNotes filters notes where title ILIKE '%q%' OR any element of tags ILIKE '%q%'. Export corresponding TypeScript types (Note, CreateNoteInput, UpdateNoteInput). Leave stub exports for searchNotesBySimilarity, recordCitations, and getTotalCitations — these are implemented in ADMIN-01b.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "SCAFFOLD-01"

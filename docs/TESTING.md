@@ -42,7 +42,8 @@ There is no Playwright, Cypress, or any browser automation in this project. End-
 | Embeddings module | `src/lib/server/embeddings.ts` | Mock OpenRouter HTTP call; assert correct endpoint and response shape |
 | Chat module | `src/lib/server/chat.ts` | Mock pgvector retrieval results and OpenRouter streaming; assert prompt assembly |
 | API route — chat | `src/routes/api/chat/+server.ts` | Import handler directly, call with mock `Request`; assert rate limiting and streaming response shape |
-| API routes — admin notes | `src/routes/api/admin/notes/+server.ts` (and siblings) | Mock auth session and DB; assert auth guard rejects unauthenticated requests and correct DB calls on authenticated requests |
+| API route — admin note review | `src/routes/api/admin/notes/review/+server.ts` | Mock auth session and OpenRouter review adapter; assert payload validation, SSE response shape, and upstream 429/503 pass-through |
+| Admin review client behavior | Admin new/edit review UI logic | Assert manual Review trigger builds `{ title, takeaway, body }` payload, stream state updates, and visible error handling on stream failure |
 | Auth guard | SvelteKit hooks or route guards for `/admin` | Assert unauthenticated requests receive a redirect (302) or 401 response |
 | Rate limit logic | Rate limit utility (IP-based) | Pass mock IP and mock store; test threshold and reset behaviour in isolation |
 

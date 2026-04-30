@@ -40,7 +40,7 @@ The server is a persistent Bun process. In-memory state survives between request
 - `chat.ts` — builds the RAG prompt, calls OpenRouter for streaming completions, returns a `ReadableStream`
 - `embeddings.ts` — calls the OpenRouter-compatible `/embeddings` endpoint with `OPENROUTER_API_KEY` from `$env/dynamic/private`; returns `vector(1536)` arrays for storage in `notes.embedding`
 - `personality.ts` — exports the system prompt personality block as a string constant; never inlined elsewhere
-- `ai/review.ts` — builds the note critique prompt, calls a free-tier OpenRouter model, returns a `ReadableStream`; never reads from or writes to the database
+- `ai/review.ts` — builds the note critique prompt from `{ title, takeaway, body }`, calls a free-tier OpenRouter model, returns a `ReadableStream`; never reads from or writes to the database
 
 **Does not:** run in the browser; none of these modules are imported by client components
 
@@ -49,7 +49,7 @@ The server is a persistent Bun process. In-memory state survives between request
 - `POST /api/chat` — public; accepts `{ query, session_id, conversation_id? }`; embeds query, runs cosine similarity search, streams LLM response via SSE; rate-limited to 10 messages per IP per hour
 - `POST /api/admin/media/upload-url` — admin-only; accepts `{ filename, contentType }`; validates MIME allowlist (`image/jpeg`, `image/png`, `image/svg+xml`, `image/gif`, `video/mp4`) and returns a short-lived presigned `PUT` URL for direct browser upload to Railway Buckets
 - `GET /api/admin/media/access-url?key=...` — public redirect endpoint; converts a stored object key into a short-lived presigned `GET` URL so bucket objects remain private while note media stays embeddable from stable app URLs
-- `POST /api/admin/notes/[slug]/review` — admin-only; accepts the current note body; calls `ai/review.ts`; streams critique via SSE; does not read from or write to the database; free-tier OpenRouter model; returns `429` or `503` transparently when the model is unavailable
+- `POST /api/admin/notes/review` — admin-only; accepts `{ title, takeaway, body }` from current editor state (new or edit page); calls `ai/review.ts`; streams critique via SSE; does not read from or write to the database; free-tier OpenRouter model; returns `429` or `503` transparently when the model is unavailable
 
 Admin note create, update, and delete are handled by **SvelteKit form actions** in `+page.server.ts` files (not API routes). Form actions are the correct pattern for these mutations: they use progressive enhancement, integrate with SvelteKit's redirect flow, and do not require a separate client-side fetch.
 
@@ -65,6 +65,7 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 - `Nav.svelte` — global navigation shell rendered in `+layout.svelte` on every page. Receives `session` prop from `+layout.server.ts` (loaded via `event.locals.auth()`). Dark mode toggle reads `localStorage('ga-theme')` on mount (falls back to `prefers-color-scheme`), persists the preference, and applies/removes a `.dark` class on `<html>`. Login/logout uses Auth.js sign-in (`/auth/signin`) and sign-out form action (`/auth/signout`). Search icon links to `/notes?focus=search`, which opens the notes index and auto-focuses the search field.
 - Chat component manages optimistic UI state ("searching notes…"), token streaming, and citation link rendering
 - `MarkdownEditor.svelte` — CodeMirror 6 split-pane editor for the admin note form; left pane is the CodeMirror instance (initialized via `onMount`, torn down in `$effect` cleanup); right pane is a reactive preview rendered with `renderWikiLinks()`; note slug list for `[[` autocomplete is injected as a prop from `+page.server.ts`
+- Admin note editors expose a manual `Review` action that streams optional critique and never blocks save/publish actions
 - No direct access to DB, LLM, or secrets
 
 ---
@@ -111,6 +112,17 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 ```
 
 **Cover media and publication metadata:** The `image` column on the `notes` table stores either a pasted external URL or a stable app access path (`/api/admin/media/access-url?key=...`) generated after first-party upload. The `media_type` column stores one of `image-jpeg`, `image-png`, `image-svg`, `image-gif`, or `video-mp4` and defaults to `image-jpeg`. `published_at` and `series` store optional admin-entered publication metadata. First-party uploads use Railway Storage Buckets with short-lived presigned `PUT` URLs from `POST /api/admin/media/upload-url`, then render through short-lived presigned `GET` redirects from `GET /api/admin/media/access-url?key=...`. Public note surfaces dispatch by `media_type`: image types render with `<img>`, `video-mp4` renders with `<video controls preload="metadata">` (no autoplay), and cover containers enforce `aspect-ratio: 16/9`. If `image` is unset, no placeholder media is rendered. Bucket objects remain private; no permanent public bucket URLs are assumed.
+
+### Note review flow (admin, optional)
+
+```
+1. Admin clicks Review in either /admin/notes/new or /admin/notes/[slug]/edit
+2. Frontend POSTs { title, takeaway, body } to POST /api/admin/notes/review
+3. API route validates payload and calls ai/review.ts with a free-tier OpenRouter model
+4. OpenRouter streams critique tokens; API route forwards the stream to the client as SSE
+5. Frontend renders compact structured critique and keeps Save Draft/Publish fully independent
+6. On upstream 429/503, client shows a visible error; no note data is mutated
+```
 
 ### Wiki-link data model
 

@@ -225,7 +225,7 @@ Stop and report (do not continue) when:
 
 See [`docs/ENV_VARS.md`](docs/ENV_VARS.md) for the canonical variable and secret matrix.
 
-Key variables: `DATABASE_URL`, `OPENROUTER_API_KEY`, `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `PUBLIC_SITE_URL`. For first-party media uploads, configure Railway bucket vars: `BUCKET`, `ENDPOINT`, `REGION`, `ACCESS_KEY_ID`, `SECRET_ACCESS_KEY`. (`AUTH_TRUST_HOST` is not used — Railway does not require it.)
+Key variables: `DATABASE_URL`, `OPENROUTER_API_KEY`, `AUTH_SECRET`, `AUTH_GITHUB_ID`, `AUTH_GITHUB_SECRET`, `PUBLIC_SITE_URL`. Optional local-only auth shortcut: `AUTH_BYPASS=TRUE` (localhost + development only). For first-party media uploads, configure Railway bucket vars: `BUCKET`, `ENDPOINT`, `REGION`, `ACCESS_KEY_ID`, `SECRET_ACCESS_KEY`. (`AUTH_TRUST_HOST` is not used — Railway does not require it.)
 
 ---
 
@@ -316,3 +316,6 @@ When deploying with a custom Dockerfile, Railway-provided/service variables are 
 
 ### 2026-04-30 — `@auth/sveltekit@1.0.0` on Railway requires explicit `trustHost: true`
 With this package version, `setEnvDefaults()` initializes `config.trustHost` from `dev` before core env defaults run, so production can remain `false` and raise `UntrustedHost` even when `AUTH_TRUST_HOST` is set. Set `trustHost: true` directly in `src/auth.ts` for Docker/Railway deployments; keep `AUTH_URL` at the site origin only (no `/auth` suffix) to avoid `env-url-basepath-redundant` warnings.
+
+### 2026-04-30 — Local auth bypass must stay localhost + development scoped
+`AUTH_BYPASS=TRUE` is intentionally constrained to `NODE_ENV=development` and local hosts (`localhost`, `127.0.0.1`, `::1`) inside `src/hooks.server.ts`. Keep this guard strict so preview/production environments can never bypass OAuth by mistake. Prefer `$env/dynamic/private` for this toggle so builds do not require it.

@@ -749,6 +749,234 @@
         "npm run lint",
         "npm run test:run"
       ]
+    },
+    {
+      "id": "ADMIN-08A",
+      "group_id": "ADMIN",
+      "title": "Post-sign-in redirect to admin dashboard",
+      "description": "Ensure authenticated admin sign-in lands on /admin by default in local and production OAuth flows. Implement explicit callback/redirect handling so successful auth does not strand the user on the generic sign-in page or landing route.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "SCAFFOLD-02",
+        "ADMIN-02"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Successful GitHub OAuth sign-in redirects to /admin when no explicit callbackUrl override is provided",
+        "Existing explicit callbackUrl behavior remains supported and is not overwritten",
+        "Unauthenticated visits to /admin still redirect to /auth/signin",
+        "Redirect behavior is covered by tests or documented reproducible verification steps"
+      ],
+      "docs": [
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/auth.ts",
+        "src/hooks.server.ts",
+        "src/routes/auth/signin/+page.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "ADMIN-08B",
+      "group_id": "ADMIN",
+      "title": "Signed-in admin navigation routes to /admin",
+      "description": "Add signed-in admin routing affordances in the global navigation so authenticated admins can reach /admin directly from public pages. Hide admin entry points for unauthenticated visitors and ensure mobile/desktop nav parity.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [
+        "ADMIN-08A",
+        "SCAFFOLD-03"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Authenticated users see an Admin navigation entry that routes to /admin",
+        "Unauthenticated users do not see the Admin navigation entry",
+        "Navigation behavior is consistent across desktop and mobile layouts",
+        "Route and visibility behavior is validated with lint/tests and manual auth check"
+      ],
+      "docs": [
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/components/Nav.svelte",
+        "src/routes/+layout.svelte",
+        "src/hooks.server.ts"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "POLISH-04A",
+      "group_id": "POLISH",
+      "title": "Theme-aware dropdown design system",
+      "description": "Create a shared dropdown/select visual system that follows Glass Atlas theme tokens in both light and dark modes. Define explicit styling for trigger, menu surface, option text, hover/highlight, selected state, focus-visible ring, disabled state, and border treatments so dropdowns no longer inherit browser-default white popup surfaces in dark mode. Keep the component style aligned with the existing editorial UI language (sharp edges, strong lines, uppercase utility labels) and ensure token usage remains centralized in app-level styles rather than route-local one-offs.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "POLISH-03"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Dropdown trigger, content panel, and items are fully token-driven from current theme variables",
+        "Dark mode dropdown surfaces and option states never render white browser-default backgrounds",
+        "Focus, highlighted, selected, and disabled option states are visually distinct in both themes",
+        "The shared dropdown styles are implemented in reusable/global UI locations rather than duplicated route styles"
+      ],
+      "docs": [
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/app.css",
+        "src/lib/components/ui/Select.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "POLISH-04B",
+      "group_id": "POLISH",
+      "title": "Migrate native selects to custom themed Select",
+      "description": "Replace existing native <select> controls in note browsing and admin note forms with the shared custom Select component so dropdown behavior and theming are consistent across the app. Preserve existing UX behavior and data wiring: notes filter query-param updates, admin create/edit form binding, and submitted values for category/status/mediaType fields. Ensure desktop and mobile layouts preserve current spacing and hierarchy after component substitution.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "POLISH-04A"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Notes page topic and sort controls use the shared custom Select",
+        "Admin new/edit note category, status, and media type controls use the shared custom Select",
+        "Form submission and query-param behavior remain unchanged after migration",
+        "Dropdown interactions and visual states remain consistent on desktop and mobile breakpoints"
+      ],
+      "docs": [
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/routes/notes/+page.svelte",
+        "src/routes/admin/notes/new/+page.svelte",
+        "src/routes/admin/notes/[slug]/edit/+page.svelte",
+        "src/lib/components/ui/Select.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "POLISH-04C",
+      "group_id": "POLISH",
+      "title": "Theme parity sweep for dropdown-adjacent controls",
+      "description": "Run a targeted UI parity pass for dropdown-adjacent controls and menu-like surfaces after the Select migration, including any related trigger wrappers, filter bars, admin side panels, and nav-adjacent controls affected by theme toggle transitions. Fix residual mismatches where dark and light mode tokens do not fully propagate during initial load or live theme switches, and document any intentional browser/platform limitations if true native UI surfaces cannot be themed consistently.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [
+        "POLISH-04B"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "No obvious light-mode or dark-mode color mismatches remain around dropdown/menu-like controls on landing, notes, note detail, and admin screens",
+        "Theme toggle transitions do not leave stale surface/text colors on dropdown-related controls",
+        "Any unavoidable platform-specific styling limitations are recorded in conventions/docs with rationale",
+        "Validation includes lint/tests plus manual UI check notes for both themes"
+      ],
+      "docs": [
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/app.css",
+        "src/lib/components/Nav.svelte",
+        "src/routes/notes/+page.svelte",
+        "src/routes/admin/notes/new/+page.svelte",
+        "src/routes/admin/notes/[slug]/edit/+page.svelte"
+      ],
+      "commands": [
+        "npm run lint",
+        "npm run test:run"
+      ]
+    },
+    {
+      "id": "ADMIN-09A",
+      "group_id": "ADMIN",
+      "title": "LLM review API for admin note editors",
+      "description": "Implement optional admin critique streaming backend for both new and edit note flows. Add `src/lib/server/ai/review.ts` to build a compact structured critique prompt from `{ title, takeaway, body }` and call a free-tier OpenRouter model. Add `POST /api/admin/notes/review` in `src/routes/api/admin/notes/review/+server.ts` with admin auth enforcement, payload validation, SSE streaming response, and transparent upstream status handling for 429/503. This endpoint must not read from or write to the database and must remain non-blocking relative to save/publish flows.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "ADMIN-02",
+        "CHAT-01"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "`POST /api/admin/notes/review` accepts JSON `{ title, takeaway, body }` and rejects invalid payloads with 400",
+        "Route is admin-only and returns 401 when unauthenticated",
+        "Endpoint streams critique via `ReadableStream`/SSE and never performs DB reads or writes",
+        "Upstream OpenRouter 429 and 503 statuses are forwarded to the client without remapping to generic 500",
+        "New server tests cover success path, payload validation, auth guard behavior, and 429/503 pass-through",
+        "`npm run test:run` and `npm run lint` pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/ai/review.ts",
+        "src/routes/api/admin/notes/review/+server.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "ADMIN-09B",
+      "group_id": "ADMIN",
+      "title": "Admin editor Review UI integration (new + edit)",
+      "description": "Integrate the optional manual Review experience into both admin note editors (`/admin/notes/new` and `/admin/notes/[slug]/edit`). Add a Review trigger and critique panel UX that POSTs current form state `{ title, takeaway, body }` to `/api/admin/notes/review`, streams compact structured critique output, and shows explicit loading/error states. Keep Save Draft/Create/Publish fully independent of critique success or failure.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "ADMIN-09A",
+        "ADMIN-04a",
+        "ADMIN-04b"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Both new and edit editors expose a manual Review action and render streamed critique output",
+        "Client sends `{ title, takeaway, body }` from current form state (including unsaved drafts)",
+        "Review failures (including 429/503) are shown as visible user-facing errors",
+        "Create/Save Draft/Publish flows remain unchanged and are never blocked by review",
+        "Client tests cover trigger behavior, streaming state transitions, and failure handling",
+        "`npm run test:run` and `npm run lint` pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/routes/admin/notes/new/+page.svelte",
+        "src/routes/admin/notes/[slug]/edit/+page.svelte"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
     }
   ]
 }

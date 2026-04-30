@@ -337,8 +337,11 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 ### Note Critique (`src/lib/server/ai/review.ts`)
 
 - The critique endpoint uses a free-tier OpenRouter model (`google/gemini-2.0-flash-exp:free` or equivalent). Never use a paid model for this feature.
+- The review request payload is `{ title, takeaway, body }` from the current editor form state. Do not require a saved slug to run critique.
 - The route handler must forward `429` (rate limited) and `503` (model unavailable) status codes to the client as-is — never silently swallow them or return a generic 500.
 - The client component must display a user-visible error when the review stream fails; never silently fail.
+- Trigger critique only from an explicit manual Review action. Never auto-run critique on save, publish, or every body change.
+- Critique output should be compact and structured (brief sections + concrete rewrite suggestions), optimized for fast editorial iteration.
 - Critique is always optional. Never gate note save or publish on a successful review response.
 
 ---

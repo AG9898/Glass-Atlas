@@ -22,6 +22,7 @@
 | `AUTH_SECRET` | Yes | All | — | `$env/static/private` | Random secret for Auth.js session signing. Generate: `openssl rand -hex 32`. |
 | `AUTH_GITHUB_ID` | Yes | All | — | `$env/static/private` | GitHub OAuth app Client ID. |
 | `AUTH_GITHUB_SECRET` | Yes | All | — | `$env/static/private` | GitHub OAuth app Client Secret. |
+| `AUTH_BYPASS` | No | Local development only | `FALSE` | `$env/dynamic/private` | Dev-only auth bypass toggle for localhost testing. Set to `TRUE` to force an authenticated local admin session. Ignored outside `NODE_ENV=development` and non-local hosts. |
 | `AUTH_TRUST_HOST` | No | — | — | `$env/static/private` | Vercel-specific workaround — not required on Railway. Do not set. |
 | `CHAT_RATE_LIMIT` | No | All | `10` | `$env/static/private` | Max chat messages allowed per IP per hour. |
 | `PUBLIC_SITE_URL` | Yes (production) | All | `http://localhost:5173` | `$env/dynamic/public` | Canonical site URL used for OG tags and sitemap generation. Runtime import allows safe local/build fallback, but set this in production. |
@@ -62,6 +63,8 @@ OPENROUTER_API_KEY=sk-or-...
 AUTH_SECRET=<output of: openssl rand -hex 32>
 AUTH_GITHUB_ID=your_github_client_id
 AUTH_GITHUB_SECRET=your_github_client_secret
+# Optional: local admin auth bypass (localhost + NODE_ENV=development only)
+AUTH_BYPASS=TRUE
 
 # Public
 PUBLIC_SITE_URL=http://localhost:5173
@@ -81,6 +84,8 @@ OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 OPENROUTER_MODEL=google/gemini-2.0-flash-001
 EMBEDDING_MODEL=text-embedding-3-small
 CHAT_RATE_LIMIT=10
+# Local-only toggle for auth bypass (disabled outside localhost development)
+AUTH_BYPASS=TRUE
 ```
 
 Optional upload variables (set only when implementing/testing first-party uploads):
@@ -115,6 +120,7 @@ Set in `.env.local` (gitignored).
 | `PUBLIC_SITE_URL` | `http://localhost:5173` |
 
 `AUTH_TRUST_HOST` is not needed locally.
+`AUTH_BYPASS=TRUE` can be set for localhost-only auth bypass during local testing.
 
 If testing uploads locally, also set: `BUCKET`, `ENDPOINT`, `REGION`, `ACCESS_KEY_ID`, `SECRET_ACCESS_KEY`.
 

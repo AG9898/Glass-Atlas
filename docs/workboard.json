@@ -1,7 +1,7 @@
 {
   "$schema": "./workboard.schema.json",
   "schema_version": "1.0.0",
-  "last_updated": "2026-04-28",
+  "last_updated": "2026-04-30",
   "tasks": [
     {
       "id": "SCAFFOLD-01",
@@ -323,7 +323,7 @@
       "group_id": "PUBLIC",
       "title": "NoteCard component + notes browse page",
       "description": "Create src/lib/components/NoteCard.svelte: displays note number (zero-padded to 3 digits, e.g. 042), publishedAt date, tag badges, title, excerpt (first ~150 chars of body), and a READ NOTE link to /notes/[slug]. If `note.image` is set, render it above the excerpt using an `<img>` tag (aspect-ratio: 16/9, object-fit: cover). When no image is set, render the row without any placeholder. See styleguide.md Section 6 for cover media rules. Match the note row design from reference/UI/design_handoff_glass_atlas/Landing dark.png 'latest field notes' section — row-separated layout, no rounded cards. Create src/routes/notes/+page.server.ts: load all published notes, accept optional ?topic= query param for filtering via listNotes(). Create src/routes/notes/+page.svelte: page heading 'The latest field notes.', filter bar with topic select and sort controls, then a list of NoteCard rows.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "SCAFFOLD-03",

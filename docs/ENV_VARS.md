@@ -15,10 +15,10 @@
 | Variable | Required | Environments | Default | SvelteKit Import | Description |
 |---|---|---|---|---|---|
 | `DATABASE_URL` | Yes | All | — | `$env/dynamic/private` | Neon PostgreSQL connection string. Must include `?sslmode=require`. Uses dynamic import so the dev server starts without a DB configured (queries will fail at runtime until set). |
-| `OPENROUTER_API_KEY` | Yes | All | — | `$env/static/private` | API key for OpenRouter (LLM + embeddings). Never expose client-side. |
-| `OPENROUTER_BASE_URL` | No | All | `https://openrouter.ai/api/v1` | `$env/static/private` | Override the OpenRouter base URL. Useful for test mocking. |
+| `OPENROUTER_API_KEY` | Yes | All | — | `$env/dynamic/private` | API key for OpenRouter (LLM + embeddings). Never expose client-side. |
+| `OPENROUTER_BASE_URL` | No | All | `https://openrouter.ai/api/v1` | `$env/dynamic/private` | Override the OpenRouter base URL. Useful for test mocking. |
 | `OPENROUTER_MODEL` | No | All | `google/gemini-2.0-flash-001` | `$env/static/private` | Override the default LLM model used for chat. |
-| `EMBEDDING_MODEL` | No | All | `text-embedding-3-small` | `$env/static/private` | Override the default embedding model. |
+| `EMBEDDING_MODEL` | No | All | `text-embedding-3-small` | `$env/dynamic/private` | Override the default embedding model. |
 | `AUTH_SECRET` | Yes | All | — | `$env/static/private` | Random secret for Auth.js session signing. Generate: `openssl rand -hex 32`. |
 | `AUTH_GITHUB_ID` | Yes | All | — | `$env/static/private` | GitHub OAuth app Client ID. |
 | `AUTH_GITHUB_SECRET` | Yes | All | — | `$env/static/private` | GitHub OAuth app Client Secret. |

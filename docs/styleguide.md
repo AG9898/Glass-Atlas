@@ -259,15 +259,25 @@ Fonts are **self-hosted**.
 - Same tokens as public UI.
 - Use direct, linear form sections with consistent row dividers.
 - Accent usage in admin is sparse; reserve for focus, primary action, and success state.
+- Markdown body editing uses `MarkdownEditor.svelte` with the blueprint technical panel recipe: `2px` border, uppercase header strip, `surface-2` in light mode, and `surface-1` in dark mode.
+- The note create/edit form uses a two-column editor: main column for title, takeaway, category, tags, and Markdown body; right sidebar for status, published date, series, and cover media URL.
+- The edit form top bar must keep the breadcrumb, visible `DRAFT`/`PUBLISHED` status badge, `PREVIEW`, `SAVE DRAFT`, and `PUBLISH` controls on the same structural row on desktop; mobile may stack the controls but must preserve the order.
 
-### 5.6 Blueprint Technical Panels (Code/Diagrams/Demos)
+### 5.6 Admin Lists
+
+- Admin index/list pages use table-style rows with explicit column labels on desktop.
+- Preserve the row-first product language: `2px` row separators, uppercase metadata labels, no rounded cards.
+- On mobile, collapse table columns into stacked row content while preserving the note number and action buttons.
+- Status badges must pair semantic color with explicit text (`DRAFT` / `PUBLISHED`) so color is not the only signal.
+
+### 5.7 Blueprint Technical Panels (Code/Diagrams/Demos)
 
 - `2px` border + muted tonal surface (`surface-2` in light, `surface-1` in dark).
 - Header strip with uppercase meta label and optional status marker.
 - Internal regions separated by `1px` rules.
 - No shadows, no glassmorphism, no rounded corners.
 
-### 5.7 Buttons, Inputs, Tags
+### 5.8 Buttons, Inputs, Tags
 
 - Buttons: rectangular, `2px` border, fill transitions only.
 - Inputs: line-led styling, strong focus contrast, explicit error/success borders.

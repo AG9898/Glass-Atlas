@@ -292,3 +292,9 @@ Using bare `pgTable` puts tables in the `public` schema, which is owned by the T
 
 ### 2026-04-30 — Never set `trustHost` explicitly in `src/auth.ts` for Railway
 Setting `trustHost: Boolean(env.AUTH_TRUST_HOST)` forces `trustHost: false` in production (since `AUTH_TRUST_HOST` must not be set on Railway), breaking the OAuth callback. The `@auth/sveltekit` adapter's action path defaults `trustHost ??= true`, but explicit `false` overrides this. Omit `trustHost` from the `SvelteKitAuth` config entirely — let the adapter set it. The `AUTH_SECRET`, `AUTH_GITHUB_ID`, and `AUTH_GITHUB_SECRET` vars must use `$env/static/private` (not dynamic).
+
+### 2026-04-30 — New SvelteKit routes need generated `$types` before lint
+Adding a new route that imports `./$types` can make `npm run lint` fail until `svelte-kit sync` has regenerated `.svelte-kit/types`. Run `npm run check` or `npx svelte-kit sync` before the required lint pass when adding routes. `npm run check` is also the only current command that runs `svelte-check` against `.svelte` files.
+
+### 2026-04-30 — Admin editor metadata must be schema-backed
+The admin note editor tasks require `image`, `published_at`, and `series` fields to persist through `createNote()`/`updateNote()`. Keep these fields on the `notes` table and in the DB helper plain-object types; do not handle them with inline route SQL or client-only form state.

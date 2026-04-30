@@ -34,7 +34,7 @@
     name?: string;
     value?: string;
     form?: string;
-    onclick?: BitsButton.RootProps['onclick'];
+    onclick?: (event: MouseEvent) => void;
   };
 
   let {

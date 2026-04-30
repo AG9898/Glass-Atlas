@@ -10,11 +10,11 @@
   --color-text-strong: #171612;
   --color-text: #2b2924;
   --color-text-muted: #5d594f;
-  --color-accent-100: #e8efe3;
-  --color-accent-300: #c5d3bc;
-  --color-accent-500: #8ea481;
-  --color-accent-700: #607556;
-  --color-accent-900: #3d4d37;
+  --color-accent-100: #e5eedf;
+  --color-accent-300: #c2d3b8;
+  --color-accent-500: #93b184;
+  --color-accent-700: #6b8a5c;
+  --color-accent-900: #3f5634;
   --color-success: #4f7a56;
   --color-warning: #8a6b2d;
   --color-error: #a1433d;
@@ -26,20 +26,48 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg: #10100e;
-    --color-surface-1: #171714;
-    --color-surface-2: #20201c;
-    --color-line-1: #2e2d28;
-    --color-line-2: #4d4b44;
-    --color-line-3: #d8d4c9;
-    --color-text-strong: #e8e3d7;
-    --color-text: #d3cec3;
-    --color-text-muted: #a9a396;
+    --color-bg: #1c1a15;
+    --color-surface-1: #232019;
+    --color-surface-2: #2c281f;
+    --color-line-1: #38342b;
+    --color-line-2: #5a554a;
+    --color-line-3: #c9c2b2;
+    --color-text-strong: #e8e1ce;
+    --color-text: #cfc8b7;
+    --color-text-muted: #968f80;
+    --color-accent-100: #1a2118;
+    --color-accent-300: #2e3b29;
+    --color-accent-500: #8ea481;
+    --color-accent-700: #a8be9b;
+    --color-accent-900: #c5d3bc;
     --color-success: #8bc090;
     --color-warning: #c9a761;
     --color-error: #e08c85;
     --color-info: #8bb6cf;
   }
+}
+
+/* Class-based dark mode — toggled by Nav.svelte dark mode toggle.
+   Mirrors the @media (prefers-color-scheme: dark) tokens exactly. */
+:root.dark {
+  --color-bg: #1c1a15;
+  --color-surface-1: #232019;
+  --color-surface-2: #2c281f;
+  --color-line-1: #38342b;
+  --color-line-2: #5a554a;
+  --color-line-3: #c9c2b2;
+  --color-text-strong: #e8e1ce;
+  --color-text: #cfc8b7;
+  --color-text-muted: #968f80;
+  --color-accent-100: #1a2118;
+  --color-accent-300: #2e3b29;
+  --color-accent-500: #8ea481;
+  --color-accent-700: #a8be9b;
+  --color-accent-900: #c5d3bc;
+  --color-success: #8bc090;
+  --color-warning: #c9a761;
+  --color-error: #e08c85;
+  --color-info: #8bb6cf;
 }
 
 @layer base {

@@ -69,7 +69,7 @@
       "group_id": "SCAFFOLD",
       "title": "Root layout + global nav shell",
       "description": "Update src/routes/+layout.svelte to render Nav.svelte and a <slot /> (or {@render children()} in Svelte 5). Create src/lib/components/Nav.svelte: Glass Atlas logo centered, NOTES and CHAT links on the left, search icon (non-functional placeholder — wired in PUBLIC-03) + login-or-logout link + dark mode toggle on the right. Dark mode toggle: reads prefers-color-scheme on first load, persists preference to localStorage, and applies a .dark class to <html>. Update src/app.css to add a .dark selector block mirroring the existing @media (prefers-color-scheme: dark) tokens so the class-toggle approach works. Match the nav design from reference/UI/design_handoff_glass_atlas/Landing dark.png and Landing light.png.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "SCAFFOLD-02"

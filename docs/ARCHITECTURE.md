@@ -60,6 +60,7 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 ### Client components (`src/lib/components/`)
 
 - Render UI only; send fetch/SSE requests to API routes
+- `Nav.svelte` — global navigation shell rendered in `+layout.svelte` on every page. Receives `session` prop from `+layout.server.ts` (loaded via `event.locals.auth()`). Dark mode toggle reads `localStorage('ga-theme')` on mount (falls back to `prefers-color-scheme`), persists the preference, and applies/removes a `.dark` class on `<html>`. Login/logout uses Auth.js sign-in (`/auth/signin`) and sign-out form action (`/auth/signout`). Search icon is a non-functional placeholder linking to `/notes?focus=search` (wired in PUBLIC-03).
 - Chat component manages optimistic UI state ("searching notes…"), token streaming, and citation link rendering
 - `MarkdownEditor.svelte` — CodeMirror 6 split-pane editor for the admin note form; left pane is the CodeMirror instance (initialized via `onMount`, torn down in `$effect` cleanup); right pane is a reactive preview rendered with `renderWikiLinks()`; note slug list for `[[` autocomplete is injected as a prop from `+page.server.ts`
 - No direct access to DB, LLM, or secrets

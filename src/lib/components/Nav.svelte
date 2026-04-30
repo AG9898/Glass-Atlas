@@ -36,7 +36,7 @@
   }
 
   // Derive current path for active link detection
-  let pathname = $derived($page.url.pathname);
+  let pathname: string = $derived($page.url.pathname);
 </script>
 
 <header class="ga-nav">

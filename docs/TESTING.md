@@ -9,6 +9,7 @@ npm test                # Vitest in watch mode (development)
 npm run test:run        # Run once, exit (CI / pre-commit)
 npm run test:coverage   # Generate coverage report
 npm run lint            # TypeScript type-check + ESLint
+npm run check           # SvelteKit sync + svelte-check for .svelte files
 npm run build           # SvelteKit production build (smoke check)
 ```
 
@@ -23,7 +24,7 @@ All test commands assume dependencies are installed (`npm install`) and a `.env`
 | Test runner | Vitest | Runs all unit and integration tests |
 | Mocking | `vi.mock`, `vi.fn`, `vi.spyOn` | Isolate modules from external services |
 | Coverage | Vitest built-in (`v8`) | Line/branch coverage reports |
-| Type checking | `tsc --noEmit` (via `npm run lint`) | Catches type errors before test run |
+| Type checking | `tsc --noEmit` (via `npm run lint`) + `svelte-check` (via `npm run check`) | Catches TypeScript and Svelte component errors before test run |
 | HTTP mocking | `Request` constructor (Web API) | Simulate SvelteKit route handler calls |
 
 There is no Playwright, Cypress, or any browser automation in this project. End-to-end tests are out of scope for v1.
@@ -64,7 +65,8 @@ This table starts empty and is filled in as test files are added to the project.
 
 | Test file | Module under test | What it covers |
 |---|---|---|
-| _(none yet — fill in as the suite grows)_ | | |
+| `src/lib/server/db/notes.test.ts` | `src/lib/server/db/notes.ts` | Mocked Drizzle coverage for pgvector similarity search and citation tracking helpers |
+| `src/lib/server/embeddings.test.ts` | `src/lib/server/embeddings.ts` | Mocked OpenRouter embedding requests, missing key handling, HTTP failure handling, and malformed payload rejection |
 
 Naming rules that govern where each file lives are in the next section.
 
@@ -121,14 +123,14 @@ Mock the `fetch` global (or the wrapper module) so tests never hit the real API.
 
 ```ts
 import { vi, expect, test } from 'vitest';
-import { generateEmbedding } from '$lib/server/embeddings';
+import { embedText } from '$lib/server/embeddings';
 
 vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
   new Response(JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }] }), { status: 200 })
 ));
 
-test('generateEmbedding calls the correct endpoint and returns a vector', async () => {
-  const result = await generateEmbedding('some text');
+test('embedText calls the correct endpoint and returns a vector', async () => {
+  const result = await embedText('some text');
   expect(result).toHaveLength(3);
   expect(fetch).toHaveBeenCalledWith(
     expect.stringContaining('openrouter.ai'),

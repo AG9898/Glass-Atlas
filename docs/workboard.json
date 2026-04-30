@@ -133,7 +133,7 @@
       "group_id": "ADMIN",
       "title": "Notes DB query layer — similarity search + citations",
       "description": "Extend src/lib/server/db/notes.ts (built in ADMIN-01a) with the advanced query functions. Functions: searchNotesBySimilarity(embedding: number[], limit: number), recordCitations(slugs: string[]): Promise<void> (bulk-inserts one citation_events row per slug), getTotalCitations(): Promise<number> (returns COUNT(*) from citation_events). Similarity search uses Drizzle's sql template tag for the pgvector cosine distance operator (<=>). All functions must return typed plain objects.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "ADMIN-01a"
@@ -162,7 +162,7 @@
       "group_id": "ADMIN",
       "title": "Admin dashboard + notes list page",
       "description": "Create src/routes/admin/+page.server.ts: load function calls listNotes() with no filter to return all notes. Create src/routes/admin/+page.svelte: table-style list of notes with columns for note number, title, status badge (DRAFT/PUBLISHED), publishedAt date, edit link (/admin/notes/[slug]/edit), and a delete form action. Include a 'New Note' CTA button linking to /admin/notes/new. Add a DELETE form action that calls deleteNote(slug). Match the admin surface rules from docs/styleguide.md (Section 2 Admin).",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "SCAFFOLD-02",
@@ -195,7 +195,7 @@
       "group_id": "ADMIN",
       "title": "MarkdownEditor component (CodeMirror 6)",
       "description": "Create src/lib/components/MarkdownEditor.svelte. Use Svelte 5 $props() for: value (bindable string), placeholder (optional string). Initialize CodeMirror EditorView in onMount with the markdown() language extension. Sync edits back to parent via an updateListener extension that calls a callback prop on every doc change. Teardown EditorView in onDestroy. Style the editor surface using --color-surface-2 background in light mode and --color-surface-1 in dark mode (matching the admin design reference blueprint panel recipe from docs/styleguide.md Section 5.6). Do not implement wiki-link autocomplete in this task.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "SCAFFOLD-03"
@@ -225,7 +225,7 @@
       "group_id": "ADMIN",
       "title": "Admin note create page",
       "description": "Create src/routes/admin/notes/new/+page.server.ts and +page.svelte. Layout: two-column matching reference/UI/design_handoff_glass_atlas/Admin note editor dark.png — left column (title input, takeaway input, MarkdownEditor for body, tags multi-input, category select from note-taxonomy.ts), right sidebar (publishedAt date picker, status selector, series input, cover media URL input that maps to the `image` column — author can paste a JPEG/PNG/SVG/GIF/MP4 URL directly). Form action: create — slug auto-generated from title via src/lib/utils/slugify.ts. After create, redirect to the edit page for the new slug. First-party upload control wiring is handled in ADMIN-07.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "ADMIN-01a",
@@ -258,7 +258,7 @@
       "group_id": "ADMIN",
       "title": "Admin note edit page + top bar",
       "description": "Create src/routes/admin/notes/[slug]/edit/+page.server.ts and +page.svelte. Load existing note data into all fields using the same two-column layout as ADMIN-04a. Top bar: breadcrumb showing note title, DRAFT/PUBLISHED status badge, PREVIEW button (links to /notes/[slug]), SAVE DRAFT button, PUBLISH button. Form actions: update (patches fields, preserves status), publish (sets status to published). Match reference/UI/design_handoff_glass_atlas/Admin note editor dark.png. First-party upload control wiring is handled in ADMIN-07.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "ADMIN-04a"
@@ -291,7 +291,7 @@
       "group_id": "ADMIN",
       "title": "Embedding generation on note save",
       "description": "Implement src/lib/server/embeddings.ts exporting embedText(text: string): Promise<number[]>. Call the OpenRouter embeddings endpoint (POST to the OpenAI-compatible /embeddings route) with the note body text. In the ADMIN-04a create and ADMIN-04b update form actions, call embedText(body) after saving the note row and update the note's embedding column. If the OpenRouter call fails, log the error but do not block the save — the note saves with a null embedding. Read OPENROUTER_API_KEY from $env/dynamic/private.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "ADMIN-04b"

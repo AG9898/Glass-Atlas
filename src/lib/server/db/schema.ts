@@ -47,6 +47,11 @@ export const notes = glassAtlas.table('notes', {
   category: text('category'),
   // Comma-separated tags stored as a text array.
   tags: text('tags').array(),
+  // Optional cover media URL. Media type dispatch is added in ADMIN-06a.
+  image: text('image'),
+  // Optional publication metadata shown in admin/public note surfaces.
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  series: text('series'),
   status: text('status', { enum: ['draft', 'published'] }).default('draft').notNull(),
   // 1536 dimensions matches OpenAI text-embedding-3-small / ada-002.
   // Regenerated on every body save (see src/lib/server/embeddings.ts).

@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { db } from './index';
 import { citationEvents, noteLinks, notes } from './schema';
 import { parseWikiLinks } from '$lib/utils/wiki-links';
@@ -17,6 +17,9 @@ export type Note = {
   takeaway: string | null;
   category: string | null;
   tags: string[] | null;
+  image: string | null;
+  publishedAt: Date | null;
+  series: string | null;
   status: 'draft' | 'published';
   embedding: number[] | null;
   createdAt: Date;
@@ -30,6 +33,9 @@ export type CreateNoteInput = {
   takeaway?: string | null;
   category?: string | null;
   tags?: string[] | null;
+  image?: string | null;
+  publishedAt?: Date | null;
+  series?: string | null;
   status?: 'draft' | 'published';
   embedding?: number[] | null;
 };
@@ -40,6 +46,9 @@ export type UpdateNoteInput = {
   takeaway?: string | null;
   category?: string | null;
   tags?: string[] | null;
+  image?: string | null;
+  publishedAt?: Date | null;
+  series?: string | null;
   status?: 'draft' | 'published';
   embedding?: number[] | null;
   updatedAt?: Date;
@@ -65,7 +74,7 @@ export type ListNotesFilter = {
 // CRUD helpers
 // ---------------------------------------------------------------------------
 
-/** Returns all notes sorted by publishedAt (createdAt) descending, with optional filtering. */
+/** Returns all notes sorted by published date (falling back to createdAt) descending. */
 export async function listNotes(filter?: ListNotesFilter): Promise<Note[]> {
   const conditions = [];
 
@@ -92,7 +101,7 @@ export async function listNotes(filter?: ListNotesFilter): Promise<Note[]> {
     .select()
     .from(notes)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(notes.createdAt));
+    .orderBy(desc(sql`coalesce(${notes.publishedAt}, ${notes.createdAt})`));
 
   return rows.map(toNote);
 }
@@ -114,6 +123,9 @@ export async function createNote(data: CreateNoteInput): Promise<Note> {
       takeaway: data.takeaway ?? null,
       category: data.category ?? null,
       tags: data.tags ?? null,
+      image: data.image ?? null,
+      publishedAt: data.publishedAt ?? null,
+      series: data.series ?? null,
       status: data.status ?? 'draft',
       embedding: data.embedding ?? null,
     })
@@ -174,40 +186,44 @@ export async function getOutlinks(
 }
 
 // ---------------------------------------------------------------------------
-// Similarity search — stub (implemented in ADMIN-01b)
+// Similarity search
 // ---------------------------------------------------------------------------
 
 /** Cosine similarity search via pgvector. Returns published notes closest to the given embedding. */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function searchNotesBySimilarity(embedding: number[], limit: number): Promise<Note[]> {
-  throw new Error('searchNotesBySimilarity: not yet implemented (see ADMIN-01b)');
+  const safeLimit = Math.max(0, Math.floor(limit));
+  if (safeLimit === 0) return [];
+
+  const rows = await db
+    .select()
+    .from(notes)
+    .where(and(eq(notes.status, 'published'), isNotNull(notes.embedding)))
+    .orderBy(sql`${notes.embedding} <=> ${JSON.stringify(embedding)}::vector`)
+    .limit(safeLimit);
+
+  return rows.map(toNote);
 }
 
 // ---------------------------------------------------------------------------
-// Citation tracking — stubs (implemented in ADMIN-01b)
+// Citation tracking
 // ---------------------------------------------------------------------------
 
 /** Bulk-inserts one citation_events row per slug. Fire-and-forget; does not block streaming. */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function recordCitations(slugs: string[]): Promise<void> {
-  throw new Error('recordCitations: not yet implemented (see ADMIN-01b)');
+  if (slugs.length === 0) return;
+
+  await db.insert(citationEvents).values(slugs.map((slug) => ({ noteSlug: slug })));
 }
 
 /** Returns the total COUNT(*) from citation_events. */
 export async function getTotalCitations(): Promise<number> {
-  throw new Error('getTotalCitations: not yet implemented (see ADMIN-01b)');
+  const [row] = await db.select({ value: count() }).from(citationEvents);
+  return row?.value ?? 0;
 }
 
-// Keep findSimilarNotes for now — callers that existed before ADMIN-01b will migrate to searchNotesBySimilarity.
 /** @deprecated Use searchNotesBySimilarity instead (ADMIN-01b). */
 export async function findSimilarNotes(embedding: number[], limit = 5): Promise<Note[]> {
-  const rows = await db
-    .select()
-    .from(notes)
-    .where(eq(notes.status, 'published'))
-    .orderBy(sql`embedding <=> ${JSON.stringify(embedding)}::vector`)
-    .limit(limit);
-  return rows.map(toNote);
+  return searchNotesBySimilarity(embedding, limit);
 }
 
 // ---------------------------------------------------------------------------
@@ -224,6 +240,9 @@ function toNote(row: typeof notes.$inferSelect): Note {
     takeaway: row.takeaway,
     category: row.category,
     tags: row.tags,
+    image: row.image,
+    publishedAt: row.publishedAt,
+    series: row.series,
     status: row.status as 'draft' | 'published',
     embedding: row.embedding,
     createdAt: row.createdAt,
@@ -247,6 +266,3 @@ async function syncNoteLinks(slug: string, body: string): Promise<void> {
     )
     .onConflictDoNothing();
 }
-
-// Silence the unused-import warning for citationEvents — it will be used in ADMIN-01b.
-void citationEvents;

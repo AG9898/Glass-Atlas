@@ -27,18 +27,18 @@ The server is a persistent Bun process. In-memory state survives between request
 ### SvelteKit route handlers (`src/routes/`)
 
 - Render public pages: landing (`/`), notes list (`/notes`), note detail (`/notes/[slug]`)
-- Render admin pages: dashboard (`/admin`), new note form, edit/delete note forms
+- Render admin pages: dashboard (`/admin`), new note form, edit/delete note forms. The `/admin` dashboard loads all notes with `listNotes()` and deletes rows through a named SvelteKit form action that calls `deleteNote(slug)`. The new note form posts to a named `create` action, generates the slug from the title with `slugify.ts`, calls `createNote()`, attempts to generate/store an embedding, and redirects to `/admin/notes/[slug]/edit`. The edit form loads the existing note with `getNoteBySlug(slug)`, saves field patches through `updateNote(slug, data)`, regenerates the embedding after Save Draft/Publish, preserves status on Save Draft, and sets `status: 'published'` only through the Publish action.
 - Own the request/response boundary; delegate all business logic to server-side lib modules
 
-**Does not:** contain any direct database queries, LLM calls, or embedding logic — those live in `src/lib/server/`
+**Does not:** contain any direct database queries, LLM HTTP clients, or embedding HTTP clients — those live in `src/lib/server/`
 
 ### Server-side lib (`src/lib/server/`)
 
 - `db/index.ts` — Drizzle ORM client wired to the Neon HTTP driver; all SQL goes through here
 - `db/schema.ts` — Drizzle table definitions: `notes`, `note_links`, `citation_events`, Auth.js tables
-- `db/notes.ts` — note CRUD helpers: `listNotes(filter?)`, `getNoteBySlug`, `createNote`, `updateNote`, `deleteNote`, `getBacklinks`, `getOutlinks`; stubs for `searchNotesBySimilarity` (pgvector cosine, ADMIN-01b), `recordCitations`, `getTotalCitations` (ADMIN-01b). Exports plain-object types `Note`, `CreateNoteInput`, `UpdateNoteInput`.
+- `db/notes.ts` — note CRUD helpers: `listNotes(filter?)`, `getNoteBySlug`, `createNote`, `updateNote`, `deleteNote`, `getBacklinks`, `getOutlinks`; RAG helpers: `searchNotesBySimilarity` (published notes ordered by pgvector cosine distance), `recordCitations`, `getTotalCitations`. Exports plain-object types `Note`, `CreateNoteInput`, `UpdateNoteInput`, including note metadata (`image`, `publishedAt`, `series`).
 - `chat.ts` — builds the RAG prompt, calls OpenRouter for streaming completions, returns a `ReadableStream`
-- `embeddings.ts` — calls OpenRouter embedding endpoint; returns `vector(1536)`
+- `embeddings.ts` — calls the OpenRouter-compatible `/embeddings` endpoint with `OPENROUTER_API_KEY` from `$env/dynamic/private`; returns `vector(1536)` arrays for storage in `notes.embedding`
 - `personality.ts` — exports the system prompt personality block as a string constant; never inlined elsewhere
 - `ai/review.ts` — builds the note critique prompt, calls a free-tier OpenRouter model, returns a `ReadableStream`; never reads from or writes to the database
 
@@ -98,17 +98,15 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 1. Admin submits the note form in the browser
 2. Browser submits a SvelteKit form action (create or update) to the admin +page.server.ts handler
 3. Auth.js session verified by middleware before the handler runs
-4. Form action upserts the note row in the notes table (Drizzle ORM)
-5. Form action calls OpenRouter embedding endpoint with the full note body
+4. Create actions generate the slug from the title with `slugify.ts`; edit actions keep the slug immutable and patch the note row in the notes table through `db/notes.ts` helpers, which also sync wiki-link rows when the body changes
+5. Form action calls `embedText(body)` in `src/lib/server/embeddings.ts`, which posts the full note body to the OpenRouter-compatible embedding endpoint
    → receives vector(1536)
-6. Form action stores the embedding in notes.embedding for the upserted row
-7. db/notes.ts syncNoteLinks() parses [[slug]] / [[slug|text]] wiki-links from
-   the body, deletes prior outgoing links for this note, and re-inserts into note_links
-8. Form action calls SvelteKit redirect() to send the browser to /admin/notes/[slug]/edit
-9. Browser navigates to the edit page
+6. Form action stores the embedding in `notes.embedding` with a second `updateNote()` call. If OpenRouter fails or returns malformed data, the action logs the error, writes `embedding: null`, and still completes the note save.
+7. Form action calls SvelteKit redirect() to send the browser to /admin/notes/[slug]/edit
+8. Browser navigates to the edit page
 ```
 
-**Cover media:** The `image` column on the `notes` table stores a plain URL. Asset storage strategy is resolved: first-party uploads use Railway Storage Buckets with presigned URLs (private bucket, direct browser upload, presigned GET for public delivery; backend proxy only when transformation/access control is required). The current admin flow still accepts pasted URLs; upload UI/API wiring is planned work. Supported media formats are fixed to JPEG, PNG, SVG, GIF, and MP4 video (`<video controls>`, no autoplay).
+**Cover media and publication metadata:** The `image` column on the `notes` table stores a plain cover media URL. `published_at` and `series` store optional admin-entered publication metadata. Asset storage strategy is resolved: first-party uploads use Railway Storage Buckets with presigned URLs (private bucket, direct browser upload, presigned GET for public delivery; backend proxy only when transformation/access control is required). The current admin flow accepts pasted URLs; upload UI/API wiring is planned work. Supported media formats are fixed to JPEG, PNG, SVG, GIF, and MP4 video (`<video controls>`, no autoplay).
 
 ### Wiki-link data model
 

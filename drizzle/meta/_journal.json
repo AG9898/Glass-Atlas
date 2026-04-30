@@ -8,6 +8,13 @@
       "when": 1777532346040,
       "tag": "0000_lively_black_widow",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1777534821227,
+      "tag": "0001_bright_sir_ram",
+      "breakpoints": true
     }
   ]
 }

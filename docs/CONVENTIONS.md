@@ -158,31 +158,43 @@ export const POST: RequestHandler = async ({ request }) => {
 
 **Slugs** — always generate via `src/lib/utils/slugify.ts`. Never construct slugs by hand.
 
-**CodeMirror 6 wiring** — initialize the CodeMirror `EditorView` inside `onMount` and tear it down in the returned cleanup function (or `$effect` cleanup). Svelte `$state` holds only the serialized markdown string; sync it from CodeMirror via an `updateListener` extension on every document change. Never wrap the `EditorView` instance in a Svelte store or reactive variable — it is not serializable.
+**CodeMirror 6 wiring** — initialize the CodeMirror `EditorView` inside `onMount` and tear it down with `onDestroy` or the returned mount cleanup. Svelte holds only the serialized markdown string; sync it from CodeMirror via an `updateListener` extension on every document change. `MarkdownEditor.svelte` exposes a bindable `value` prop, optional `placeholder`, and optional `onChange(value)` callback for non-binding consumers. Never wrap the `EditorView` instance in a Svelte store or reactive variable — it is not serializable.
 
 ```svelte
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { EditorView, basicSetup } from 'codemirror';
   import { markdown } from '@codemirror/lang-markdown';
+  import { placeholder as placeholderExtension } from '@codemirror/view';
 
-  let { value = $bindable('') }: { value: string } = $props();
-  let container: HTMLDivElement;
+  let {
+    value = $bindable(''),
+    placeholder = '',
+    onChange,
+  }: { value?: string; placeholder?: string; onChange?: (value: string) => void } = $props();
+  let container: HTMLDivElement | undefined;
+  let view: EditorView | undefined;
 
   onMount(() => {
-    const view = new EditorView({
+    if (!container) return;
+
+    view = new EditorView({
       doc: value,
       extensions: [
         basicSetup,
         markdown(),
+        placeholderExtension(placeholder),
         EditorView.updateListener.of((update) => {
-          if (update.docChanged) value = update.state.doc.toString();
+          if (!update.docChanged) return;
+          value = update.state.doc.toString();
+          onChange?.(value);
         }),
       ],
       parent: container,
     });
-    return () => view.destroy();
   });
+
+  onDestroy(() => view?.destroy());
 </script>
 
 <div bind:this={container}></div>
@@ -233,6 +245,7 @@ function wikiLinkCompletions(notes: { slug: string; title: string }[]): Completi
 - All table and column definitions live in a single `schema.ts`. No splitting schema across files.
 - DB columns use snake_case. Drizzle maps them to camelCase TypeScript properties automatically.
 - Tags are stored as `text[]` (Postgres array) on the notes table — not a separate join table.
+- Note cover media and editorial metadata live directly on the `notes` table: `image` stores the pasted/presigned media URL, `published_at` maps to `publishedAt`, and `series` stores an optional series label.
 - Embeddings are stored as `vector(1536)` using pgvector. Only pgvector similarity queries may use raw SQL (via Drizzle `sql` template tag). All other queries use Drizzle query builders.
 
 Example column conventions:
@@ -246,6 +259,9 @@ export const notes = pgTable('notes', {
   takeaway:  text('takeaway').notNull(),
   tags:      text('tags').array().notNull().default([]),
   category:  text('category').notNull(),
+  image:     text('image'),
+  publishedAt: timestamp('published_at'),
+  series:    text('series'),
   embedding: vector('embedding', { dimensions: 1536 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

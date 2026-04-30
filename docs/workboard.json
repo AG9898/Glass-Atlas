@@ -359,7 +359,7 @@
       "group_id": "PUBLIC",
       "title": "Note detail page — server + Markdown rendering",
       "description": "Create src/routes/notes/[slug]/+page.server.ts: load the note by slug (404 if not found or not published), load all published notes for the left sidebar catalog, derive 3 related notes (same topic or category). Create the initial src/routes/notes/[slug]/+page.svelte scaffold: render the note title, cover image (if `note.image` is set, render it as a full-width `<img>` with aspect-ratio: 16/9 and object-fit: cover above the title), and the full note body rendered as Markdown using unified with remark-gfm and rehype-shiki for syntax-highlighted code blocks. Return 404 for unpublished or unknown slugs. Three-column layout and sidebars are wired in PUBLIC-02b. See styleguide.md Section 6 for cover media rules.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "PUBLIC-01"

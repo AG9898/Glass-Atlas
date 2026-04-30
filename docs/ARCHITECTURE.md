@@ -72,30 +72,37 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 
 ## Data Flow
 
-### RAG chat flow (public)
+### RAG chat flow (public, approved target state)
+
+Current production remains note-level semantic retrieval. The sequence below describes the approved retrieval orchestration target after the CHAT-04 task chain ships.
 
 ```
 1. User submits query in the chat UI
 2. Frontend shows "searching notes..." (optimistic UI state)
 3. Frontend POSTs `{ message }` to `POST /api/chat`; browser sends the existing `chat_session` cookie automatically
 4. API route embeds the query → vector(1536) via OpenRouter embedding API (~300 ms)
-5. API route runs pgvector cosine similarity search against notes.embedding
-   → returns top 5 published notes (10–50 ms)
+5. API route runs retrieval:
+   - semantic similarity search (current: note-level embeddings; target: chunk-level embeddings)
+   - lightweight topic/lexical match query (title/tags/category)
+   - both queries run in parallel, then results are fused/reranked into a bounded candidate set
 6. API route builds the LLM prompt:
      [personality block from personality.ts]
      + [Takeaway + first paragraph of each retrieved note] (not full body)
      + [prior conversation messages for this session]
-7. API route calls OpenRouter (google/gemini-2.0-flash-001) with `stream: true`
-8. OpenRouter streams tokens → API route pipes them as SSE to the frontend
-9. Frontend renders tokens as they arrive
-10. Before starting the stream, API route calls `recordCitations(citedSlugs)` to insert
+7. API route applies confidence gating:
+   - sufficient coverage: direct first-person answer grounded in retrieved context
+   - insufficient coverage: explicit limited-coverage response + related-topic note links
+8. API route calls OpenRouter (google/gemini-2.0-flash-001) with `stream: true`
+9. OpenRouter streams tokens → API route pipes them as SSE to the frontend
+10. Frontend renders tokens as they arrive
+11. Before starting the stream, API route calls `recordCitations(citedSlugs)` to insert
     citation_events rows for each retrieved note slug (fire-and-forget; does not block streaming)
-11. Frontend appends citation links for cited note slugs
+12. Frontend renders italicized related-note links in the assistant output
 ```
 
-**Latency strategy:** Streaming is the primary UX fix for perceived latency. Gemini Flash targets ~400–600 ms TTFT. Prompt size is kept small by sending only the Takeaway + first paragraph of each note rather than full bodies.
+**Latency strategy:** Streaming is the primary UX fix for perceived latency. Gemini Flash targets ~400–600 ms TTFT. Retrieval remains bounded by small `k` limits and parallel query execution (semantic + lexical/topic) so hybrid precision gains do not create outsized latency overhead. Prompt size stays compact (note summary + bounded evidence excerpts), not full bodies.
 
-**Approved next retrieval direction (not yet implemented):** Move to section-aware chunk embeddings with metadata-enriched embedding payloads, and build chat context from note summary + top retrieved chunk excerpts (see `RESOLVED-16` in `docs/DECISIONS.md`). Current production behavior remains the note-level flow described above until those tasks ship.
+**Approved next retrieval direction (not yet implemented):** Move to section-aware chunk embeddings with metadata-enriched embedding payloads, then run always-on light hybrid retrieval (semantic + topic/lexical), fuse/rerank candidates, and use confidence-gated fallback behavior (see `RESOLVED-16` and `RESOLVED-18` in `docs/DECISIONS.md`). Current production behavior remains the simpler note-level semantic flow until CHAT retrieval tasks ship.
 
 ### Note save flow (admin)
 

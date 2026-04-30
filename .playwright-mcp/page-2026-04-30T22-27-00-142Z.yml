@@ -1,0 +1,60 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: GLASS ATLAS
+      - generic [ref=e6]: SINGLE AUTHOR · NOTES PUBLISHED
+      - button "Switch to dark mode" [active] [ref=e62] [cursor=pointer]:
+        - generic [ref=e9]: ○
+        - generic [ref=e10]: LIGHT
+    - generic [ref=e11]:
+      - navigation "Primary navigation" [ref=e12]:
+        - link "NOTES" [ref=e13] [cursor=pointer]:
+          - /url: /notes
+        - link "CHAT" [ref=e14] [cursor=pointer]:
+          - /url: /#chat
+      - link "Glass Atlas home" [ref=e15] [cursor=pointer]:
+        - /url: /
+        - text: Glass Atlas
+      - generic [ref=e16]:
+        - link "Search notes" [ref=e17] [cursor=pointer]:
+          - /url: /notes?focus=search
+          - img [ref=e18]
+        - button "SIGN OUT" [ref=e22] [cursor=pointer]
+        - button "Switch to dark mode" [ref=e63] [cursor=pointer]: ○
+  - main "Notes from a developer who would rather show his work." [ref=e24]:
+    - region "Landing hero" [ref=e25]:
+      - generic [ref=e26]:
+        - paragraph [ref=e27]: Glass Atlas
+        - heading "Notes from a developer who would rather show his work." [level=1] [ref=e28]
+        - link "Read The Latest" [ref=e29] [cursor=pointer]:
+          - /url: /notes
+      - complementary "Grounded chat panel" [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e32]:
+            - paragraph [ref=e33]: Grounded Chat
+            - paragraph [ref=e34]: Answers stream from the note index only.
+          - log [ref=e35]:
+            - paragraph [ref=e36]: Ask a question to begin a grounded search.
+          - generic [ref=e37]:
+            - generic [ref=e38]: Ask grounded question
+            - textbox "Ask grounded question" [ref=e39]:
+              - /placeholder: Ask anything grounded in these notes…
+            - button "Send" [disabled] [ref=e40]
+    - region "Site statistics" [ref=e41]:
+      - article [ref=e42]:
+        - paragraph [ref=e43]: "0"
+        - paragraph [ref=e44]: Published Notes
+      - article [ref=e45]:
+        - paragraph [ref=e46]: "0"
+        - paragraph [ref=e47]: Distinct Topics
+      - article [ref=e48]:
+        - paragraph [ref=e49]: "0"
+        - paragraph [ref=e50]: Avg Words / Note
+      - article [ref=e51]:
+        - paragraph [ref=e52]: "0"
+        - paragraph [ref=e53]: Citations Served
+    - region "The latest field notes." [ref=e54]:
+      - generic [ref=e55]:
+        - paragraph [ref=e56]: Archive
+        - heading "The latest field notes." [level=2] [ref=e57]
+      - paragraph [ref=e58]: No published notes yet.

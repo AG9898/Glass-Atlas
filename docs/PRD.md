@@ -62,7 +62,7 @@ Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note ed
 | # | Criterion | How to verify |
 |---|---|---|
 | 1 | Chat cites actual notes with working links | Manually ask a covered topic; response includes slug links that resolve |
-| 2 | Chat declines out-of-scope topics | Ask about a topic with no note; response says "I don't have a note on that" |
+| 2 | Chat handles insufficient coverage safely | Ask about a topic with no direct note; response clearly states limited coverage and offers related-topic note links (or says "I don't have a note on that" when nothing relevant exists) |
 | 3 | Admin publish flow works end-to-end | Create a note in `/admin`, publish it, confirm it appears on `/notes` immediately |
 | 4 | Embedding is stored on save | Inspect the Neon console; embedding column is non-null after save |
 | 5 | Rate limit enforces 10 msg/hour per anonymous browser session | Send 11 chat messages from one browser session; 11th returns HTTP 429 |

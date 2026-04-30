@@ -40,8 +40,8 @@ There is no Playwright, Cypress, or any browser automation in this project. End-
 | Utility functions | `src/lib/utils/slugify.ts`, taxonomy helpers, markdown section extractors | Pure unit tests — no mocks needed |
 | DB query layer | `src/lib/server/db/notes.ts` | Unit tests with mocked Drizzle client (`vi.mock`) |
 | Embeddings module | `src/lib/server/embeddings.ts` | Mock OpenRouter HTTP call; assert correct endpoint and response shape |
-| Chat module | `src/lib/server/chat.ts` | Mock pgvector retrieval results and OpenRouter streaming; assert prompt assembly |
-| API route — chat | `src/routes/api/chat/+server.ts` | Import handler directly, call with mock `Request`; assert rate limiting and streaming response shape |
+| Chat module | `src/lib/server/chat.ts` | Mock semantic + lexical retrieval inputs; assert hybrid candidate fusion, confidence-gated fallback selection, and compact prompt assembly |
+| API route — chat | `src/routes/api/chat/+server.ts` | Import handler directly, call with mock `Request`; assert rate limiting, streaming response shape, and safe insufficient-coverage behavior |
 | API route — admin note review | `src/routes/api/admin/notes/review/+server.ts` | Mock auth session and OpenRouter review adapter; assert payload validation, SSE response shape, and upstream 429/503 pass-through |
 | Admin review client behavior | Admin new/edit review UI logic | Assert manual Review trigger builds `{ title, takeaway, body }` payload, stream state updates, and visible error handling on stream failure |
 | Admin markdown live preview behavior | `MarkdownEditor` data-flow and markdown preview transform helpers | Unit-test typing-to-preview transform behavior (wiki-link resolution/missing refs, markdown structure output), and ensure preview transform failure does not block save/publish form actions |

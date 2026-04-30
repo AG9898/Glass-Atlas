@@ -25,7 +25,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not(.light) {
     --color-bg: #1c1a15;
     --color-surface-1: #232019;
     --color-surface-2: #2c281f;

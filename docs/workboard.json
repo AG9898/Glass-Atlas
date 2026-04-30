@@ -725,7 +725,7 @@
       "group_id": "POLISH",
       "title": "Implement light mode toggle + persistence",
       "description": "Add a working theme toggle to the global nav and theme application flow. Toggle must switch between light and dark explicitly, persist the user choice to localStorage, and apply the selected theme on initial load without flash. Ensure the toggle is available on public and admin pages, and the visual tokens for both themes are complete so no dark-only colors bleed into light mode.",
-      "status": "todo",
+      "status": "done",
       "priority": "medium",
       "depends_on": [],
       "blocked_by": [],
@@ -1278,6 +1278,111 @@
       "files": [
         "src/routes/api/chat/chat.test.ts",
         "src/lib/server"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "CHAT-04D",
+      "group_id": "CHAT",
+      "title": "Always-on lexical/topic retrieval + candidate fusion",
+      "description": "Extend chat retrieval to run lexical/topic retrieval (title/tags/category) in parallel with semantic retrieval, then fuse and rerank a bounded candidate set for prompt assembly. Keep retrieval limits small and deterministic for latency control, and preserve published-note-only scope.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "CHAT-04C"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Chat retrieval executes semantic and lexical/topic queries in parallel",
+        "Candidate fusion/rerank is deterministic and bounded by configured limits",
+        "Only published-note evidence is eligible for final prompt context",
+        "No full note-body injection is introduced during fusion",
+        "Unit tests cover lexical retrieval, fusion ordering, and empty-result behavior",
+        "npm run test:run and npm run lint pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/chat.ts",
+        "src/lib/server/db/notes.ts",
+        "src/lib/server/chat.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "CHAT-04E",
+      "group_id": "CHAT",
+      "title": "Confidence-gated insufficient-coverage fallback",
+      "description": "Add confidence gating to chat answer orchestration so low-confidence evidence triggers a safe insufficient-coverage fallback instead of speculative direct answers. Preserve first-person voice and non-general-assistant behavior.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "CHAT-04D",
+        "CHAT-01",
+        "CHAT-02"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Low-confidence retrieval paths return limited-coverage fallback behavior",
+        "Fallback behavior never fabricates unsupported claims",
+        "High-confidence paths continue to return grounded direct answers",
+        "Fallback decision is test-covered for boundary/edge cases",
+        "Route tests assert safe behavior for insufficient coverage",
+        "npm run test:run and npm run lint pass"
+      ],
+      "docs": [
+        "docs/PRD.md",
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/chat.ts",
+        "src/routes/api/chat/+server.ts",
+        "src/lib/server/chat.test.ts",
+        "src/routes/api/chat/chat.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "CHAT-04F",
+      "group_id": "CHAT",
+      "title": "Deterministic related-note link footer for fallback responses",
+      "description": "Ensure insufficient-coverage responses include deterministic related-note links derived from retrieved slugs (not model-invented links), rendered with the italicized related-notes footer contract in chat output.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [
+        "CHAT-04E"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Fallback responses include related-note links generated from retrieved slugs only",
+        "Invalid or unknown slugs are not emitted as clickable links",
+        "Italicized related-notes footer renders correctly in chat UI",
+        "Formatter and chat rendering tests cover link safety and output contract",
+        "npm run test:run and npm run lint pass"
+      ],
+      "docs": [
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/chat.ts",
+        "src/lib/components/Chat.svelte",
+        "src/lib/utils/chat-format.ts",
+        "src/lib/utils/chat-format.test.ts"
       ],
       "commands": [
         "npm run test:run",

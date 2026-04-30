@@ -339,11 +339,11 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 
 ### Prompt Assembly (`src/lib/server/chat.ts`)
 
-- Retrieve the top-N similar notes via pgvector similarity search.
-- Include only the `takeaway` field and the first paragraph of `body` per note in the LLM context. Never send the full note body.
-- Assemble the final prompt from: personality block + condensed note context + user message.
-- When exact coverage is insufficient, instruct the model to explicitly say coverage is limited and suggest nearby topics from retrieved notes instead of speculating.
-- Once chunk retrieval ships, keep prompt context compact by using note summary + top chunk excerpt(s) only; never fall back to full-note body injection.
+- Use always-on light hybrid retrieval: run semantic similarity and topic/lexical retrieval in parallel, then fuse/rerank a bounded candidate set before prompt assembly.
+- Include only compact evidence in LLM context (current: takeaway + first paragraph; target: note summary + top chunk excerpt(s)). Never send full note bodies.
+- Assemble the final prompt from: personality block + condensed evidence context + user message.
+- Apply confidence gating before answer generation. If confidence is low, return a limited-coverage fallback with related-topic note links instead of speculative direct answers.
+- Keep related-note links deterministic from retrieved note slugs; do not rely on model-invented slugs or URLs.
 
 ### OpenRouter (`src/lib/server/ai/openrouter.ts`)
 

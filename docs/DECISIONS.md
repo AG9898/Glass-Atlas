@@ -12,6 +12,15 @@ No open decisions right now.
 
 ## Resolved Decisions
 
+### RESOLVED-18 — Chat Retrieval Orchestration (Always-On Light Hybrid + Confidence-Gated Fallback)
+
+**Resolved:** 2026-04-30
+**Decision:** For chat retrieval, use an always-on light hybrid strategy: run semantic retrieval (chunk similarity once chunk model ships) and topic/lexical retrieval in parallel, fuse/rerank a small candidate set server-side, and only answer directly when confidence is sufficient. When confidence is low, respond with an explicit limited-coverage fallback and provide related-topic note links (italicized footer), rather than speculating.
+**Why:** Chunked semantic retrieval improves granularity but can still surface near-neighbor context that is semantically adjacent yet not answer-complete. Always-on hybrid retrieval improves precision/recall balance and reduces wrong-but-confident responses. Confidence gating preserves trust by preferring transparent fallback over speculative completion.
+**Alternatives rejected:** Fallback-only lexical/topic retrieval was rejected because it still allows borderline semantic misses to be answered too confidently before fallback logic runs. Pure vector-only retrieval was rejected for insufficient precision on topic-framed questions. LLM-driven DB/tool queries were rejected for higher latency variance, weaker determinism, and unnecessary complexity at this scale.
+**Affects:** docs/PRD.md, docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/TESTING.md, docs/workboard.json (CHAT retrieval tasks)
+**Implementation status (2026-04-30):** Decision accepted and queued for CHAT task execution; production retrieval remains the existing note-level semantic flow until CHAT retrieval tasks ship.
+
 ### RESOLVED-17 — Chat Quota Identity Strategy (Anonymous Cookie Session, DB-Backed Counter)
 
 **Resolved:** 2026-04-30
@@ -27,7 +36,7 @@ No open decisions right now.
 **Resolved:** 2026-04-30
 **Decision:** Keep OpenRouter-hosted embeddings for now (`text-embedding-3-small`, `vector(1536)`) and evolve retrieval from one-vector-per-note to section-aware chunk embeddings. Chunk payloads should include note metadata context (`title`, `category`, `tags`, `series`) alongside chunk text, and chat context should use a hybrid format: note summary (`takeaway`/fallback) plus top retrieved chunk excerpt(s).
 **Why:** The current body-level single vector is cheap and simple but can blur intent for targeted queries. Section-aware chunk vectors improve semantic precision and recall without introducing a new provider or inference infrastructure. Metadata inclusion helps taxonomy-driven matching while preserving semantic body grounding.
-**Alternatives rejected:** Staying with one vector per full note was rejected due lower retrieval granularity. Switching to self-hosted embeddings now was rejected due operational overhead and migration complexity for this phase. A full rerank/hybrid stack in the same phase was rejected to keep scope bounded and delivery incremental.
+**Alternatives rejected:** Staying with one vector per full note was rejected due lower retrieval granularity. Switching to self-hosted embeddings now was rejected due operational overhead and migration complexity for this phase.
 **Affects:** docs/workboard.json, docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/TESTING.md
 **Implementation status (2026-04-30):** Direction accepted and queued as new CHAT workboard tasks; code implementation not started yet.
 

@@ -322,3 +322,6 @@ With this package version, `setEnvDefaults()` initializes `config.trustHost` fro
 
 ### 2026-04-30 — Admin markdown preview should stay client-local and fail-soft
 The split-pane editor contract is live typing feedback without network calls on keystrokes (`body` state -> wiki-link transform -> preview render). Keep preview rendering in client-safe modules only; never pull `src/lib/server/**` into admin `.svelte` files for this. If preview transform fails, keep typing and save/publish actions working and show a non-blocking preview error state.
+
+### 2026-04-30 — Public chat quota identity is anonymous cookie session, not IP
+Rate-limit fairness now targets per-browser anonymous sessions instead of per-IP buckets, so quota enforcement should key off a server-issued opaque cookie token (`chat_session`) and persist counters in DB. Keep identifiers anonymous (store only token hashes server-side), and accept cookie-clearing as a valid quota reset behavior for no-login visitors.

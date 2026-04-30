@@ -46,7 +46,7 @@ The server is a persistent Bun process. In-memory state survives between request
 
 ### API routes
 
-- `POST /api/chat` — public; accepts `{ query, session_id, conversation_id? }`; embeds query, runs cosine similarity search, streams LLM response via SSE; rate-limited to 10 messages per IP per hour
+- `POST /api/chat` — public; accepts `{ message }`; reads/sets an anonymous `chat_session` cookie, enforces 10 messages per hour per anonymous browser session, embeds query, runs cosine similarity search, streams LLM response via SSE
 - `POST /api/admin/media/upload-url` — admin-only; accepts `{ filename, contentType }`; validates MIME allowlist (`image/jpeg`, `image/png`, `image/svg+xml`, `image/gif`, `video/mp4`) and returns a short-lived presigned `PUT` URL for direct browser upload to Railway Buckets
 - `GET /api/admin/media/access-url?key=...` — public redirect endpoint; converts a stored object key into a short-lived presigned `GET` URL so bucket objects remain private while note media stays embeddable from stable app URLs
 - `POST /api/admin/notes/review` — admin-only; accepts `{ title, takeaway, body }` from current editor state (new or edit page); calls `ai/review.ts`; streams critique via SSE; does not read from or write to the database; free-tier OpenRouter model; returns `429` or `503` transparently when the model is unavailable
@@ -77,7 +77,7 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 ```
 1. User submits query in the chat UI
 2. Frontend shows "searching notes..." (optimistic UI state)
-3. Frontend POSTs { query, session_id, conversation_id? } to POST /api/chat
+3. Frontend POSTs `{ message }` to `POST /api/chat`; browser sends the existing `chat_session` cookie automatically
 4. API route embeds the query → vector(1536) via OpenRouter embedding API (~300 ms)
 5. API route runs pgvector cosine similarity search against notes.embedding
    → returns top 5 published notes (10–50 ms)
@@ -85,10 +85,10 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
      [personality block from personality.ts]
      + [Takeaway + first paragraph of each retrieved note] (not full body)
      + [prior conversation messages for this session]
-7. API route calls OpenRouter (google/gemini-2.0-flash-001) with stream: true
+7. API route calls OpenRouter (google/gemini-2.0-flash-001) with `stream: true`
 8. OpenRouter streams tokens → API route pipes them as SSE to the frontend
 9. Frontend renders tokens as they arrive
-10. Before starting the stream, API route calls recordCitations(citedSlugs) to insert
+10. Before starting the stream, API route calls `recordCitations(citedSlugs)` to insert
     citation_events rows for each retrieved note slug (fire-and-forget; does not block streaming)
 11. Frontend appends citation links for cited note slugs
 ```
@@ -165,7 +165,7 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 
 **Credential verification:** `src/hooks.server.ts` calls `event.locals.auth()` on every `/admin/**` request. Any request to an `/admin` or `/api/admin` path without a valid session is redirected to `/auth/signin` (the Auth.js sign-in page, which initiates the GitHub OAuth flow). No `/admin` route handler is ever reached without a confirmed session.
 
-**Visitor chat sessions:** Chat history is not persisted in Phase 1 — it lives exclusively in the `Chat.svelte` component's `$state` and clears on page reload. The `conversations` and `messages` tables exist in the schema and are reserved for a future persistence phase. The only chat-related data written to the database per request is citation_events rows (one per note retrieved by the RAG search), which power the landing page "total citations served" stat.
+**Visitor chat sessions:** Visitor identity for rate limiting is an anonymous browser cookie (`chat_session`) generated server-side and stored as an opaque random token. Chat history is not persisted in Phase 1 — it lives exclusively in the `Chat.svelte` component's `$state` and clears on page reload. The `conversations` and `messages` tables exist in the schema and are reserved for a future persistence phase. The chat quota counter is persisted server-side in `chat_rate_limits` using a hash of the session token (not the raw token). Clearing cookies can reset quota; this is an accepted no-login tradeoff. The only other chat-related data written per request is `citation_events` rows (one per note retrieved by the RAG search), which power the landing page "total citations served" stat.
 
 ---
 
@@ -195,7 +195,7 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 - All external I/O — database queries, LLM calls, and embedding generation — must occur in server-side modules under `src/lib/server/` or in server-only route handlers. Client components must never import these modules or hold credentials.
 - Embeddings are generated at write time (note save/update only). The only real-time embedding call per request is the query embedding in `POST /api/chat`. Note body embeddings are never recomputed at query time.
 - Auth middleware in `src/hooks.server.ts` must run before any `/admin` route handler or `/api/admin/**` handler is executed. There are no client-side-only access guards — all enforcement is server-side.
-- `POST /api/chat` is rate-limited to 10 messages per IP per hour to protect OpenRouter API costs. This limit is enforced in the API route handler before any embedding or LLM call is made.
+- `POST /api/chat` is rate-limited to 10 messages per anonymous browser session per hour to protect OpenRouter API costs. The session ID is an opaque cookie; only its hash is stored server-side. The limit check is enforced in the API route handler before any embedding or LLM call is made.
 - The LLM system prompt personality block lives exclusively in `src/lib/server/personality.ts`. It must never be inlined directly into chat logic or any other file.
 - LLM responses must be strictly grounded in the notes retrieved by the vector search. The system prompt must include an explicit guardrail instructing the model not to answer from general knowledge when the retrieved notes do not support the answer.
 - The server is a persistent process — in-memory state survives between requests on the same instance. Any state that must survive across deploys (conversation history, note data) is stored in Neon. Do not rely on in-memory state for correctness if horizontal scaling is ever introduced.

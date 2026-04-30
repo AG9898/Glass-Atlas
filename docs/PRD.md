@@ -39,7 +39,7 @@ Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note ed
 `/notes` — browsable, filterable, and text-searchable note index (title and tag ILIKE search via `?q=` param). `/notes/[slug]` — individual note detail page. `NoteCard` component. Nav search icon links to `/notes?focus=search`. Cover media renders conditionally when a URL is set: JPEG/PNG/SVG/GIF via `<img>`, MP4 via `<video controls>` (no autoplay).
 
 ### Phase 4 — Chat
-`/api/chat` RAG endpoint with IP-based rate limiting (10 messages/hour, 429 on the 11th). Semantic search against pgvector embeddings. Streaming SSE responses. `Chat.svelte` component. `personality.ts` system prompt that enforces grounding.
+`/api/chat` RAG endpoint with anonymous browser-session rate limiting (10 messages/hour per session ID, 429 on the 11th). Session identity is stored in an opaque cookie and enforced server-side. Semantic search against pgvector embeddings. Streaming SSE responses. `Chat.svelte` component. `personality.ts` system prompt that enforces grounding.
 
 ### Phase 5 — Landing + Polish
 `/` landing page with chat front-and-center and note preview cards. SEO includes site-level Open Graph metadata, per-note `<title>` + first-sentence descriptions on `/notes/[slug]`, and `sitemap.xml` entries for `/`, `/notes`, and each published note slug. The canonical visual target for all pages is `docs/styleguide.md` (Section 10) and the reference mockups in `reference/UI/design_handoff_glass_atlas/`.
@@ -65,7 +65,7 @@ Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note ed
 | 2 | Chat declines out-of-scope topics | Ask about a topic with no note; response says "I don't have a note on that" |
 | 3 | Admin publish flow works end-to-end | Create a note in `/admin`, publish it, confirm it appears on `/notes` immediately |
 | 4 | Embedding is stored on save | Inspect the Neon console; embedding column is non-null after save |
-| 5 | Rate limit enforces 10 msg/hour per IP | Send 11 chat messages from one IP; 11th returns HTTP 429 |
+| 5 | Rate limit enforces 10 msg/hour per anonymous browser session | Send 11 chat messages from one browser session; 11th returns HTTP 429 |
 | 6 | `/admin` requires authentication | Visit `/admin` without a GitHub session; confirm redirect to OAuth |
 | 7 | Public routes work without auth | Open `/notes` and chat in incognito; confirm full functionality |
 
@@ -74,10 +74,11 @@ Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note ed
 ## Constraints
 
 - **LLM grounding** — all chat responses must be derived from retrieved notes only. Hallucination outside retrieved context is not acceptable.
-- **No visitor PII** — visitor session IDs for rate limiting must be anonymous (IP hash or similar). No personal data stored.
-- **Rate limiting** — 10 chat messages per IP per hour, enforced server-side, to control LLM API costs.
+- **No visitor PII** — visitor session IDs for rate limiting must be random, opaque, and anonymous (no account linkage, no personal identifiers). No personal data stored.
+- **Rate limiting** — 10 chat messages per anonymous browser session per hour, enforced server-side, to control LLM API costs.
+- **Session reset behavior** — clearing browser cookies may reset the anonymous chat quota. This is an accepted tradeoff for a no-login public visitor model.
 - **Auth scope** — GitHub OAuth is for the single author only. No OAuth flows for visitors.
-- **Stateless deployment** — hosted on Railway as a persistent Bun HTTP server. In-memory state (e.g. the rate-limit Map) is valid and survives between requests on the same instance. State that must survive across deploys lives in Neon PostgreSQL.
+- **Stateless deployment** — hosted on Railway as a persistent Bun HTTP server. In-memory state may survive between requests on one instance, but chat quota correctness must not depend on process memory. State that must survive across deploys (including chat quota counters) lives in Neon PostgreSQL.
 - **Stack is fixed** — SvelteKit + Svelte 5 (runes), TypeScript, Tailwind CSS v4, Bits UI, GSAP (for advanced motion), Neon PostgreSQL + pgvector, Drizzle ORM, OpenRouter (Gemini Flash default), Auth.js, Vitest.
 
 ---

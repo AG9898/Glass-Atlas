@@ -334,12 +334,15 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 
 - The personality block (system prompt preamble) is defined in `src/lib/server/personality.ts`.
 - `chat.ts` imports and uses it. Never inline the personality string in `chat.ts` or any other file.
+- Chat answers use first-person author voice ("I", "my"), not third-person narration.
+- Chat responses end with an italicized related-notes footer using wiki-link syntax (for example: `*Related notes: [[slug|Title]]*`) when relevant notes were used.
 
 ### Prompt Assembly (`src/lib/server/chat.ts`)
 
 - Retrieve the top-N similar notes via pgvector similarity search.
 - Include only the `takeaway` field and the first paragraph of `body` per note in the LLM context. Never send the full note body.
 - Assemble the final prompt from: personality block + condensed note context + user message.
+- When exact coverage is insufficient, instruct the model to explicitly say coverage is limited and suggest nearby topics from retrieved notes instead of speculating.
 - Once chunk retrieval ships, keep prompt context compact by using note summary + top chunk excerpt(s) only; never fall back to full-note body injection.
 
 ### OpenRouter (`src/lib/server/ai/openrouter.ts`)
@@ -363,7 +366,9 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 
 - Auth.js manages sessions. Session data is attached to `event.locals.session` in `hooks.server.ts`.
 - The `hooks.server.ts` file guards every route under `/admin` and `/api/admin`. Never add per-route auth checks as a substitute for the hook guard — they can be forgotten.
-- Rate limiting for `/api/chat` is enforced via an in-memory `Map` keyed by SHA-256 hash of the requester's IP, tracking `{ count: number; windowStart: number }` per entry. The limit check runs at the top of the `/api/chat` `+server.ts` handler before any embedding or LLM call. This works correctly because the server is a persistent Bun process — the Map survives between requests on the same instance.
+- Rate limiting for `/api/chat` is enforced server-side per anonymous browser session cookie (`chat_session`), not per IP. Persist counters in `chat_rate_limits` keyed by SHA-256 hash of the cookie token, tracking `{ message_count, window_start }`. The limit check runs at the top of the `/api/chat` `+server.ts` handler before any embedding or LLM call.
+- The `chat_session` cookie must be opaque/random and set with secure defaults (`httpOnly`, `sameSite: 'lax'`, `path: '/'`, `secure` in production). Never trust client-submitted session IDs in JSON bodies for quota enforcement.
+- Cookie-clearing reset behavior is accepted for anonymous public chat. Do not add visitor accounts just to make chat quota non-resettable.
 - Never expose internal error messages or stack traces in API responses. Return generic error strings to the client.
 
 ---

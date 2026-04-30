@@ -24,7 +24,9 @@
 | `AUTH_GITHUB_SECRET` | Yes | All | — | `$env/static/private` | GitHub OAuth app Client Secret. |
 | `AUTH_BYPASS` | No | Local development only | `FALSE` | `$env/dynamic/private` | Dev-only auth bypass toggle for localhost testing. Set to `TRUE` to force an authenticated local admin session. Ignored outside `NODE_ENV=development` and non-local hosts. |
 | `AUTH_TRUST_HOST` | No | — | — | `$env/static/private` | Vercel-specific workaround — not required on Railway. Do not set. |
-| `CHAT_RATE_LIMIT` | No | All | `10` | `$env/static/private` | Max chat messages allowed per IP per hour. |
+| `CHAT_RATE_LIMIT_MAX` | No | All | `10` | `$env/dynamic/private` | Max chat messages allowed per anonymous browser session within one quota window. |
+| `CHAT_RATE_LIMIT_WINDOW_MINUTES` | No | All | `60` | `$env/dynamic/private` | Length of the anonymous chat quota window in minutes. |
+| `CHAT_SESSION_COOKIE_NAME` | No | All | `chat_session` | `$env/dynamic/private` | Cookie name used for anonymous visitor chat session identity. |
 | `PUBLIC_SITE_URL` | Yes (production) | All | `http://localhost:5173` | `$env/dynamic/public` | Canonical site URL used for OG tags and sitemap generation. Runtime import allows safe local/build fallback, but set this in production. |
 | `BUCKET` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | — | `$env/dynamic/private` | Railway bucket name for S3-compatible API calls. Use Railway bucket variable references. Runtime import avoids build-time failure when uploads are not configured. |
 | `ENDPOINT` | Yes (if first-party media uploads enabled) | Production (Railway bucket env) | `https://storage.railway.app` | `$env/dynamic/private` | Railway bucket S3 endpoint. |
@@ -83,7 +85,9 @@ Optional overrides (only set if you need to change defaults):
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 OPENROUTER_MODEL=google/gemini-2.0-flash-001
 EMBEDDING_MODEL=text-embedding-3-small
-CHAT_RATE_LIMIT=10
+CHAT_RATE_LIMIT_MAX=10
+CHAT_RATE_LIMIT_WINDOW_MINUTES=60
+CHAT_SESSION_COOKIE_NAME=chat_session
 # Local-only toggle for auth bypass (disabled outside localhost development)
 AUTH_BYPASS=TRUE
 ```
@@ -146,4 +150,4 @@ Set via Railway dashboard under Project > Service > Variables. Railway encrypts 
 
 Use separate GitHub OAuth apps for local and production so callback URLs stay distinct and credentials can be rotated independently.
 
-Optional variables (`CHAT_RATE_LIMIT`, `OPENROUTER_MODEL`, `EMBEDDING_MODEL`, `OPENROUTER_BASE_URL`) only need to be set in Railway if you want to override the defaults in production. Bucket variables are required only when the first-party media upload path is enabled.
+Optional variables (`CHAT_RATE_LIMIT_MAX`, `CHAT_RATE_LIMIT_WINDOW_MINUTES`, `CHAT_SESSION_COOKIE_NAME`, `OPENROUTER_MODEL`, `EMBEDDING_MODEL`, `OPENROUTER_BASE_URL`) only need to be set in Railway if you want to override the defaults in production. Bucket variables are required only when the first-party media upload path is enabled.

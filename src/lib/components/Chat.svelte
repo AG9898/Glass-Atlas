@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { renderChatMessageHtml } from '$lib/utils/chat-format';
+
   type ChatRole = 'user' | 'assistant';
 
   type ChatMessage = {
@@ -207,7 +209,10 @@
       {#each messages as message}
         <article class="ga-chat__message" class:ga-chat__message--assistant={message.role === 'assistant'}>
           <p class="ga-chat__message-label">{message.role === 'user' ? 'You' : 'Atlas'}</p>
-          <p class="ga-chat__message-content">{message.content}</p>
+          <p class="ga-chat__message-content">
+            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+            {@html renderChatMessageHtml(message.content)}
+          </p>
         </article>
       {/each}
     {/if}
@@ -314,6 +319,16 @@
     font-size: 0.98rem;
     line-height: 1.6;
     white-space: pre-wrap;
+  }
+
+  .ga-chat__message-content :global(em) {
+    font-style: italic;
+  }
+
+  .ga-chat__message-content :global(.ga-chat__note-link) {
+    color: var(--color-accent-500);
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
   }
 
   .ga-chat__error {

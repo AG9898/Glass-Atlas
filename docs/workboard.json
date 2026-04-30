@@ -1192,6 +1192,97 @@
         "npm run test:run",
         "npm run lint"
       ]
+    },
+    {
+      "id": "CHAT-05A",
+      "title": "Persist anonymous chat quota counters by session hash",
+      "description": "Refactor chat quota persistence to use an anonymous browser-session identifier hash in `chat_rate_limits` instead of IP identity. Add or adjust DB helper methods for atomic window reset and increment logic, and keep all identifiers opaque and non-PII.",
+      "status": "todo",
+      "priority": "high",
+      "group_id": "CHAT",
+      "depends_on": [],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Quota counters are keyed by anonymous session hash, not raw IP.",
+        "Windowed counter logic supports reset after configured window.",
+        "No raw session token is persisted in DB."
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/DECISIONS.md"
+      ],
+      "files": [
+        "src/lib/server/db/schema.ts",
+        "src/lib/server/db",
+        "drizzle"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "CHAT-05B",
+      "title": "Issue anonymous chat session cookie and enforce quota in /api/chat",
+      "description": "Update `POST /api/chat` to read or issue a secure anonymous session cookie, enforce per-session quota before embeddings and LLM calls, and return 429 on threshold+1 while preserving SSE behavior for allowed requests.",
+      "status": "todo",
+      "priority": "critical",
+      "group_id": "CHAT",
+      "depends_on": [
+        "CHAT-05A"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "First request without cookie receives a new anonymous cookie.",
+        "Subsequent requests with the same cookie share one quota bucket across refresh.",
+        "Requests over limit return HTTP 429 before embedding or LLM work.",
+        "Allowed responses continue streaming via SSE."
+      ],
+      "docs": [
+        "docs/PRD.md",
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/ENV_VARS.md"
+      ],
+      "files": [
+        "src/routes/api/chat/+server.ts",
+        "src/lib/server",
+        "src/app.d.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "CHAT-05C",
+      "title": "Add route and utility tests for anonymous session quota",
+      "description": "Replace IP-based quota tests with cookie-session coverage, including cookie issuance, persistence across requests, independent buckets per cookie, malformed or missing cookie fallback, and 429 boundary behavior.",
+      "status": "todo",
+      "priority": "high",
+      "group_id": "CHAT",
+      "depends_on": [
+        "CHAT-05B"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Tests assert Set-Cookie behavior for first anonymous request.",
+        "Tests verify same-cookie accumulation and different-cookie isolation.",
+        "Tests verify 429 on limit+1 and window reset behavior.",
+        "No tests rely on shared global mutable state between cases."
+      ],
+      "docs": [
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/routes/api/chat/chat.test.ts",
+        "src/lib/server"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
     }
   ]
 }

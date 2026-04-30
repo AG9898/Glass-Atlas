@@ -46,7 +46,7 @@ There is no Playwright, Cypress, or any browser automation in this project. End-
 | Admin review client behavior | Admin new/edit review UI logic | Assert manual Review trigger builds `{ title, takeaway, body }` payload, stream state updates, and visible error handling on stream failure |
 | Admin markdown live preview behavior | `MarkdownEditor` data-flow and markdown preview transform helpers | Unit-test typing-to-preview transform behavior (wiki-link resolution/missing refs, markdown structure output), and ensure preview transform failure does not block save/publish form actions |
 | Auth guard | SvelteKit hooks or route guards for `/admin` | Assert unauthenticated requests receive a redirect (302) or 401 response |
-| Rate limit logic | Rate limit utility (IP-based) | Pass mock IP and mock store; test threshold and reset behaviour in isolation |
+| Rate limit logic | Chat quota utility (anonymous session cookie-based) | Pass mock session token/hash and mock store; test threshold, reset window, and cookie-missing behavior in isolation |
 
 ### Explicitly NOT covered
 
@@ -69,6 +69,7 @@ This table starts empty and is filled in as test files are added to the project.
 |---|---|---|
 | `src/lib/server/db/notes.test.ts` | `src/lib/server/db/notes.ts` | Mocked Drizzle coverage for pgvector similarity search and citation tracking helpers |
 | `src/lib/server/embeddings.test.ts` | `src/lib/server/embeddings.ts` | Mocked OpenRouter embedding requests, missing key handling, HTTP failure handling, and malformed payload rejection |
+| `src/lib/utils/chat-format.test.ts` | `src/lib/utils/chat-format.ts` | Safe chat formatting for italics, local note links (`[[slug]]`, markdown links), and HTML escaping |
 
 Naming rules that govern where each file lives are in the next section.
 
@@ -198,22 +199,29 @@ Manual smoke verification is still required in local dev for typing latency and 
 
 ### Testing rate limiting
 
-Rate limit logic should live in an isolated utility that accepts an IP string and a state store as arguments. Pass a mock store so tests do not share state between runs.
+Rate limit logic should live in an isolated utility that accepts an anonymous session token (or its hash) and a state store as arguments. Pass a mock store so tests do not share state between runs.
 
 ```ts
 import { checkRateLimit } from '$lib/server/rateLimit';
 
 test('blocks requests after threshold is exceeded', () => {
   const store = new Map<string, number[]>();
-  const ip = '127.0.0.1';
+  const sessionToken = 'anon-session-token';
 
   for (let i = 0; i < 10; i++) {
-    checkRateLimit(ip, store);
+    checkRateLimit(sessionToken, store);
   }
 
-  expect(() => checkRateLimit(ip, store)).toThrow(/rate limit/i);
+  expect(() => checkRateLimit(sessionToken, store)).toThrow(/rate limit/i);
 });
 ```
+
+For `POST /api/chat`, add route-level tests for:
+- first request without a cookie sets the anonymous chat-session cookie and succeeds
+- subsequent requests with the same cookie share the same quota counter across refresh
+- a different cookie gets an independent quota counter
+- malformed/missing cookie fallback behavior (issue new cookie and start a fresh counter)
+- `429` on request `limit + 1` within the same quota window
 
 ### General rules
 

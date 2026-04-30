@@ -6,20 +6,21 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 
 ## Open Decisions
 
-### OPEN-02 — Rate Limiting Implementation
-
-**Question:** How should per-IP rate limiting be enforced on the chat endpoint — via a Neon counter table, Upstash Redis, or an in-memory Map?
-**Context:** The plan identifies the need for rate limiting on the `/api/chat` route to prevent abuse and control OpenRouter API costs. The choice has cost, accuracy, and operational complexity implications. Note: deployment has moved to Railway (persistent Bun server), so in-memory state now survives between requests — unlike on Vercel serverless. This significantly improves the viability of the in-memory Map approach.
-**Options under consideration:**
-1. **Neon counter table** — Store request counts per IP in PostgreSQL. Tradeoff: Persists across deploys and is accurate if scaled horizontally, but adds a DB write on every chat request, increasing latency and cost.
-2. **Upstash Redis** — Use a Redis-backed KV store for fast atomic increments. Tradeoff: Fast and accurate with no DB overhead, but introduces an additional dependency and billing surface.
-3. **In-memory Map** — Track counts in a module-level Map on the persistent server. Tradeoff: Zero cost and complexity; resets only on deploy (acceptable for a blog). Undercounts only if scaled beyond one instance (not expected at current scale).
-**Blocking:** Phase 4 (chat endpoint implementation).
-**See also:** ARCHITECTURE.md, ENV_VARS.md
+No open decisions right now.
 
 ---
 
 ## Resolved Decisions
+
+### RESOLVED-17 — Chat Quota Identity Strategy (Anonymous Cookie Session, DB-Backed Counter)
+
+**Resolved:** 2026-04-30
+**Decision:** Enforce `/api/chat` quota per anonymous browser session cookie, not per IP. Use an opaque random `chat_session` token stored in an HTTP-only cookie and persist counters in Neon (`chat_rate_limits`) keyed by a hash of that token. Keep the quota at 10 requests per 60 minutes by default.
+**Why:** Per-IP limiting can unfairly throttle multiple users behind the same network and does not map to "one visitor = one quota bucket." Anonymous cookie sessions better match user-level fairness without adding visitor accounts or PII. DB-backed counters survive deploy/restart and support consistent enforcement.
+**Alternatives rejected:** In-memory IP map was rejected because it is tied to process lifetime and remains unfair for shared IPs. Redis-backed counters were rejected for now to avoid adding another paid service/dependency at this scale. Visitor login/accounts were rejected because public chat is intentionally anonymous.
+**Accepted tradeoff:** Clearing browser cookies resets the anonymous session quota; this is explicitly accepted for the no-login visitor model.
+**Affects:** docs/PRD.md, docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/ENV_VARS.md, docs/TESTING.md, chat rate-limit implementation tasks
+**Implementation status (2026-04-30):** Decision accepted; code migration from IP-map limiting to cookie-session DB counters is pending implementation.
 
 ### RESOLVED-16 — Semantic Retrieval Upgrade Direction (Chunked + OpenRouter)
 

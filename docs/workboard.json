@@ -391,7 +391,7 @@
       "group_id": "PUBLIC",
       "title": "Note detail page — three-column layout + sidebars",
       "description": "Extend src/routes/notes/[slug]/+page.svelte (built in PUBLIC-02a) with the full three-column layout from reference/UI/design_handoff_glass_atlas/Note viewer dark.png: left sidebar (NEW CONVERSATION CTA button at top linking to /, then a scrollable list of all published notes by date with the current note highlighted), main column (cover image + title + Markdown body from PUBLIC-02a, already in place), right sidebar (OTHER NOTES section with 3 related note links, CITE THIS NOTE section with note slug/date/URL). Ensure layout matches the design reference in both light and dark modes.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "PUBLIC-02a"

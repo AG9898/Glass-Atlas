@@ -319,3 +319,6 @@ With this package version, `setEnvDefaults()` initializes `config.trustHost` fro
 
 ### 2026-04-30 — Local auth bypass must stay localhost + development scoped
 `AUTH_BYPASS=TRUE` is intentionally constrained to `NODE_ENV=development` and local hosts (`localhost`, `127.0.0.1`, `::1`) inside `src/hooks.server.ts`. Keep this guard strict so preview/production environments can never bypass OAuth by mistake. Prefer `$env/dynamic/private` for this toggle so builds do not require it.
+
+### 2026-04-30 — Admin markdown preview should stay client-local and fail-soft
+The split-pane editor contract is live typing feedback without network calls on keystrokes (`body` state -> wiki-link transform -> preview render). Keep preview rendering in client-safe modules only; never pull `src/lib/server/**` into admin `.svelte` files for this. If preview transform fails, keep typing and save/publish actions working and show a non-blocking preview error state.

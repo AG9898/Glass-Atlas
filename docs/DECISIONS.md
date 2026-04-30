@@ -19,19 +19,28 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 
 ---
 
-### OPEN-03 — Embedding Model Selection
+## Resolved Decisions
 
-**Question:** Which embedding model should be used to generate note vectors — `text-embedding-3-small` via OpenRouter, or a dedicated third-party embedding service?
-**Context:** The plan specifies `vector(1536)` in the pgvector schema, which is consistent with `text-embedding-3-small` (1536 dimensions), but notes "OpenRouter or dedicated embedding model" without committing to either. The choice affects retrieval quality, API key management, and cost.
-**Options under consideration:**
-1. **`text-embedding-3-small` via OpenRouter** — 1536 dimensions, cheap, and keeps the stack to a single API key. Tradeoff: Embedding quality is good but not state-of-the-art; couples embeddings to OpenRouter availability.
-2. **Dedicated embedding service (e.g. Voyage AI, Cohere)** — Potentially higher retrieval quality, especially for longer documents. Tradeoff: Adds a separate API key, separate billing, and another external dependency to manage.
-**Blocking:** Phase 2 (embeddings.ts implementation).
-**See also:** ARCHITECTURE.md (pgvector schema), ENV_VARS.md
+### RESOLVED-16 — Semantic Retrieval Upgrade Direction (Chunked + OpenRouter)
+
+**Resolved:** 2026-04-30
+**Decision:** Keep OpenRouter-hosted embeddings for now (`text-embedding-3-small`, `vector(1536)`) and evolve retrieval from one-vector-per-note to section-aware chunk embeddings. Chunk payloads should include note metadata context (`title`, `category`, `tags`, `series`) alongside chunk text, and chat context should use a hybrid format: note summary (`takeaway`/fallback) plus top retrieved chunk excerpt(s).
+**Why:** The current body-level single vector is cheap and simple but can blur intent for targeted queries. Section-aware chunk vectors improve semantic precision and recall without introducing a new provider or inference infrastructure. Metadata inclusion helps taxonomy-driven matching while preserving semantic body grounding.
+**Alternatives rejected:** Staying with one vector per full note was rejected due lower retrieval granularity. Switching to self-hosted embeddings now was rejected due operational overhead and migration complexity for this phase. A full rerank/hybrid stack in the same phase was rejected to keep scope bounded and delivery incremental.
+**Affects:** docs/workboard.json, docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/TESTING.md
+**Implementation status (2026-04-30):** Direction accepted and queued as new CHAT workboard tasks; code implementation not started yet.
 
 ---
 
-## Resolved Decisions
+### RESOLVED-15 — Admin Split-Pane Preview Strategy (Live Typing, Client-Local)
+
+**Resolved:** 2026-04-30
+**Decision:** Implement admin markdown preview as a live split-pane on both `/admin/notes/new` and `/admin/notes/[slug]/edit`, updating on every editor change with a client-local pipeline (`body` state -> `renderWikiLinks` -> markdown-to-HTML preview render). Do not call server endpoints while typing.
+**Why:** The authoring workflow needs immediate structural feedback without save/preview navigation loops. Keeping preview rendering local avoids avoidable latency and avoids coupling typing UX to network/auth state. It also preserves the raw-markdown source-of-truth model from RESOLVED-09.
+**Alternatives rejected:** Server-roundtrip preview endpoints were rejected because keystroke-driven network requests add latency/failure modes and provide no value for single-author admin UX. Exact public-renderer parity in the editor pane (including server-side highlight details) was rejected as unnecessary complexity for typing-time feedback.
+**Affects:** docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/TESTING.md, admin note form routes, `src/lib/components/MarkdownEditor.svelte`
+
+---
 
 ### RESOLVED-14 — Media Type Scope for Notes (JPEG/PNG/SVG/GIF/MP4)
 

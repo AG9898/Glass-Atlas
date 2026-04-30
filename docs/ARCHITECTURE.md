@@ -64,7 +64,7 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 - Render UI only; send fetch/SSE requests to API routes
 - `Nav.svelte` — global navigation shell rendered in `+layout.svelte` on every page. Receives `session` prop from `+layout.server.ts` (loaded via `event.locals.auth()`). Dark mode toggle reads `localStorage('ga-theme')` on mount (falls back to `prefers-color-scheme`), persists the preference, and applies/removes a `.dark` class on `<html>`. Login/logout uses Auth.js sign-in (`/auth/signin`) and sign-out form action (`/auth/signout`). Search icon links to `/notes?focus=search`, which opens the notes index and auto-focuses the search field.
 - Chat component manages optimistic UI state ("searching notes…"), token streaming, and citation link rendering
-- `MarkdownEditor.svelte` — CodeMirror 6 split-pane editor for the admin note form; left pane is the CodeMirror instance (initialized via `onMount`, torn down in `$effect` cleanup); right pane is a reactive preview rendered with `renderWikiLinks()`; note slug list for `[[` autocomplete is injected as a prop from `+page.server.ts`
+- `MarkdownEditor.svelte` — CodeMirror 6 split-pane editor for admin note forms (`/admin/notes/new` and `/admin/notes/[slug]/edit`); left pane is the CodeMirror instance (initialized via `onMount`, torn down in cleanup), right pane is a live preview that updates while typing (`body` state -> wiki-link transform -> markdown-to-HTML render). No network calls are made on keystrokes. Note slug list for `[[` autocomplete/preview resolution is injected from `+page.server.ts` data loaded once per page request
 - Admin note editors expose a manual `Review` action that streams optional critique and never blocks save/publish actions
 - No direct access to DB, LLM, or secrets
 
@@ -95,6 +95,8 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 
 **Latency strategy:** Streaming is the primary UX fix for perceived latency. Gemini Flash targets ~400–600 ms TTFT. Prompt size is kept small by sending only the Takeaway + first paragraph of each note rather than full bodies.
 
+**Approved next retrieval direction (not yet implemented):** Move to section-aware chunk embeddings with metadata-enriched embedding payloads, and build chat context from note summary + top retrieved chunk excerpts (see `RESOLVED-16` in `docs/DECISIONS.md`). Current production behavior remains the note-level flow described above until those tasks ship.
+
 ### Note save flow (admin)
 
 ```
@@ -112,6 +114,20 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 ```
 
 **Cover media and publication metadata:** The `image` column on the `notes` table stores either a pasted external URL or a stable app access path (`/api/admin/media/access-url?key=...`) generated after first-party upload. The `media_type` column stores one of `image-jpeg`, `image-png`, `image-svg`, `image-gif`, or `video-mp4` and defaults to `image-jpeg`. `published_at` and `series` store optional admin-entered publication metadata. First-party uploads use Railway Storage Buckets with short-lived presigned `PUT` URLs from `POST /api/admin/media/upload-url`, then render through short-lived presigned `GET` redirects from `GET /api/admin/media/access-url?key=...`. Public note surfaces dispatch by `media_type`: image types render with `<img>`, `video-mp4` renders with `<video controls preload="metadata">` (no autoplay), and cover containers enforce `aspect-ratio: 16/9`. If `image` is unset, no placeholder media is rendered. Bucket objects remain private; no permanent public bucket URLs are assumed.
+
+### Admin live preview flow (split-pane)
+
+```
+1. Admin types in the left CodeMirror pane
+2. CodeMirror update listener syncs the full markdown string to Svelte `body` state
+3. Preview pipeline transforms `body` locally:
+   - apply `renderWikiLinks()` against the preloaded set of known note slugs
+   - render markdown to HTML for display in the right pane
+4. Preview pane updates immediately without route navigation, form submission, or API calls
+5. If preview transform fails, editor input remains fully functional and save/publish actions are unaffected
+```
+
+**Preview fidelity boundary:** Admin live preview targets fast author feedback for structure and links (headings, lists, emphasis, blockquotes, tables, wiki-links). Minor visual differences versus the public note renderer (for example server-side code highlighting details) are acceptable.
 
 ### Note review flow (admin, optional)
 

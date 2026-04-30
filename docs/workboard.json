@@ -97,7 +97,7 @@
       ]
     },
     {
-      "id": "ADMIN-01a",
+      "id": "ADMIN-01A",
       "group_id": "ADMIN",
       "title": "Notes DB query layer — CRUD helpers",
       "description": "Implement core CRUD helpers in src/lib/server/db/notes.ts. Functions: listNotes(filter?: { topic?: string, status?: 'draft'|'published', q?: string }), getNoteBySlug(slug: string), createNote(data: CreateNoteInput), updateNote(slug: string, data: UpdateNoteInput), deleteNote(slug: string). All functions must return typed plain objects — never raw Drizzle ORM objects. The q param in listNotes filters notes where title ILIKE '%q%' OR any element of tags ILIKE '%q%'. Export corresponding TypeScript types (Note, CreateNoteInput, UpdateNoteInput). Leave stub exports for searchNotesBySimilarity, recordCitations, and getTotalCitations — these are implemented in ADMIN-01b.",
@@ -129,14 +129,14 @@
       ]
     },
     {
-      "id": "ADMIN-01b",
+      "id": "ADMIN-01B",
       "group_id": "ADMIN",
       "title": "Notes DB query layer — similarity search + citations",
       "description": "Extend src/lib/server/db/notes.ts (built in ADMIN-01a) with the advanced query functions. Functions: searchNotesBySimilarity(embedding: number[], limit: number), recordCitations(slugs: string[]): Promise<void> (bulk-inserts one citation_events row per slug), getTotalCitations(): Promise<number> (returns COUNT(*) from citation_events). Similarity search uses Drizzle's sql template tag for the pgvector cosine distance operator (<=>). All functions must return typed plain objects.",
       "status": "done",
       "priority": "high",
       "depends_on": [
-        "ADMIN-01a"
+        "ADMIN-01A"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -166,7 +166,7 @@
       "priority": "high",
       "depends_on": [
         "SCAFFOLD-02",
-        "ADMIN-01a"
+        "ADMIN-01A"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -221,14 +221,14 @@
       ]
     },
     {
-      "id": "ADMIN-04a",
+      "id": "ADMIN-04A",
       "group_id": "ADMIN",
       "title": "Admin note create page",
       "description": "Create src/routes/admin/notes/new/+page.server.ts and +page.svelte. Layout: two-column matching reference/UI/design_handoff_glass_atlas/Admin note editor dark.png — left column (title input, takeaway input, MarkdownEditor for body, tags multi-input, category select from note-taxonomy.ts), right sidebar (publishedAt date picker, status selector, series input, cover media URL input that maps to the `image` column — author can paste a JPEG/PNG/SVG/GIF/MP4 URL directly). Form action: create — slug auto-generated from title via src/lib/utils/slugify.ts. After create, redirect to the edit page for the new slug. First-party upload control wiring is handled in ADMIN-07.",
       "status": "done",
       "priority": "high",
       "depends_on": [
-        "ADMIN-01a",
+        "ADMIN-01A",
         "ADMIN-03"
       ],
       "blocked_by": [],
@@ -254,14 +254,14 @@
       ]
     },
     {
-      "id": "ADMIN-04b",
+      "id": "ADMIN-04B",
       "group_id": "ADMIN",
       "title": "Admin note edit page + top bar",
       "description": "Create src/routes/admin/notes/[slug]/edit/+page.server.ts and +page.svelte. Load existing note data into all fields using the same two-column layout as ADMIN-04a. Top bar: breadcrumb showing note title, DRAFT/PUBLISHED status badge, PREVIEW button (links to /notes/[slug]), SAVE DRAFT button, PUBLISH button. Form actions: update (patches fields, preserves status), publish (sets status to published). Match reference/UI/design_handoff_glass_atlas/Admin note editor dark.png. First-party upload control wiring is handled in ADMIN-07.",
       "status": "done",
       "priority": "high",
       "depends_on": [
-        "ADMIN-04a"
+        "ADMIN-04A"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -294,7 +294,7 @@
       "status": "done",
       "priority": "high",
       "depends_on": [
-        "ADMIN-04b"
+        "ADMIN-04B"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -327,7 +327,7 @@
       "priority": "high",
       "depends_on": [
         "SCAFFOLD-03",
-        "ADMIN-01a"
+        "ADMIN-01A"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -355,7 +355,7 @@
       ]
     },
     {
-      "id": "PUBLIC-02a",
+      "id": "PUBLIC-02A",
       "group_id": "PUBLIC",
       "title": "Note detail page — server + Markdown rendering",
       "description": "Create src/routes/notes/[slug]/+page.server.ts: load the note by slug (404 if not found or not published), load all published notes for the left sidebar catalog, derive 3 related notes (same topic or category). Create the initial src/routes/notes/[slug]/+page.svelte scaffold: render the note title, cover image (if `note.image` is set, render it as a full-width `<img>` with aspect-ratio: 16/9 and object-fit: cover above the title), and the full note body rendered as Markdown using unified with remark-gfm and rehype-shiki for syntax-highlighted code blocks. Return 404 for unpublished or unknown slugs. Three-column layout and sidebars are wired in PUBLIC-02b. See styleguide.md Section 6 for cover media rules.",
@@ -387,14 +387,14 @@
       ]
     },
     {
-      "id": "PUBLIC-02b",
+      "id": "PUBLIC-02B",
       "group_id": "PUBLIC",
       "title": "Note detail page — three-column layout + sidebars",
       "description": "Extend src/routes/notes/[slug]/+page.svelte (built in PUBLIC-02a) with the full three-column layout from reference/UI/design_handoff_glass_atlas/Note viewer dark.png: left sidebar (NEW CONVERSATION CTA button at top linking to /, then a scrollable list of all published notes by date with the current note highlighted), main column (cover image + title + Markdown body from PUBLIC-02a, already in place), right sidebar (OTHER NOTES section with 3 related note links, CITE THIS NOTE section with note slug/date/URL). Ensure layout matches the design reference in both light and dark modes.",
       "status": "done",
       "priority": "high",
       "depends_on": [
-        "PUBLIC-02a"
+        "PUBLIC-02A"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -425,7 +425,7 @@
       "priority": "high",
       "depends_on": [
         "ADMIN-05",
-        "ADMIN-01b"
+        "ADMIN-01B"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -554,7 +554,7 @@
       "priority": "low",
       "depends_on": [
         "POLISH-01",
-        "PUBLIC-02b"
+        "PUBLIC-02B"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -619,7 +619,7 @@
       "status": "done",
       "priority": "low",
       "depends_on": [
-        "ADMIN-04b"
+        "ADMIN-04B"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -649,14 +649,14 @@
       ]
     },
     {
-      "id": "ADMIN-06a",
+      "id": "ADMIN-06A",
       "group_id": "ADMIN",
       "title": "Cover media type system — schema + migration + helpers",
       "description": "Implement the schema layer for the resolved media type scope (RESOLVED-14): JPEG, PNG, SVG, GIF, and MP4. Add a `media_type` text column to the `notes` table in schema.ts, defaulting to `image-jpeg`, accepting `image-jpeg` | `image-png` | `image-svg` | `image-gif` | `video-mp4`. Generate and run a Drizzle migration. Update CreateNoteInput and UpdateNoteInput types and all CRUD helpers in notes.ts (built in ADMIN-01b) to include `media_type`. Do not update UI components in this task — that is ADMIN-06b.",
       "status": "done",
       "priority": "low",
       "depends_on": [
-        "ADMIN-01b",
+        "ADMIN-01B",
         "ADMIN-07"
       ],
       "blocked_by": [],
@@ -683,16 +683,16 @@
       ]
     },
     {
-      "id": "ADMIN-06b",
+      "id": "ADMIN-06B",
       "group_id": "ADMIN",
       "title": "Cover media type system — admin form + render dispatch",
       "description": "Wire the `media_type` field (added in ADMIN-06a) into the admin UI and public render components. Update the admin new and edit note forms to add a media type selector with the five options (image-jpeg, image-png, image-svg, image-gif, video-mp4) next to the cover media URL input. Update NoteCard.svelte to dispatch on `media_type`: render `<img>` for image types and render `<video controls preload=\"metadata\">` for `video-mp4` (no autoplay). Update the note detail page to dispatch cover media at the top of the main column by `media_type`. Implement all rules from docs/styleguide.md Section 6.",
       "status": "done",
       "priority": "low",
       "depends_on": [
-        "ADMIN-06a",
+        "ADMIN-06A",
         "PUBLIC-01",
-        "PUBLIC-02b"
+        "PUBLIC-02B"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -952,8 +952,8 @@
       "priority": "high",
       "depends_on": [
         "ADMIN-09A",
-        "ADMIN-04a",
-        "ADMIN-04b"
+        "ADMIN-04A",
+        "ADMIN-04B"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -972,6 +972,221 @@
       "files": [
         "src/routes/admin/notes/new/+page.svelte",
         "src/routes/admin/notes/[slug]/edit/+page.svelte"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "ADMIN-10A",
+      "group_id": "ADMIN",
+      "title": "Admin markdown live-preview transform helper + tests",
+      "description": "Implement a client-safe markdown preview transform used by admin editors: take raw `body`, apply wiki-link rendering against a provided resolved-slug set, and produce sanitized HTML for preview rendering. Keep this helper independent from server-only modules and include explicit fail-soft behavior contract (transform errors must not affect note editing/saving).",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "ADMIN-03",
+        "ADMIN-04A",
+        "ADMIN-04B"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Helper accepts markdown body plus resolved slugs and returns preview HTML suitable for right-pane rendering",
+        "Resolved `[[slug]]`/`[[slug|text]]` render as links; unresolved wiki-links render the missing-reference treatment",
+        "Preview helper preserves core markdown structures used in notes (headings, lists, emphasis, code fences, blockquotes, tables)",
+        "Unit tests cover wiki-link resolution, unresolved refs, markdown structure output, and transform failure handling contract",
+        "`npm run test:run` and `npm run lint` pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/utils/wiki-links.ts",
+        "src/lib/utils/markdown-preview.ts",
+        "src/lib/utils/markdown-preview.test.ts",
+        "src/lib/utils/wiki-links.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "ADMIN-10B",
+      "group_id": "ADMIN",
+      "title": "MarkdownEditor split-pane UI with live typing preview",
+      "description": "Upgrade `MarkdownEditor.svelte` from source-only mode to split-pane mode with a right preview pane that updates as the left CodeMirror content changes. Preserve existing bindable `value` behavior, keep update handling local to component state, and surface a non-blocking preview error state when preview rendering fails.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "ADMIN-10A"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Editor renders left CodeMirror source pane and right live preview pane in one split layout",
+        "Preview updates during typing without page navigation, form submit, or API requests",
+        "Preview failure state is visible but non-blocking; typing and bound value updates continue to work",
+        "Component styling works in light and dark themes and remains usable on mobile breakpoints",
+        "`npm run test:run` and `npm run lint` pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
+        "src/lib/components/MarkdownEditor.svelte"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "ADMIN-10C",
+      "group_id": "ADMIN",
+      "title": "Wire split-pane live preview into admin new/edit routes",
+      "description": "Integrate the enhanced split-pane editor into both `/admin/notes/new` and `/admin/notes/[slug]/edit` flows, including loading the note slug/title list once per page request for wiki-link preview resolution. Ensure existing create/save draft/publish behavior remains unchanged and that preview concerns do not impact form action success.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "ADMIN-10B",
+        "ADMIN-01A",
+        "ADMIN-04A",
+        "ADMIN-04B"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Both new and edit admin pages pass preload note-link data into `MarkdownEditor` for preview resolution",
+        "Live preview behavior is present on both pages and reflects unsaved body edits",
+        "Create note, Save Draft, and Publish actions continue using the same body payload semantics as before",
+        "No server-only module is imported into admin `.svelte` files for preview rendering logic",
+        "`npm run test:run`, `npm run check`, and `npm run lint` pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/routes/admin/notes/new/+page.server.ts",
+        "src/routes/admin/notes/new/+page.svelte",
+        "src/routes/admin/notes/[slug]/edit/+page.server.ts",
+        "src/routes/admin/notes/[slug]/edit/+page.svelte",
+        "src/lib/components/MarkdownEditor.svelte"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run check",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "CHAT-04A",
+      "group_id": "CHAT",
+      "title": "Chunk embedding data model + retrieval helpers",
+      "description": "Add a chunk-level retrieval data model for semantic RAG by introducing a `note_chunks` table in the `glass_atlas` schema, storing one embedding per section-aware chunk (vector(1536)), and implementing typed DB helpers for replacing a note’s chunks and searching top published chunks by cosine distance. Include suitable indexes for note-level maintenance and vector similarity reads.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "ADMIN-01B",
+        "ADMIN-05"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "A new `note_chunks` table exists with note slug linkage, chunk ordering metadata, chunk text, and vector(1536) embeddings",
+        "Chunk retrieval helper returns top-N chunk rows ordered by pgvector cosine distance and scoped to published notes only",
+        "Chunk replace helper can upsert current chunks for a note and remove stale chunks from prior revisions",
+        "Migration and schema changes validate with existing project checks"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md",
+        "docs/DECISIONS.md"
+      ],
+      "files": [
+        "src/lib/server/db/schema.ts",
+        "src/lib/server/db/notes.ts",
+        "drizzle",
+        "drizzle.config.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "CHAT-04B",
+      "group_id": "CHAT",
+      "title": "Section-aware chunk generation + metadata-enriched embedding ingest",
+      "description": "Implement section-aware chunking for note bodies, construct canonical embedding payloads that include note metadata (`title`, `category`, `tags`, `series`) plus chunk text, and update admin note save flows to regenerate chunk embeddings on create/update/publish with fail-soft behavior preserved when embedding calls fail.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "CHAT-04A",
+        "ADMIN-04A",
+        "ADMIN-04B",
+        "ADMIN-05"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Chunker splits note content by section/paragraph boundaries with deterministic chunk ordering",
+        "Chunk embedding payload includes metadata context and chunk content in a stable template",
+        "Create note, Save Draft, and Publish actions regenerate chunk embeddings for the latest note body",
+        "Embedding failures do not block note persistence; failures are logged and chunk rows remain consistent"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/embeddings.ts",
+        "src/routes/admin/notes/new/+page.server.ts",
+        "src/routes/admin/notes/[slug]/edit/+page.server.ts",
+        "src/lib/server",
+        "src/lib/server/db/notes.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "CHAT-04C",
+      "group_id": "CHAT",
+      "title": "Chunk retrieval + hybrid prompt context assembly",
+      "description": "Refactor chat context assembly to retrieve top similar chunks, group and cap them per note, and construct hybrid context blocks that combine note summary (`takeaway` fallback) with top chunk excerpt(s). Keep `/api/chat` request/response contract unchanged while preserving citation tracking and grounded-response behavior.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "CHAT-04A",
+        "CHAT-04B",
+        "CHAT-01",
+        "CHAT-02"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "`assembleContext()` uses chunk similarity retrieval rather than note-level body embeddings",
+        "Final prompt context remains compact and contains note summary plus retrieved chunk excerpt(s), not full note bodies",
+        "Citation slug reporting remains correct for retrieved notes",
+        "`POST /api/chat` behavior and streaming contract remain backward compatible"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/chat.ts",
+        "src/lib/server/db/notes.ts",
+        "src/routes/api/chat/+server.ts",
+        "src/lib/server/chat.test.ts",
+        "src/routes/api/chat/chat.test.ts"
       ],
       "commands": [
         "npm run test:run",

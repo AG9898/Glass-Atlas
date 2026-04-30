@@ -220,6 +220,17 @@ function wikiLinkCompletions(notes: { slug: string; title: string }[]): Completi
 }
 ```
 
+**Split-pane live preview contract (admin editors)** — both `/admin/notes/new` and `/admin/notes/[slug]/edit` use a two-pane authoring surface: left source editor + right rendered preview. Keep the preview pipeline client-local and synchronous with typing:
+
+- Sync source of truth from CodeMirror to a plain `body` string in Svelte state on every `docChanged` event.
+- Build preview from that `body` string only; no request/response cycle is allowed while typing.
+- Apply `renderWikiLinks(body, resolvedSlugs)` before markdown-to-HTML rendering so `[[slug]]` and `[[slug|text]]` display as links/missing refs in preview.
+- Never import server-only modules (for example `src/lib/server/**`) into admin `.svelte` files for preview rendering.
+- If preview rendering throws, fail soft: keep typing/save/publish functional and show a lightweight preview error state rather than blocking form actions.
+- Treat right-pane output as sanitized render output; do not inject untrusted raw HTML directly into the DOM.
+
+**Preview parity boundary** — live preview must preserve markdown structure and wiki-link semantics used by public notes. Exact code highlighting/theme parity with the server-side public renderer is optional; correctness of headings/lists/links/emphasis/table structure is required.
+
 ### UI Primitives and Motion
 
 - Prefer Bits wrappers in local component files (for example under `src/lib/components/ui/`) rather than ad-hoc route-level usage.
@@ -313,6 +324,7 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Embeddings are generated in `src/lib/server/embeddings.ts` and called at note create/update time.
 - Always regenerate the embedding when the note `body` changes.
 - Embedding generation must not block the HTTP response — fire it synchronously as part of the save transaction, or enqueue it if latency is a concern.
+- Current implementation uses one body-level embedding per note (`notes.embedding`). The approved next step is section-aware chunk embeddings with metadata-enriched payloads (tracked in `RESOLVED-16` and CHAT workboard tasks); do not document this as shipped behavior until implemented.
 
 ---
 
@@ -328,6 +340,7 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Retrieve the top-N similar notes via pgvector similarity search.
 - Include only the `takeaway` field and the first paragraph of `body` per note in the LLM context. Never send the full note body.
 - Assemble the final prompt from: personality block + condensed note context + user message.
+- Once chunk retrieval ships, keep prompt context compact by using note summary + top chunk excerpt(s) only; never fall back to full-note body injection.
 
 ### OpenRouter (`src/lib/server/ai/openrouter.ts`)
 

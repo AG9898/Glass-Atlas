@@ -884,7 +884,9 @@
       "status": "todo",
       "priority": "medium",
       "depends_on": [
-        "POLISH-04B"
+        "POLISH-04B",
+        "ADMIN-09B",
+        "ADMIN-10C"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -953,7 +955,8 @@
       "depends_on": [
         "ADMIN-09A",
         "ADMIN-04A",
-        "ADMIN-04B"
+        "ADMIN-04B",
+        "ADMIN-10C"
       ],
       "blocked_by": [],
       "acceptance_criteria": [
@@ -1167,7 +1170,8 @@
         "CHAT-04A",
         "CHAT-04B",
         "CHAT-01",
-        "CHAT-02"
+        "CHAT-02",
+        "CHAT-05C"
       ],
       "blocked_by": [],
       "acceptance_criteria": [

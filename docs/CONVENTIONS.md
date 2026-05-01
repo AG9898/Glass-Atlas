@@ -137,6 +137,9 @@ export const POST: RequestHandler = async ({ request }) => {
 };
 ```
 
+For `POST /api/chat`, keep the request flow ordered as:
+1) quota check, 2) allowlisted social-intent handling (templated/non-factual only), 3) retrieval + confidence gate, 4) LLM stream. Do not route factual questions through the social-intent path.
+
 **Client-side streaming** — consume SSE in a Svelte component using `fetch` + `ReadableStream`, not `EventSource` (POST body required):
 
 ```svelte
@@ -155,6 +158,8 @@ export const POST: RequestHandler = async ({ request }) => {
   }
 </script>
 ```
+
+**Landing chat frame** — the homepage chat panel is intentionally fixed to `790px × 770px` on desktop with internal message scrolling. Keep overflow contained inside the chat viewport so long conversations never extend overall page height. On narrow screens, switch to fluid width and viewport-limited height.
 
 **Auth session** — read from `event.locals.session` (set by `hooks.server.ts`). Never read cookies manually in load functions or endpoints.
 

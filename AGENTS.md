@@ -346,3 +346,6 @@ Setting `AUTH_URL` with a path suffix (for example `/auth`) triggers `env-url-ba
 
 ### 2026-05-01 — Reserve `/auth/*` for Auth.js actions; host custom sign-in outside that prefix
 With `@auth/sveltekit`, the hook intercepts `/auth/*` as Auth.js action routes. A custom SvelteKit page at `/auth/signin` causes client-side `__data.json` requests like `/auth/signin/__data.json`, which Auth.js parses as `signin` with provider id and throws `UnknownAction: Unsupported action`. Put custom UI at `/signin` (or another non-`/auth` path) and set `pages.signIn` accordingly.
+
+### 2026-05-01 — Chat social-intent lane must stay allowlisted and non-factual
+`POST /api/chat` now short-circuits a small allowlist of conversational intents (greeting/thanks/identity/capability/how-it-works) before retrieval and LLM calls, returning templated SSE replies. Keep this lane strictly non-factual and steering-only so it does not become a general-purpose chatbot path. Any informational claim still has to flow through retrieval + grounding constraints.

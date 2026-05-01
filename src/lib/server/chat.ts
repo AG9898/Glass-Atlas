@@ -48,10 +48,13 @@ export function hasSufficientCoverage(ctx: AssembledContext): boolean {
 }
 
 /**
- * The canned first-person response returned when retrieval finds no relevant
- * notes. Matches the persona and language in `personality.ts`.
+ * Base first-person response returned when retrieval finds no relevant notes.
+ * Kept as a stable phrase for tests and UI expectations.
  */
-export const INSUFFICIENT_COVERAGE_RESPONSE = "I don't have a note on that.";
+export const INSUFFICIENT_COVERAGE_RESPONSE = "I don't have a note on that yet.";
+
+const COVERAGE_STEER_SUFFIX =
+  'Try asking for a specific topic, note title, or project and I can share what I have written.';
 
 /**
  * Builds the fallback response text for insufficient-coverage situations.
@@ -61,20 +64,26 @@ export const INSUFFICIENT_COVERAGE_RESPONSE = "I don't have a note on that.";
  * fail the safety check are silently dropped to prevent bad links from
  * appearing in the chat output.
  *
- * When no safe related notes exist, returns the base insufficient-coverage
- * response unchanged.
+ * When no safe related notes exist, returns a concise no-coverage reply plus
+ * a steer toward note-grounded follow-up questions.
  *
  * @param citedNotes - Notes retrieved by the context assembly step.
+ * @param query - User message text for minimal tone shaping.
  */
-export function buildFallbackResponse(citedNotes: CitedNote[]): string {
+export function buildFallbackResponse(citedNotes: CitedNote[], query = ''): string {
   const safeNotes = citedNotes.filter((n) => isSafeNoteSlug(n.slug));
 
+  const trimmed = query.trim();
+  const steerPrefix = trimmed.endsWith('?')
+    ? 'I have not documented that exact question yet.'
+    : INSUFFICIENT_COVERAGE_RESPONSE;
+
   if (safeNotes.length === 0) {
-    return INSUFFICIENT_COVERAGE_RESPONSE;
+    return `${steerPrefix} ${COVERAGE_STEER_SUFFIX}`;
   }
 
   const links = safeNotes.map((n) => `[[${n.slug}|${n.title}]]`).join(', ');
-  return `${INSUFFICIENT_COVERAGE_RESPONSE}\n\n*Related notes: ${links}*`;
+  return `${steerPrefix} Here are the closest related notes I can talk about. ${COVERAGE_STEER_SUFFIX}\n\n*Related notes: ${links}*`;
 }
 
 /**

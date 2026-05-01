@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import { renderChatMessageHtml } from '$lib/utils/chat-format';
 
   type ChatRole = 'user' | 'assistant';
@@ -18,6 +19,12 @@
   let input = $state('');
   let loading = $state(false);
   let error = $state('');
+  let messagesViewport: HTMLDivElement | undefined;
+
+  async function scrollMessagesToBottom(): Promise<void> {
+    await tick();
+    messagesViewport?.scrollTo({ top: messagesViewport.scrollHeight, behavior: 'auto' });
+  }
 
   function setLastAssistantMessage(content: string): void {
     if (messages.length === 0) return;
@@ -29,6 +36,7 @@
     messages = messages.map((message, index) =>
       index === lastIndex ? { ...message, content } : message,
     );
+    void scrollMessagesToBottom();
   }
 
   function extractToken(payload: unknown): string {
@@ -92,6 +100,7 @@
       { role: 'user', content: message },
       { role: 'assistant', content: SEARCHING_MESSAGE },
     ];
+    void scrollMessagesToBottom();
 
     try {
       const response = await fetch('/api/chat', {
@@ -202,7 +211,7 @@
     <p class="ga-chat__hint">Answers stream from the note index only.</p>
   </header>
 
-  <div class="ga-chat__messages" role="log" aria-live="polite">
+  <div class="ga-chat__messages" role="log" aria-live="polite" bind:this={messagesViewport}>
     {#if messages.length === 0}
       <p class="ga-chat__empty">Ask a question to begin a grounded search.</p>
     {:else}
@@ -246,11 +255,13 @@
     gap: 0;
     border: var(--line-std) solid var(--color-line-3);
     background: var(--color-surface-1);
-    min-height: 26rem;
+    inline-size: min(100%, 790px);
+    block-size: 770px;
   }
 
   .ga-chat--compact {
-    min-height: 20rem;
+    inline-size: min(100%, 790px);
+    block-size: 770px;
   }
 
   .ga-chat__header {
@@ -282,6 +293,8 @@
     display: grid;
     align-content: start;
     min-height: 0;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
   }
 
   .ga-chat__empty {
@@ -410,11 +423,8 @@
 
   @media (max-width: 900px) {
     .ga-chat {
-      min-height: 18rem;
-    }
-
-    .ga-chat--compact {
-      min-height: 16rem;
+      inline-size: 100%;
+      block-size: min(770px, calc(100vh - 13rem));
     }
 
     .ga-chat__composer {

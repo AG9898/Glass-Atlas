@@ -375,9 +375,10 @@ describe('INSUFFICIENT_COVERAGE_RESPONSE', () => {
 });
 
 describe('buildFallbackResponse', () => {
-  it('returns the canned response when no cited notes are provided', () => {
+  it('returns no-coverage response with a steer when no cited notes are provided', () => {
     const result = buildFallbackResponse([]);
-    expect(result).toBe(INSUFFICIENT_COVERAGE_RESPONSE);
+    expect(result).toContain(INSUFFICIENT_COVERAGE_RESPONSE);
+    expect(result).toContain('Try asking for a specific topic');
   });
 
   it('appends an italicized related-notes footer with wiki-links when notes are provided', () => {
@@ -413,12 +414,18 @@ describe('buildFallbackResponse', () => {
       { slug: 'BAD SLUG', title: 'Bad' },
       { slug: 'UPPERCASE', title: 'Upper' },
     ]);
-    expect(result).toBe(INSUFFICIENT_COVERAGE_RESPONSE);
+    expect(result).toContain(INSUFFICIENT_COVERAGE_RESPONSE);
+    expect(result).not.toContain('*Related notes:');
   });
 
   it('includes slugs that start with a digit (valid slug pattern)', () => {
     const result = buildFallbackResponse([{ slug: '2024-recap', title: '2024 Recap' }]);
     expect(result).toContain('[[2024-recap|2024 Recap]]');
+  });
+
+  it('uses question-sensitive wording when the user message is a question', () => {
+    const result = buildFallbackResponse([], 'Do you have a note about this?');
+    expect(result).toContain('I have not documented that exact question yet.');
   });
 });
 

@@ -132,8 +132,10 @@
   }
 
   .hero-chat {
+    inline-size: min(100%, 790px);
     min-width: 0;
     background: var(--color-surface-1);
+    justify-self: end;
   }
 
   .stats {
@@ -227,7 +229,8 @@
     }
 
     .hero-chat {
-      max-width: 100%;
+      inline-size: 100%;
+      justify-self: stretch;
     }
 
     .stats {

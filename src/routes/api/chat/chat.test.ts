@@ -8,7 +8,7 @@ vi.mock('$lib/server/chat', () => ({
   assembleContext: vi.fn(),
   hasSufficientCoverage: vi.fn(),
   buildFallbackResponse: vi.fn(),
-  INSUFFICIENT_COVERAGE_RESPONSE: "I don't have a note on that.",
+  INSUFFICIENT_COVERAGE_RESPONSE: "I don't have a note on that yet.",
 }));
 
 vi.mock('$lib/server/ai/openrouter', () => ({
@@ -77,6 +77,19 @@ function callPost(event: ReturnType<typeof makeEvent>): Promise<Response> {
   return Promise.resolve(POST(event as unknown as ChatEvent));
 }
 
+async function readStreamBody(res: Response): Promise<string> {
+  expect(res.body).toBeInstanceOf(ReadableStream);
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let raw = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    raw += decoder.decode(value, { stream: true });
+  }
+  return raw;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 
@@ -88,7 +101,7 @@ beforeEach(() => {
   // Default: sufficient coverage — normal LLM path
   mockHasSufficientCoverage.mockReturnValue(true);
   // Default: fallback builder returns the canned response
-  mockBuildFallbackResponse.mockReturnValue("I don't have a note on that.");
+  mockBuildFallbackResponse.mockReturnValue("I don't have a note on that yet.");
   mockStreamChatCompletion.mockResolvedValue(new ReadableStream());
   mockConsumeChatRateLimit.mockResolvedValue({
     allowed: true,
@@ -259,11 +272,37 @@ describe('POST /api/chat', () => {
   it('returns 503 when streamChatCompletion throws', async () => {
     mockStreamChatCompletion.mockRejectedValueOnce(new Error('OpenRouter down'));
 
-    const res = await callPost(makeEvent({ message: 'hello' }));
+    const res = await callPost(makeEvent({ message: 'Tell me about retrieval.' }));
 
     expect(res.status).toBe(503);
     const body = await res.json();
     expect(body.error).toBe('LLM request failed');
+  });
+
+  it('handles greeting small-talk without retrieval or LLM calls', async () => {
+    const res = await callPost(makeEvent({ message: 'hello' }));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+    expect(mockAssembleContext).not.toHaveBeenCalled();
+    expect(mockStreamChatCompletion).not.toHaveBeenCalled();
+    expect(mockRecordCitations).not.toHaveBeenCalled();
+
+    const raw = await readStreamBody(res);
+    expect(raw).toContain('I can chat');
+    expect(raw).toContain('published notes');
+  });
+
+  it('handles capability questions with social lane reply', async () => {
+    const res = await callPost(makeEvent({ message: 'What does this chat do?' }));
+
+    expect(res.status).toBe(200);
+    expect(mockAssembleContext).not.toHaveBeenCalled();
+    expect(mockStreamChatCompletion).not.toHaveBeenCalled();
+
+    const raw = await readStreamBody(res);
+    expect(raw).toContain('knowledge repository');
+    expect(raw).toContain('published notes');
   });
 
   it('the response uses new Response(stream), not json()', async () => {
@@ -293,21 +332,10 @@ describe('POST /api/chat', () => {
     mockHasSufficientCoverage.mockReturnValueOnce(false);
 
     const res = await callPost(makeEvent({ message: 'unknown topic' }));
-
-    expect(res.body).toBeInstanceOf(ReadableStream);
-
-    // Read and decode the full SSE payload
-    const reader = res.body!.getReader();
-    const decoder = new TextDecoder();
-    let raw = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      raw += decoder.decode(value, { stream: true });
-    }
+    const raw = await readStreamBody(res);
 
     // Must contain the canned response text somewhere in the SSE payload
-    expect(raw).toContain("I don't have a note on that.");
+    expect(raw).toContain("I don't have a note on that yet.");
   });
 
   it('fallback path passes citedNotes to buildFallbackResponse', async () => {
@@ -317,7 +345,7 @@ describe('POST /api/chat', () => {
 
     await callPost(makeEvent({ message: 'unknown topic' }));
 
-    expect(mockBuildFallbackResponse).toHaveBeenCalledWith(relatedNotes);
+    expect(mockBuildFallbackResponse).toHaveBeenCalledWith(relatedNotes, 'unknown topic');
   });
 
   it('fallback path does not call recordCitations', async () => {

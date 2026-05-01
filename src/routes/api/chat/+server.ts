@@ -18,6 +18,67 @@ const RATE_LIMIT_WINDOW_MINUTES = parsePositiveInt(
 const RATE_LIMIT_WINDOW_MS = RATE_LIMIT_WINDOW_MINUTES * 60 * 1000;
 const CHAT_SESSION_COOKIE_NAME = env.CHAT_SESSION_COOKIE_NAME ?? CHAT_SESSION_COOKIE_NAME_DEFAULT;
 
+type SocialIntent = 'greeting' | 'thanks' | 'howItWorks' | 'capabilities' | 'identity';
+
+function normalizeMessage(message: string): string {
+  return message.trim().toLowerCase();
+}
+
+function detectSocialIntent(message: string): SocialIntent | null {
+  const normalized = normalizeMessage(message);
+  if (!normalized) return null;
+
+  if (
+    /^(hi|hello|hey|yo|good morning|good afternoon|good evening)([!.?]+)?$/.test(normalized)
+  ) {
+    return 'greeting';
+  }
+
+  if (/^(thanks|thank you|thx|ty)([!.?]+)?$/.test(normalized)) {
+    return 'thanks';
+  }
+
+  if (
+    normalized.includes('what does this site do') ||
+    normalized.includes('what does this chat do') ||
+    normalized.includes('what is this site') ||
+    normalized.includes('what is this chat')
+  ) {
+    return 'howItWorks';
+  }
+
+  if (
+    normalized.includes('what can you do') ||
+    normalized.includes('how can you help') ||
+    normalized.includes('what should i ask')
+  ) {
+    return 'capabilities';
+  }
+
+  if (normalized.includes('who are you') || normalized.includes('what are you')) {
+    return 'identity';
+  }
+
+  return null;
+}
+
+function buildSocialReply(intent: SocialIntent): string {
+  switch (intent) {
+    case 'greeting':
+      return "Hey. I can chat, but I am grounded to my published notes. Ask for a topic or a specific note and I will pull from what I have written.";
+    case 'thanks':
+      return 'Anytime. If you want to keep going, give me a topic or ask for a specific note and I will share the relevant writing.';
+    case 'howItWorks':
+      return 'This site is my knowledge repository. This chat helps you explore my published notes, summarize what I have written on a topic, and point you to specific posts.';
+    case 'capabilities':
+      return 'I can summarize my published notes, answer questions I have already documented, and point you to related posts. Ask for a topic, project, or a specific note title.';
+    case 'identity':
+      return 'I am the Glass Atlas assistant, speaking in my voice from my notes. Ask me about a topic and I will answer from what I have documented.';
+    default:
+      return "I don't have a note on that yet.";
+  }
+}
+
 /**
  * Returns a SHA-256 hex digest of `input`.
  * Uses the Web Crypto API (available in Bun and all modern runtimes).
@@ -152,13 +213,25 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
     });
   }
 
-  // --- 4. Build RAG context ---
+  // --- 4. Short social-chat lane (safe, no factual claims) ---
+  const socialIntent = detectSocialIntent(message);
+  if (socialIntent) {
+    return new Response(makeFallbackStream(buildSocialReply(socialIntent)), {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
+    });
+  }
+
+  // --- 5. Build RAG context ---
   const assembledCtx = await assembleContext(message);
   const { context, citedSlugs, citedNotes } = assembledCtx;
 
-  // --- 5. Confidence gate: short-circuit to fallback when no notes were retrieved ---
+  // --- 6. Confidence gate: short-circuit to fallback when no notes were retrieved ---
   if (!hasSufficientCoverage(assembledCtx)) {
-    const fallbackText = buildFallbackResponse(citedNotes);
+    const fallbackText = buildFallbackResponse(citedNotes, message);
     return new Response(makeFallbackStream(fallbackText), {
       headers: {
         'Content-Type': 'text/event-stream',
@@ -168,14 +241,14 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
     });
   }
 
-  // --- 6. Record citations (fire-and-forget — does not block the stream) ---
+  // --- 7. Record citations (fire-and-forget — does not block the stream) ---
   if (citedSlugs.length > 0) {
     recordCitations(citedSlugs).catch((err: unknown) => {
       console.error('[chat] Failed to record citations:', err);
     });
   }
 
-  // --- 7. Assemble messages for LLM ---
+  // --- 8. Assemble messages for LLM ---
   const userContent = `${context}\n\nUser question: ${message}`;
 
   const messages = [
@@ -183,7 +256,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
     { role: 'user' as const, content: userContent },
   ];
 
-  // --- 8. Stream the LLM response ---
+  // --- 9. Stream the LLM response ---
   let stream: ReadableStream<Uint8Array>;
   try {
     stream = await streamChatCompletion(messages);

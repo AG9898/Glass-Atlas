@@ -46,7 +46,7 @@ The server is a persistent Bun process. In-memory state survives between request
 
 ### API routes
 
-- `POST /api/chat` — public; accepts `{ message }`; reads/sets an anonymous `chat_session` cookie, enforces 10 messages per hour per anonymous browser session, embeds query, runs cosine similarity search, streams LLM response via SSE
+- `POST /api/chat` — public; accepts `{ message }`; reads/sets an anonymous `chat_session` cookie, enforces 10 messages per hour per anonymous browser session, serves an allowlisted social-intent reply for lightweight small-talk turns (greeting/thanks/capability/identity prompts), otherwise embeds query, runs hybrid retrieval, and streams either fallback or LLM output via SSE
 - `POST /api/admin/media/upload-url` — admin-only; accepts `{ filename, contentType }`; validates MIME allowlist (`image/jpeg`, `image/png`, `image/svg+xml`, `image/gif`, `video/mp4`) and returns a short-lived presigned `PUT` URL for direct browser upload to Railway Buckets
 - `GET /api/admin/media/access-url?key=...` — public redirect endpoint; converts a stored object key into a short-lived presigned `GET` URL so bucket objects remain private while note media stays embeddable from stable app URLs
 - `POST /api/admin/notes/review` — admin-only; accepts `{ title, takeaway, body }` from current editor state (new or edit page); calls `ai/review.ts`; streams critique via SSE; does not read from or write to the database; free-tier OpenRouter model; returns `429` or `503` transparently when the model is unavailable
@@ -80,31 +80,36 @@ The sequence below describes the retrieval orchestration as shipped through CHAT
 1. User submits query in the chat UI
 2. Frontend shows "searching notes..." (optimistic UI state)
 3. Frontend POSTs `{ message }` to `POST /api/chat`; browser sends the existing `chat_session` cookie automatically
-4. API route embeds the query → vector(1536) via OpenRouter embedding API (~300 ms)
-5. API route runs retrieval — both branches execute in parallel:
+4. API route checks a narrow social-intent allowlist (greeting/thanks/capability/identity/how-it-works):
+   - if matched: returns a short templated conversational SSE response, skips retrieval + LLM,
+     and records no citations
+   - if not matched: continue to step 5
+5. API route embeds the query → vector(1536) via OpenRouter embedding API (~300 ms)
+6. API route runs retrieval — both branches execute in parallel:
    a. Semantic: chunk-level cosine similarity search via `searchChunksBySimilarity` (top 20 candidates),
       chunks grouped by note slug (≤2 chunks per note)
    b. Lexical/topic: title/tags/category ILIKE search via `searchNotesByLexical` (top 10 candidates)
    c. Candidate fusion: semantic results fill slots first (ranked by cosine distance); lexical-only notes
       (not already in the semantic set) append in publication-date order; combined slate capped at 5 notes
-6. API route applies confidence gating (hasSufficientCoverage):
-   - insufficient coverage (empty context): returns canned SSE stream ("I don't have a note on that.") —
+7. API route applies confidence gating (hasSufficientCoverage):
+   - insufficient coverage (empty context): returns a natural no-coverage SSE response with a steer
+     toward note-grounded follow-up prompts —
      no LLM call is made; fabrication is impossible on this path
-   - sufficient coverage: continues to step 7
-7. API route builds the LLM prompt:
+   - sufficient coverage: continues to step 8
+8. API route builds the LLM prompt:
      [personality block from personality.ts]
      + [retrieved note excerpts — chunks with section headings, lexical-only notes with takeaway]
-8. API route calls OpenRouter (google/gemini-2.0-flash-001) with `stream: true`
-9. OpenRouter streams tokens → API route pipes them as SSE to the frontend
-10. Frontend renders tokens as they arrive
-11. Before starting the stream, API route calls `recordCitations(citedSlugs)` to insert
+9. API route calls OpenRouter (google/gemini-2.0-flash-001) with `stream: true`
+10. OpenRouter streams tokens → API route pipes them as SSE to the frontend
+11. Frontend renders tokens as they arrive
+12. Before starting the stream, API route calls `recordCitations(citedSlugs)` to insert
     citation_events rows for each retrieved note slug (fire-and-forget; does not block streaming)
-12. Frontend renders italicized related-note links in the assistant output
+13. Frontend renders italicized related-note links in the assistant output
 ```
 
 **Latency strategy:** Streaming is the primary UX fix for perceived latency. Gemini Flash targets ~400–600 ms TTFT. Semantic and lexical/topic retrieval execute in parallel via `Promise.all`, so hybrid fusion adds no serial latency. Retrieval limits remain small (20 semantic chunks, 10 lexical notes, 5 fused notes) and deterministic for bounded latency control. Prompt size stays compact (note summary + bounded evidence excerpts), not full bodies.
 
-**Current retrieval (CHAT-04D + CHAT-04E shipped):** `assembleContext()` runs semantic chunk retrieval and lexical/topic note retrieval in parallel. Semantic chunks are grouped by note (≤2 chunks per note) and ranked by cosine distance. Lexical-only notes not already in the semantic set are appended in publication-date order. The combined slate is capped at 5 distinct notes. Semantic notes contribute title, section headings, and chunk excerpts; lexical-only notes contribute title and takeaway only. Full note bodies are never sent to the LLM. After retrieval, `hasSufficientCoverage()` in `chat.ts` gates the LLM call: if both retrieval branches return empty results, the route immediately returns a canned SSE fallback ("I don't have a note on that.") without calling the LLM, preventing fabrication. High-confidence paths (non-empty context) proceed to the LLM as normal.
+**Current retrieval (CHAT-04D + CHAT-04E shipped + social-lane refinement):** `POST /api/chat` now has a short social-intent lane before retrieval for lightweight conversational turns. Non-social requests continue through `assembleContext()`, which runs semantic chunk retrieval and lexical/topic note retrieval in parallel. Semantic chunks are grouped by note (≤2 chunks per note) and ranked by cosine distance. Lexical-only notes not already in the semantic set are appended in publication-date order. The combined slate is capped at 5 distinct notes. Semantic notes contribute title, section headings, and chunk excerpts; lexical-only notes contribute title and takeaway only. Full note bodies are never sent to the LLM. After retrieval, `hasSufficientCoverage()` in `chat.ts` gates the LLM call: if both retrieval branches return empty results, the route immediately returns a natural no-coverage SSE fallback with follow-up steering (no LLM call), preventing fabrication. High-confidence paths (non-empty context) proceed to the LLM as normal.
 
 ### Note save flow (admin)
 
@@ -218,6 +223,7 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 - `POST /api/chat` is rate-limited to 10 messages per anonymous browser session per hour to protect OpenRouter API costs. The session ID is an opaque cookie; only its hash is stored server-side. The limit check is enforced in the API route handler before any embedding or LLM call is made.
 - The LLM system prompt personality block lives exclusively in `src/lib/server/personality.ts`. It must never be inlined directly into chat logic or any other file.
 - LLM responses must be strictly grounded in the notes retrieved by the vector search. The system prompt must include an explicit guardrail instructing the model not to answer from general knowledge when the retrieved notes do not support the answer.
+- Lightweight social turns are handled by an allowlisted template path before retrieval/LLM invocation. This path must stay non-factual and must not be expanded into general-purpose question answering.
 - The server is a persistent process — in-memory state survives between requests on the same instance. Any state that must survive across deploys (conversation history, note data) is stored in Neon. Do not rely on in-memory state for correctness if horizontal scaling is ever introduced.
 - All database schema changes must be applied via Drizzle ORM migrations (`drizzle-kit`). Direct `ALTER TABLE` statements against the Neon database are not permitted. In WSL2 and non-interactive CI environments where `drizzle-kit migrate` hangs (websocket limitation), use `npm run db:migrate:http` (`scripts/migrate.js`) instead — it applies the same migrations via the Neon HTTP driver.
 - All secrets (Neon connection string, OpenRouter API key, GitHub OAuth client ID/secret, Auth.js secret) are read exclusively from environment variables. No secret value may appear in source code or be committed to version control.

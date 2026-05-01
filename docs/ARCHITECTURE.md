@@ -64,7 +64,7 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 - Render UI only; send fetch/SSE requests to API routes
 - `Nav.svelte` — global navigation shell rendered in `+layout.svelte` on every page. Receives `session` prop from `+layout.server.ts` (loaded via `event.locals.auth()`). Dark mode toggle reads `localStorage('ga-theme')` on mount (falls back to `prefers-color-scheme`), persists the preference, and applies/removes a `.dark` class on `<html>`. Login/logout uses Auth.js sign-in (`/auth/signin`) and sign-out form action (`/auth/signout`). Search icon links to `/notes?focus=search`, which opens the notes index and auto-focuses the search field.
 - Chat component manages optimistic UI state ("searching notes…"), token streaming, and citation link rendering
-- `MarkdownEditor.svelte` — CodeMirror 6 split-pane editor for admin note forms (`/admin/notes/new` and `/admin/notes/[slug]/edit`); left pane is the CodeMirror instance (initialized via `onMount`, torn down in cleanup), right pane is a live preview that updates while typing (`body` state -> wiki-link transform -> markdown-to-HTML render). No network calls are made on keystrokes. Note slug list for `[[` autocomplete/preview resolution is injected from `+page.server.ts` data loaded once per page request
+- `MarkdownEditor.svelte` — CodeMirror 6 split-pane editor for admin note forms (`/admin/notes/new` and `/admin/notes/[slug]/edit`); left pane is the CodeMirror instance (initialized via `onMount`, torn down in cleanup), right pane is a live preview that updates while typing (`body` state -> wiki-link transform -> inline-media transform -> markdown-to-HTML render). No network calls are made on keystrokes. Note slug list for `[[` autocomplete/preview resolution is injected from `+page.server.ts` data loaded once per page request
 - Admin note editors expose a manual `Review` action that streams optional critique and never blocks save/publish actions
 - No direct access to DB, LLM, or secrets
 
@@ -111,7 +111,9 @@ The sequence below describes the retrieval orchestration as shipped through CHAT
 ```
 1. Admin submits the note form in the browser
    - Cover media controls include a `media_type` selector (`image-jpeg` / `image-png` / `image-svg` / `image-gif` / `video-mp4`) paired with the cover media URL field
-   - Optional: cover media file upload calls `POST /api/admin/media/upload-url`, uploads directly to Railway Bucket via presigned `PUT`, then writes `/api/admin/media/access-url?key=...` into the form `image` field
+   - New-note route (`/admin/notes/new`): optional cover/inline file picks are staged locally (`blob:` preview URLs) and not uploaded immediately
+   - On `Create note`, staged files call `POST /api/admin/media/upload-url`, upload to Railway Bucket via presigned `PUT`, then replace staged URLs with stable `/api/admin/media/access-url?key=...` paths before the form action posts
+   - Edit route (`/admin/notes/[slug]/edit`): optional cover/inline uploads still use immediate presigned upload and URL insertion
 2. Browser submits a SvelteKit form action (create or update) to the admin +page.server.ts handler
 3. Auth.js session verified by middleware before the handler runs
 4. Create actions generate the slug from the title with `slugify.ts`; edit actions keep the slug immutable and patch the note row in the notes table through `db/notes.ts` helpers, which also sync wiki-link rows when the body changes
@@ -125,6 +127,8 @@ The sequence below describes the retrieval orchestration as shipped through CHAT
 
 **Cover media and publication metadata:** The `image` column on the `notes` table stores either a pasted external URL or a stable app access path (`/api/admin/media/access-url?key=...`) generated after first-party upload. The `media_type` column stores one of `image-jpeg`, `image-png`, `image-svg`, `image-gif`, or `video-mp4` and defaults to `image-jpeg`. `published_at` and `series` store optional admin-entered publication metadata. First-party uploads use Railway Storage Buckets with short-lived presigned `PUT` URLs from `POST /api/admin/media/upload-url`, then render through short-lived presigned `GET` redirects from `GET /api/admin/media/access-url?key=...`. Public note surfaces dispatch by `media_type`: image types render with `<img>`, `video-mp4` renders with `<video controls preload="metadata">` (no autoplay), and cover containers enforce `aspect-ratio: 16/9`. If `image` is unset, no placeholder media is rendered. Bucket objects remain private; no permanent public bucket URLs are assumed.
 
+**Inline body media embeds:** Markdown bodies may include `{{media ...}}` tokens for inline assets. Tokens are transformed in both admin preview and public note rendering by the shared `remarkInlineMediaEmbeds()` pass (`src/lib/utils/inline-media.ts`) before markdown is serialized to HTML. Supported keys are `src`, `type` (`image|video`), `align` (`left|center|wide`), `caption`, and `alt`; `.mp4` URLs infer `video` when `type` is omitted.
+
 ### Admin live preview flow (split-pane)
 
 ```
@@ -132,6 +136,7 @@ The sequence below describes the retrieval orchestration as shipped through CHAT
 2. CodeMirror update listener syncs the full markdown string to Svelte `body` state
 3. Preview pipeline transforms `body` locally via `renderPreview(body, resolvedSlugs)` in `src/lib/utils/markdown-preview.ts`:
    - applies `renderWikiLinks()` to convert `[[slug]]`/`[[slug|text]]` wiki-links (resolved → anchor; unresolved → `<span class="wiki-link-missing">`)
+   - applies `remarkInlineMediaEmbeds()` to convert `{{media ...}}` tokens into semantic figure/img/video nodes
    - renders the resulting markdown to HTML using unified (remark-parse → remark-gfm → remark-rehype → rehype-stringify); no rehype-shiki (code is unhighlighted in preview — acceptable parity boundary)
    - returns a `PreviewResult`; on failure (`ok: false`) renders a non-blocking error notice
 4. Preview pane updates immediately without route navigation, form submission, or API calls
@@ -187,7 +192,7 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 | Dependency | Role | Required | Notes |
 |---|---|---|---|
 | Neon PostgreSQL | Primary database (notes, conversations, messages, auth tables) | Yes | Accessed via Neon serverless HTTP driver; pgvector extension required for embedding storage and cosine similarity search |
-| Railway Storage Buckets | First-party note media object storage | Planned | Private-only buckets; media served via presigned URLs by default |
+| Railway Storage Buckets | First-party note media object storage | Yes | Private-only buckets; media served via presigned URLs by default; browser upload requires bucket CORS configuration for app origins |
 | OpenRouter API | LLM completions (streaming) + embedding generation | Yes | Default model: `google/gemini-2.0-flash-001`; embedding model: `text-embedding-3-small` (vector dimension: 1536) |
 | GitHub OAuth | Admin authentication provider | Yes | Only the author's GitHub account is permitted; OAuth app credentials stored as environment variables |
 | Railway | Hosting, persistent Bun HTTP server | Yes | Auto-deploys on push to `main` via GitHub integration; Hobby plan (~$5/mo) |

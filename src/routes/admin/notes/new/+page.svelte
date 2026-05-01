@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { onDestroy } from 'svelte';
   import NoteReviewPanel from '$lib/components/admin/NoteReviewPanel.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import { Select } from '$lib/components/ui';
   import type { UiSelectOption } from '$lib/components/ui';
+  import { createInlineMediaSnippet } from '$lib/utils/inline-media';
   import { CATEGORIES } from '$lib/utils/note-taxonomy';
   import type { ActionData, PageData } from './$types';
 
@@ -18,6 +20,16 @@
       'Content-Type': string;
     };
     imageUrl: string;
+  };
+  type PendingInlineUpload = {
+    blobUrl: string;
+    file: File;
+    kind: 'image' | 'video';
+    caption: string;
+  };
+  type PendingCoverUpload = {
+    blobUrl: string;
+    file: File;
   };
 
   const MEDIA_TYPE_OPTIONS: Array<{ value: NoteMediaType; label: string }> = [
@@ -63,6 +75,11 @@
   let tagDraft = $state('');
   let uploadStatus = $state<UploadStatus>('idle');
   let uploadMessage = $state('');
+  let inlineUploadStatus = $state<UploadStatus>('idle');
+  let inlineUploadMessage = $state('');
+  let pendingInlineUploads = $state<PendingInlineUpload[]>([]);
+  let pendingCoverUpload = $state<PendingCoverUpload | null>(null);
+  let createInFlight = $state(false);
 
   let formValues = $derived(valuesFromForm());
   let tagsValue = $derived(
@@ -74,6 +91,7 @@
   $effect(() => {
     if (!formValues) return;
 
+    createInFlight = false;
     title = formValues.title;
     takeaway = formValues.takeaway;
     body = formValues.body;
@@ -130,6 +148,32 @@
     return 'image-jpeg';
   }
 
+  function inferInlineKindFromMime(mimeType: string): 'image' | 'video' {
+    return mimeType === 'video/mp4' ? 'video' : 'image';
+  }
+
+  function filenameStem(name: string): string {
+    return name
+      .replace(/\.[a-z0-9]+$/i, '')
+      .replace(/[_-]+/g, ' ')
+      .trim();
+  }
+
+  function releaseObjectUrl(url: string): void {
+    URL.revokeObjectURL(url);
+  }
+
+  function removePendingInlineUploadByBlobUrl(blobUrl: string): void {
+    pendingInlineUploads = pendingInlineUploads.filter((pending) => pending.blobUrl !== blobUrl);
+  }
+
+  function clearPendingCoverUpload(): void {
+    if (pendingCoverUpload) {
+      releaseObjectUrl(pendingCoverUpload.blobUrl);
+      pendingCoverUpload = null;
+    }
+  }
+
   function isUploadResponse(value: unknown): value is UploadResponse {
     if (typeof value !== 'object' || value === null) return false;
 
@@ -151,47 +195,181 @@
     if (!file) return;
 
     uploadStatus = 'uploading';
-    uploadMessage = 'Requesting upload URL...';
+    uploadMessage = 'Staging cover media...';
 
     try {
-      const response = await fetch('/api/admin/media/upload-url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          filename: file.name,
-          contentType: file.type,
-        }),
-      });
-
-      const payload: unknown = await response.json();
-      if (!response.ok || !isUploadResponse(payload)) {
-        throw new Error('Unable to prepare upload.');
-      }
-
-      uploadMessage = 'Uploading file...';
-
-      const uploadResult = await fetch(payload.uploadUrl, {
-        method: payload.uploadMethod,
-        headers: payload.uploadHeaders,
-        body: file,
-      });
-
-      if (!uploadResult.ok) {
-        throw new Error('Upload failed.');
-      }
-
-      image = payload.imageUrl;
+      clearPendingCoverUpload();
+      const blobUrl = URL.createObjectURL(file);
+      pendingCoverUpload = { blobUrl, file };
+      image = blobUrl;
       mediaType = inferMediaTypeFromMime(file.type);
       uploadStatus = 'success';
-      uploadMessage = `Uploaded ${file.name}`;
+      uploadMessage = `Staged ${file.name}. It will upload when you create the note.`;
       input.value = '';
     } catch {
       uploadStatus = 'error';
-      uploadMessage = 'Upload failed. Check bucket credentials/CORS and try again.';
+      uploadMessage = 'Unable to stage file. Try again.';
     }
   }
+
+  async function uploadMedia(file: File): Promise<UploadResponse> {
+    const response = await fetch('/api/admin/media/upload-url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type,
+      }),
+    });
+
+    const payload: unknown = await response.json();
+    if (!response.ok || !isUploadResponse(payload)) {
+      throw new Error('Unable to prepare upload.');
+    }
+
+    const uploadResult = await fetch(payload.uploadUrl, {
+      method: payload.uploadMethod,
+      headers: payload.uploadHeaders,
+      body: file,
+    });
+
+    if (!uploadResult.ok) {
+      throw new Error('Upload failed.');
+    }
+
+    return payload;
+  }
+
+  async function handleInlineMediaUpload(event: Event): Promise<void> {
+    const input = event.currentTarget;
+    if (!(input instanceof HTMLInputElement)) return;
+
+    const file = input.files?.[0];
+    if (!file) return;
+
+    inlineUploadStatus = 'uploading';
+    inlineUploadMessage = 'Staging inline media...';
+
+    try {
+      const blobUrl = URL.createObjectURL(file);
+      const kind = inferInlineKindFromMime(file.type);
+      const caption = filenameStem(file.name);
+      const snippet = createInlineMediaSnippet({
+        src: blobUrl,
+        kind,
+        caption,
+        alt: caption,
+        align: kind === 'video' ? 'wide' : 'center',
+      });
+
+      pendingInlineUploads = [...pendingInlineUploads, { blobUrl, file, kind, caption }];
+      body = body.trim() === '' ? `${snippet}\n` : `${body.trimEnd()}\n\n${snippet}\n`;
+      inlineUploadStatus = 'success';
+      inlineUploadMessage = `Staged ${file.name}. It will upload when you create the note.`;
+      input.value = '';
+    } catch {
+      inlineUploadStatus = 'error';
+      inlineUploadMessage = 'Unable to stage inline media. Try again.';
+    }
+  }
+
+  function handleImageInputChange(): void {
+    if (pendingCoverUpload && image !== pendingCoverUpload.blobUrl) {
+      clearPendingCoverUpload();
+    }
+  }
+
+  async function flushPendingInlineUploads(): Promise<void> {
+    const activePending = pendingInlineUploads.filter((pending) => body.includes(pending.blobUrl));
+    const removedPending = pendingInlineUploads.filter((pending) => !body.includes(pending.blobUrl));
+
+    for (const removed of removedPending) {
+      releaseObjectUrl(removed.blobUrl);
+    }
+
+    if (activePending.length === 0) {
+      pendingInlineUploads = [];
+      return;
+    }
+
+    let nextBody = body;
+    inlineUploadStatus = 'uploading';
+
+    for (let index = 0; index < activePending.length; index += 1) {
+      const pending = activePending[index];
+      inlineUploadMessage = `Uploading inline media ${index + 1}/${activePending.length}...`;
+
+      try {
+        const payload = await uploadMedia(pending.file);
+        nextBody = nextBody.replaceAll(pending.blobUrl, payload.imageUrl);
+        releaseObjectUrl(pending.blobUrl);
+        removePendingInlineUploadByBlobUrl(pending.blobUrl);
+      } catch {
+        body = nextBody;
+        inlineUploadStatus = 'error';
+        inlineUploadMessage = 'Inline upload failed during create. Fix and retry.';
+        throw new Error('Failed to upload inline media.');
+      }
+    }
+
+    body = nextBody;
+    pendingInlineUploads = [];
+    inlineUploadStatus = 'success';
+    inlineUploadMessage = 'Inline media uploaded.';
+  }
+
+  async function flushPendingCoverUpload(): Promise<void> {
+    if (!pendingCoverUpload || image !== pendingCoverUpload.blobUrl) {
+      return;
+    }
+
+    uploadStatus = 'uploading';
+    uploadMessage = 'Uploading cover media...';
+
+    try {
+      const payload = await uploadMedia(pendingCoverUpload.file);
+      image = payload.imageUrl;
+      releaseObjectUrl(pendingCoverUpload.blobUrl);
+      pendingCoverUpload = null;
+      uploadStatus = 'success';
+      uploadMessage = 'Cover media uploaded.';
+    } catch {
+      uploadStatus = 'error';
+      uploadMessage = 'Cover upload failed during create. Fix and retry.';
+      throw new Error('Failed to upload cover media.');
+    }
+  }
+
+  async function handleCreateSubmit(event: SubmitEvent): Promise<void> {
+    if (createInFlight) return;
+
+    const formElement = event.currentTarget;
+    if (!(formElement instanceof HTMLFormElement)) return;
+
+    if (!formElement.reportValidity()) {
+      return;
+    }
+
+    event.preventDefault();
+    createInFlight = true;
+
+    try {
+      await flushPendingInlineUploads();
+      await flushPendingCoverUpload();
+      formElement.submit();
+    } catch {
+      createInFlight = false;
+    }
+  }
+
+  onDestroy(() => {
+    for (const pending of pendingInlineUploads) {
+      releaseObjectUrl(pending.blobUrl);
+    }
+    clearPendingCoverUpload();
+  });
 </script>
 
 <svelte:head>
@@ -213,7 +391,7 @@
     <p class="form-message" role="alert">{form.message}</p>
   {/if}
 
-  <form method="POST" action="?/create" class="editor-grid">
+  <form method="POST" action="?/create" class="editor-grid" onsubmit={handleCreateSubmit}>
     <input type="hidden" name="body" value={body} />
     <input type="hidden" name="tags" value={tagsValue} />
 
@@ -289,6 +467,25 @@
           <p class="eyebrow" id="body-title">Body / Markdown</p>
           <p>CodeMirror 6 markdown mode</p>
         </div>
+        <div class="inline-media-tools">
+          <label>
+            <span>Upload inline media</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/svg+xml,image/gif,video/mp4"
+              onchange={handleInlineMediaUpload}
+            />
+          </label>
+        <p class="hint">
+            Inline syntax:
+            <code>{'{{media src="..." type="image|video" align="left|center|wide" caption="..." alt="..."}}'}</code>
+          </p>
+          {#if inlineUploadStatus !== 'idle'}
+            <p class:success={inlineUploadStatus === 'success'} class:error={inlineUploadStatus === 'error'} class="hint upload-status">
+              {inlineUploadMessage}
+            </p>
+          {/if}
+        </div>
         <MarkdownEditor bind:value={body} placeholder="Start with the note thesis, then write in Markdown..." {resolvedSlugs} />
       </section>
     </section>
@@ -337,10 +534,10 @@
           </div>
           <label>
             <span>Cover media URL</span>
-            <input bind:value={image} name="image" inputmode="url" placeholder="https://.../cover.png" />
+            <input bind:value={image} name="image" inputmode="url" placeholder="https://.../cover.png" oninput={handleImageInputChange} />
           </label>
         </div>
-        <p class="hint">Supports JPEG, PNG, SVG, GIF, and MP4. Upload sets a private-bucket access URL in this field.</p>
+        <p class="hint">Supports JPEG, PNG, SVG, GIF, and MP4. New-note uploads are staged and sent to bucket on create.</p>
         {#if uploadStatus !== 'idle'}
           <p class:success={uploadStatus === 'success'} class:error={uploadStatus === 'error'} class="hint upload-status">
             {uploadMessage}
@@ -358,7 +555,9 @@
 
       <NoteReviewPanel {title} {takeaway} {body} />
 
-      <button class="submit-button" type="submit">Create note</button>
+      <button class="submit-button" type="submit" disabled={createInFlight}>
+        {createInFlight ? 'Creating...' : 'Create note'}
+      </button>
     </aside>
   </form>
 </main>
@@ -588,6 +787,28 @@
 
   .body-section {
     margin-top: 2rem;
+  }
+
+  .inline-media-tools {
+    margin-bottom: 0.85rem;
+    border: var(--line-thin) solid var(--color-line-2);
+    background: var(--color-surface-1);
+    padding: 0.85rem 1rem;
+  }
+
+  .inline-media-tools label {
+    display: grid;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .inline-media-tools code {
+    display: inline-block;
+    margin-top: 0.35rem;
+    font-family: 'Space Grotesk', 'Inter', 'Segoe UI', sans-serif;
+    font-size: 0.64rem;
+    letter-spacing: 0;
+    text-transform: none;
   }
 
   .section-heading {

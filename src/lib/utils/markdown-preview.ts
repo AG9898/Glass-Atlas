@@ -19,6 +19,7 @@ import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import { renderWikiLinks } from './wiki-links.js';
+import { remarkInlineMediaEmbeds } from './inline-media.js';
 
 export type PreviewResult =
   | { ok: true; html: string }
@@ -35,6 +36,7 @@ const PREVIEW_ERROR_HTML =
 const _processor = unified()
   .use(remarkParse)
   .use(remarkGfm)
+  .use(remarkInlineMediaEmbeds)
   .use(remarkRehype, { allowDangerousHtml: true })
   .use(rehypeStringify, { allowDangerousHtml: true });
 

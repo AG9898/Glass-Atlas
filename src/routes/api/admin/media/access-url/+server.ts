@@ -9,11 +9,16 @@ export const GET: RequestHandler = async ({ url }) => {
     error(400, 'Invalid media key');
   }
 
+  let signedUrl: string;
   try {
-    const signedUrl = await createPresignedAccessUrl(key);
-    redirect(307, signedUrl);
+    signedUrl = await createPresignedAccessUrl(key);
   } catch (err) {
-    console.error('[media/access-url] Failed to create signed access URL.', err);
+    console.error('[media/access-url] Failed to create signed access URL.', {
+      key,
+      message: err instanceof Error ? err.message : 'Unknown error',
+    });
     error(404, 'Media not found');
   }
+
+  redirect(307, signedUrl);
 };

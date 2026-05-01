@@ -12,6 +12,14 @@ No open decisions right now.
 
 ## Resolved Decisions
 
+### RESOLVED-19 — Inline Body Media Strategy (Markdown Token + Shared Renderer Pass)
+
+**Resolved:** 2026-05-01
+**Decision:** Keep the note body markdown-first and add inline media embeds via a structured token format: `{{media ...}}`. Transform these tokens with a shared remark pass (`remarkInlineMediaEmbeds`) in both admin live preview and the public note renderer. Reuse the existing admin media upload endpoint to insert embed snippets into note `body`.
+**Why:** This preserves the existing raw-markdown authoring model while enabling inline image/MP4 placement with high preview/public parity. It avoids introducing a block-composer data model or storing layout JSON while still supporting practical editorial control in a single-column article flow.
+**Alternatives rejected:** Full block-composer UI was rejected as disproportionate complexity for current scope. Raw HTML embeds in author markdown were rejected for lower safety/predictability and weaker renderer consistency.
+**Affects:** docs/PRD.md, docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/TESTING.md, `src/lib/utils/inline-media.ts`, `src/lib/utils/markdown-preview.ts`, `src/lib/server/markdown.ts`, admin note forms
+
 ### RESOLVED-18 — Chat Retrieval Orchestration (Always-On Light Hybrid + Confidence-Gated Fallback)
 
 **Resolved:** 2026-04-30
@@ -68,7 +76,7 @@ No open decisions right now.
 **Why:** The app already deploys on Railway, so bucket credentials and environment scoping integrate cleanly with current operations. Railway Buckets are S3-compatible and align with project scale/cost goals. S3 was rejected due higher bandwidth cost profile for this use case; adding an extra external provider (R2) was rejected because Railway now offers native buckets with the required functionality.
 **Alternatives rejected:** URL-reference-only was rejected as the long-term default because it keeps hosting responsibility outside the app and blocks first-party upload UX. Cloudflare R2 was rejected for now because it adds another provider without enough upside over Railway-native buckets for this project. AWS S3 was rejected for higher expected egress cost and added account/policy overhead.
 **Affects:** docs/ARCHITECTURE.md, docs/ENV_VARS.md, docs/styleguide.md, ADMIN-06 planning assumptions
-**Implementation status (2026-04-30):** `ADMIN-07` ships this decision with `POST /api/admin/media/upload-url` (admin-only MIME-validated presigned `PUT`) and `GET /api/admin/media/access-url?key=...` (public redirect to presigned `GET`). Admin new/edit forms now upload directly to the bucket and persist the stable app access path in `notes.image`.
+**Implementation status (2026-05-01):** `ADMIN-07` ships this decision with `POST /api/admin/media/upload-url` (admin-only MIME-validated presigned `PUT`) and `GET /api/admin/media/access-url?key=...` (public redirect to presigned `GET`). `/admin/notes/new` now stages cover/inline files locally (`blob:` URLs for preview) and uploads them only when Create is submitted; `/admin/notes/[slug]/edit` keeps immediate upload behavior. Browser direct-upload requires bucket CORS to allow app origins + `PUT` + `Content-Type`.
 
 ### RESOLVED-12 — Audit-Driven Dependency Remediation Scope
 

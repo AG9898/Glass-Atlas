@@ -369,6 +369,49 @@
     margin: 1.5em 0;
   }
 
+  .markdown-editor__preview :global(.inline-media) {
+    margin: 1.5rem 0;
+  }
+
+  .markdown-editor__preview :global(.inline-media__asset) {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border: var(--line-thin) solid var(--color-line-1);
+  }
+
+  .markdown-editor__preview :global(.inline-media__asset--video) {
+    aspect-ratio: 16 / 9;
+    background: var(--color-surface-1);
+  }
+
+  .markdown-editor__preview :global(.inline-media__caption) {
+    margin-top: 0.5rem;
+    color: var(--color-text-muted);
+    font-family: 'Space Grotesk', 'Inter', 'Segoe UI', sans-serif;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .markdown-editor__preview :global(.inline-media--left) {
+    width: min(70%, 28rem);
+    margin-right: auto;
+  }
+
+  .markdown-editor__preview :global(.inline-media--center) {
+    width: min(100%, 36rem);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .markdown-editor__preview :global(.inline-media--wide) {
+    width: min(100%, 48rem);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   /* Preview error notice */
   .markdown-editor__preview :global(.preview-error) {
     color: var(--color-error);

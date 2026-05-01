@@ -331,3 +331,12 @@ When a schema change renames a column (for example `ip_hash` -> `session_hash`),
 
 ### 2026-05-01 — Confidence gate must skip LLM entirely, not just change the prompt
 The confidence fallback for insufficient coverage must return a canned SSE stream directly — never forward an empty context string to the LLM. An empty context still allows the LLM to answer from training data, violating the grounding contract. Use `hasSufficientCoverage()` in `chat.ts` to gate before the LLM call and emit the fallback via `makeFallbackStream()` in the same SSE format so the client sees a seamless response.
+
+### 2026-05-01 — Inline body media uses `{{media ...}}` tokens, not raw HTML blocks
+Inline assets in note bodies are now represented as markdown tokens (for example `{{media src="..." type="video" align="wide"}}`) and transformed by the shared `remarkInlineMediaEmbeds()` pass in both preview and public renderers. Keep this token flow aligned across `src/lib/utils/markdown-preview.ts` and `src/lib/server/markdown.ts`; do not rely on author-written raw `<img>`/`<video>` HTML for feature behavior.
+
+### 2026-05-01 — Keep `redirect()` outside broad `try/catch` blocks in route handlers
+SvelteKit `redirect()` throws to short-circuit the handler; catching it as a generic error causes false failure logs and can convert successful redirects into error responses. In endpoints like `/api/admin/media/access-url`, wrap only fallible pre-redirect work (signing/lookup) in `try/catch`, then call `redirect()` after the catch block.
+
+### 2026-05-01 — Railway bucket upload failures can be CORS-only even when signing works
+If `POST /api/admin/media/upload-url` succeeds but browser `PUT` to the presigned bucket URL fails (`net::ERR_FAILED`), treat it as a bucket CORS issue first, not missing env vars. Railway bucket CORS is configured via S3-compatible API/CLI (not app-service env vars and not a dedicated dashboard toggle in current UX). Ensure CORS allows app origins, `PUT`, and `Content-Type` before debugging app code.

@@ -71,3 +71,4 @@ jq '
 - Create one local git commit for the completed task after verification passes and `docs/workboard.json` is updated.
 - Include only the selected task's related code, docs, tests, and targeted board status changes.
 - Do not push the branch or publish the commit.
+- Never add Claude or any AI model as a co-author or contributor in commit messages (no `Co-Authored-By: Claude` or similar trailers).

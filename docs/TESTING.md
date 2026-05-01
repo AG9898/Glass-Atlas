@@ -74,7 +74,8 @@ This table starts empty and is filled in as test files are added to the project.
 | `src/tests/auth-redirect.test.ts` | `src/hooks.server.ts`, `src/routes/auth/signin/+page.server.ts` | `buildSigninRedirectUrl` pure helper, sign-in load function callbackUrl defaults and pass-through, empty/absent param fallback to /admin |
 | `src/tests/api-admin-notes-review.test.ts` | `src/routes/api/admin/notes/review/+server.ts` | Auth guard (401), payload validation (400 for missing/invalid fields), SSE success path, upstream 429/503 pass-through, and service-error handling (502/503) |
 | `src/lib/utils/note-review.test.ts` | `src/lib/utils/note-review.ts` | Review trigger payload POST shape, stream callback transitions (`onStart`/`onChunk`/`onComplete`), and explicit upstream 429/503 error handling |
-| `src/lib/utils/markdown-preview.test.ts` | `src/lib/utils/markdown-preview.ts` | Wiki-link resolution (resolved/unresolved), GFM markdown structure output (headings, lists, emphasis, code, blockquotes, tables), fail-soft contract (ok:false on pipeline error, never throws), and `renderPreviewSync` variant |
+| `src/lib/utils/markdown-preview.test.ts` | `src/lib/utils/markdown-preview.ts` | Wiki-link resolution (resolved/unresolved), inline media token rendering (`{{media ...}}` image/video embeds, including staged `blob:` URLs), GFM markdown structure output (headings, lists, emphasis, code, blockquotes, tables), fail-soft contract (ok:false on pipeline error, never throws), and `renderPreviewSync` variant |
+| `src/lib/utils/inline-media.test.ts` | `src/lib/utils/inline-media.ts` | Inline media token parsing (`{{media ...}}`), invalid-token rejection, media-kind inference, and snippet generation for admin upload insertion |
 | `src/lib/server/chat.test.ts` | `src/lib/server/chat.ts` | Parallel semantic + lexical retrieval, candidate fusion ordering (semantic-first then lexical fill), deduplication of overlapping slugs, per-note chunk grouping (cap 2), fused 5-note cap, lexical-only note formatting (title + takeaway), section heading inclusion/omission, slug/title inclusion, ranked citation slug order, empty-result handling, `hasSufficientCoverage` boundary cases (both-empty, one-empty, both-populated), `INSUFFICIENT_COVERAGE_RESPONSE` first-person voice contract, `buildFallbackResponse` (no notes, with notes footer, italic wrapping, unsafe slug filtering, all-unsafe fallback, digit-starting slug), and `citedNotes` population from semantic chunks and lexical notes |
 
 Naming rules that govern where each file lives are in the next section.
@@ -199,6 +200,7 @@ Given the no-browser-test baseline, keep live-preview verification at helper/mod
 - Extract preview transforms into testable units (for example wiki-link replacement + markdown-to-HTML conversion helper).
 - Assert resolved `[[slug]]` produces note links and unresolved wiki-links render the missing-reference treatment.
 - Assert markdown structures used in notes (headings, lists, emphasis, code fences, blockquotes, tables) produce stable HTML output in preview.
+- Assert inline media tokens (`{{media ...}}`) render deterministic figure/img/video HTML in preview, including staged `blob:` sources generated before create-submit upload.
 - Assert preview-transform exceptions fail soft (preview error state) without mutating `body` state and without blocking form submits in route actions.
 
 Manual smoke verification is still required in local dev for typing latency and visual sync between editor and preview panes.

@@ -136,6 +136,50 @@ describe('renderPreview — markdown structure', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Inline media embeds
+// ---------------------------------------------------------------------------
+
+describe('renderPreview — inline media embeds', () => {
+  it('renders inline image embed tokens as figure/img markup', async () => {
+    const result = await renderPreview(
+      '{{media src="/api/admin/media/access-url?key=notes/2026/diagram.png" type="image" align="center" caption="System diagram" alt="Diagram"}}',
+      new Set(),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.html).toContain('class="inline-media inline-media--image inline-media--center"');
+    expect(result.html).toContain('<img');
+    expect(result.html).toContain('src="/api/admin/media/access-url?key=notes/2026/diagram.png"');
+    expect(result.html).toContain('<figcaption');
+  });
+
+  it('renders inline video embed tokens as figure/video markup', async () => {
+    const result = await renderPreview(
+      '{{media src="/api/admin/media/access-url?key=notes/2026/demo.mp4" type="video" align="wide" caption="Demo clip"}}',
+      new Set(),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.html).toContain('class="inline-media inline-media--video inline-media--wide"');
+    expect(result.html).toContain('<video');
+    expect(result.html).toContain('controls');
+    expect(result.html).toContain('preload="metadata"');
+  });
+
+  it('renders staged blob inline image tokens in preview', async () => {
+    const result = await renderPreview(
+      '{{media src="blob:http://localhost:5173/95b7c28e-7929-4709-901e-2f04c19bd0bf" type="image" align="center" caption="Image (23)" alt="Image (23)"}}',
+      new Set(),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.html).toContain('class="inline-media inline-media--image inline-media--center"');
+    expect(result.html).toContain('<img');
+    expect(result.html).toContain('src="blob:http://localhost:5173/95b7c28e-7929-4709-901e-2f04c19bd0bf"');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Fail-soft behavior contract
 // ---------------------------------------------------------------------------
 

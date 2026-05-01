@@ -33,7 +33,7 @@ Visitors are never asked to log in. No visitor accounts exist. Session IDs for r
 Project skeleton: `package.json`, `svelte.config.js`, `vite.config.ts`, Drizzle schema (notes table, pgvector embeddings, Auth.js session/account tables), `hooks.server.ts` auth middleware.
 
 ### Phase 2 — Admin Notes CRUD
-Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note editor with Markdown input, section scaffolding, and an optional cover media URL field (supported formats: JPEG, PNG, SVG, GIF, MP4 — see DECISIONS.md RESOLVED-14). First-party upload storage is Railway Buckets with presigned URL flow (see DECISIONS.md RESOLVED-13). Embedding generated and stored on save.
+Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note editor with Markdown input, section scaffolding, inline body media embeds (`{{media ...}}` tokens rendered in preview/public notes), and an optional cover media URL field (supported formats: JPEG, PNG, SVG, GIF, MP4 — see DECISIONS.md RESOLVED-14). First-party upload storage is Railway Buckets with presigned URL flow (see DECISIONS.md RESOLVED-13): `/admin/notes/new` stages uploads locally for preview and uploads on Create submit; `/admin/notes/[slug]/edit` uploads immediately. Embedding generated and stored on save.
 
 ### Phase 3 — Public Notes
 `/notes` — browsable, filterable, and text-searchable note index (title and tag ILIKE search via `?q=` param). `/notes/[slug]` — individual note detail page. `NoteCard` component. Nav search icon links to `/notes?focus=search`. Cover media renders conditionally when a URL is set: JPEG/PNG/SVG/GIF via `<img>`, MP4 via `<video controls>` (no autoplay).

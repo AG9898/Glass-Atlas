@@ -3,6 +3,7 @@
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import { Select } from '$lib/components/ui';
   import type { UiSelectOption } from '$lib/components/ui';
+  import { createInlineMediaSnippet } from '$lib/utils/inline-media';
   import { CATEGORIES } from '$lib/utils/note-taxonomy';
   import type { ActionData, PageData } from './$types';
 
@@ -68,6 +69,8 @@
   let tagDraft = $state('');
   let uploadStatus = $state<UploadStatus>('idle');
   let uploadMessage = $state('');
+  let inlineUploadStatus = $state<UploadStatus>('idle');
+  let inlineUploadMessage = $state('');
 
   let formValues = $derived(valuesFromForm());
   let tagsValue = $derived(
@@ -157,6 +160,17 @@
     return 'image-jpeg';
   }
 
+  function inferInlineKindFromMime(mimeType: string): 'image' | 'video' {
+    return mimeType === 'video/mp4' ? 'video' : 'image';
+  }
+
+  function filenameStem(name: string): string {
+    return name
+      .replace(/\.[a-z0-9]+$/i, '')
+      .replace(/[_-]+/g, ' ')
+      .trim();
+  }
+
   function isUploadResponse(value: unknown): value is UploadResponse {
     if (typeof value !== 'object' || value === null) return false;
 
@@ -181,33 +195,9 @@
     uploadMessage = 'Requesting upload URL...';
 
     try {
-      const response = await fetch('/api/admin/media/upload-url', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          filename: file.name,
-          contentType: file.type,
-        }),
-      });
-
-      const payload: unknown = await response.json();
-      if (!response.ok || !isUploadResponse(payload)) {
-        throw new Error('Unable to prepare upload.');
-      }
+      const payload = await uploadMedia(file);
 
       uploadMessage = 'Uploading file...';
-
-      const uploadResult = await fetch(payload.uploadUrl, {
-        method: payload.uploadMethod,
-        headers: payload.uploadHeaders,
-        body: file,
-      });
-
-      if (!uploadResult.ok) {
-        throw new Error('Upload failed.');
-      }
 
       image = payload.imageUrl;
       mediaType = inferMediaTypeFromMime(file.type);
@@ -217,6 +207,68 @@
     } catch {
       uploadStatus = 'error';
       uploadMessage = 'Upload failed. Check bucket credentials/CORS and try again.';
+    }
+  }
+
+  async function uploadMedia(file: File): Promise<UploadResponse> {
+    const response = await fetch('/api/admin/media/upload-url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        filename: file.name,
+        contentType: file.type,
+      }),
+    });
+
+    const payload: unknown = await response.json();
+    if (!response.ok || !isUploadResponse(payload)) {
+      throw new Error('Unable to prepare upload.');
+    }
+
+    const uploadResult = await fetch(payload.uploadUrl, {
+      method: payload.uploadMethod,
+      headers: payload.uploadHeaders,
+      body: file,
+    });
+
+    if (!uploadResult.ok) {
+      throw new Error('Upload failed.');
+    }
+
+    return payload;
+  }
+
+  async function handleInlineMediaUpload(event: Event): Promise<void> {
+    const input = event.currentTarget;
+    if (!(input instanceof HTMLInputElement)) return;
+
+    const file = input.files?.[0];
+    if (!file) return;
+
+    inlineUploadStatus = 'uploading';
+    inlineUploadMessage = 'Uploading inline media...';
+
+    try {
+      const payload = await uploadMedia(file);
+      const kind = inferInlineKindFromMime(file.type);
+      const caption = filenameStem(file.name);
+      const snippet = createInlineMediaSnippet({
+        src: payload.imageUrl,
+        kind,
+        caption,
+        alt: caption,
+        align: kind === 'video' ? 'wide' : 'center',
+      });
+
+      body = body.trim() === '' ? `${snippet}\n` : `${body.trimEnd()}\n\n${snippet}\n`;
+      inlineUploadStatus = 'success';
+      inlineUploadMessage = `Inserted inline media snippet for ${file.name}`;
+      input.value = '';
+    } catch {
+      inlineUploadStatus = 'error';
+      inlineUploadMessage = 'Inline upload failed. Check bucket credentials/CORS and try again.';
     }
   }
 </script>
@@ -327,6 +379,25 @@
           <div class="section-heading">
             <p class="eyebrow" id="body-title">Body / Markdown</p>
             <p>CodeMirror 6 markdown mode</p>
+          </div>
+          <div class="inline-media-tools">
+            <label>
+              <span>Upload inline media</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/svg+xml,image/gif,video/mp4"
+                onchange={handleInlineMediaUpload}
+              />
+            </label>
+            <p class="hint">
+              Inline syntax:
+              <code>{'{{media src="..." type="image|video" align="left|center|wide" caption="..." alt="..."}}'}</code>
+            </p>
+            {#if inlineUploadStatus !== 'idle'}
+              <p class:success={inlineUploadStatus === 'success'} class:error={inlineUploadStatus === 'error'} class="hint upload-status">
+                {inlineUploadMessage}
+              </p>
+            {/if}
           </div>
           <MarkdownEditor bind:value={body} placeholder="Revise the note thesis, then write in Markdown..." {resolvedSlugs} />
         </section>
@@ -663,6 +734,28 @@
 
   .body-section {
     margin-top: 2rem;
+  }
+
+  .inline-media-tools {
+    margin-bottom: 0.85rem;
+    border: var(--line-thin) solid var(--color-line-2);
+    background: var(--color-surface-1);
+    padding: 0.85rem 1rem;
+  }
+
+  .inline-media-tools label {
+    display: grid;
+    gap: 0.5rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .inline-media-tools code {
+    display: inline-block;
+    margin-top: 0.35rem;
+    font-family: 'Space Grotesk', 'Inter', 'Segoe UI', sans-serif;
+    font-size: 0.64rem;
+    letter-spacing: 0;
+    text-transform: none;
   }
 
   .section-heading {

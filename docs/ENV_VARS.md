@@ -104,6 +104,44 @@ SECRET_ACCESS_KEY=your_bucket_secret
 
 With `ADMIN-07` implemented, admin uploads use `POST /api/admin/media/upload-url` and direct browser `PUT` requests to the returned presigned URL. Ensure bucket CORS allows `PUT` from your app origin and allows the `Content-Type` request header.
 
+### Railway Bucket CORS (required for browser uploads)
+
+Railway Buckets are S3-compatible; CORS is configured on the bucket itself via S3 API calls (not via app-service env vars). In current Railway UX, this is managed via API/CLI rather than an in-dashboard CORS form.
+
+Example command (run with your Railway bucket S3 credentials):
+
+```bash
+AWS_ACCESS_KEY_ID='<bucket-access-key-id>' \
+AWS_SECRET_ACCESS_KEY='<bucket-secret-access-key>' \
+aws s3api put-bucket-cors \
+  --bucket '<bucket-name>' \
+  --endpoint-url 'https://storage.railway.app' \
+  --cors-configuration '{
+    "CORSRules": [
+      {
+        "AllowedHeaders": ["*"],
+        "AllowedMethods": ["PUT","POST","GET","HEAD"],
+        "AllowedOrigins": [
+          "http://localhost:5173",
+          "https://localhost:5173",
+          "https://your-prod-domain.com"
+        ],
+        "MaxAgeSeconds": 3000
+      }
+    ]
+  }'
+```
+
+Verify:
+
+```bash
+AWS_ACCESS_KEY_ID='<bucket-access-key-id>' \
+AWS_SECRET_ACCESS_KEY='<bucket-secret-access-key>' \
+aws s3api get-bucket-cors \
+  --bucket '<bucket-name>' \
+  --endpoint-url 'https://storage.railway.app'
+```
+
 The committed `.env.example` file contains all variable names with placeholder values. Keep it up to date whenever a new variable is added.
 
 ---

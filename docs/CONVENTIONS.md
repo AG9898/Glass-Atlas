@@ -228,12 +228,21 @@ function wikiLinkCompletions(notes: { slug: string; title: string }[]): Completi
 
 - Sync source of truth from CodeMirror to a plain `body` string in Svelte state on every `docChanged` event.
 - Build preview from that `body` string only; no request/response cycle is allowed while typing.
-- Call `renderPreview(body, resolvedSlugs)` (or `renderPreviewSync`) from `src/lib/utils/markdown-preview.ts` to obtain a `PreviewResult`. This helper applies `renderWikiLinks` then converts markdown to HTML via unified (remark-parse → remark-gfm → remark-rehype → rehype-stringify). It is client-safe; do not substitute the server-only `src/lib/server/markdown.ts` renderer in admin `.svelte` files.
+- Call `renderPreview(body, resolvedSlugs)` (or `renderPreviewSync`) from `src/lib/utils/markdown-preview.ts` to obtain a `PreviewResult`. This helper applies `renderWikiLinks`, then `remarkInlineMediaEmbeds`, then converts markdown to HTML via unified (remark-parse → remark-gfm → remark-rehype → rehype-stringify). It is client-safe; do not substitute the server-only `src/lib/server/markdown.ts` renderer in admin `.svelte` files.
 - Never import server-only modules (for example `src/lib/server/**`) into admin `.svelte` files for preview rendering.
 - `renderPreview` never throws — it returns `{ ok: false, html, errorMessage }` on pipeline failure. Check `result.ok` before rendering; on `false`, show a lightweight preview error state without blocking form actions.
 - Treat right-pane output as sanitized render output; do not inject untrusted raw HTML directly into the DOM.
 
 **Preview parity boundary** — live preview must preserve markdown structure and wiki-link semantics used by public notes. Exact code highlighting/theme parity with the server-side public renderer is optional; correctness of headings/lists/links/emphasis/table structure is required.
+
+**Inline media token syntax (`{{media ...}}`)** — markdown bodies may include one token per line to embed uploaded assets inline:
+
+- Base format: `{{media src="/api/admin/media/access-url?key=..." type="image|video" align="left|center|wide" caption="Optional caption" alt="Optional alt"}}`
+- `src` is required. `type` defaults from extension (`.mp4` => `video`, otherwise `image`).
+- `align` defaults to `center`; `wide` is preferred for MP4 demos in long-form notes.
+- Use this token for inline media placement in note bodies; do not rely on raw HTML `<img>`/`<video>` blocks in author-written markdown.
+- `/admin/notes/new` may use temporary `blob:` sources in these tokens before create-submit; preview must render these staged tokens as normal media.
+- Keep token parsing tolerant of markdown AST linkification (`remark-gfm` can autolink `http://` segments inside `blob:` URLs). Do not assume token paragraphs are always a single plain text node.
 
 ### UI Primitives and Motion
 

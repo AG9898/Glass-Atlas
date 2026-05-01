@@ -538,6 +538,51 @@
     height: auto;
   }
 
+  .note-body :global(.inline-media) {
+    margin: 2rem 0;
+  }
+
+  .note-body :global(.inline-media__asset) {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border: var(--line-thin) solid var(--color-line-1);
+    background: var(--color-surface-1);
+  }
+
+  .note-body :global(.inline-media__asset--video) {
+    aspect-ratio: 16 / 9;
+  }
+
+  .note-body :global(.inline-media__caption) {
+    margin-top: 0.65rem;
+    color: var(--color-text-muted);
+    font-family: 'Space Grotesk', 'Inter', 'Segoe UI', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    line-height: 1.4;
+    text-transform: uppercase;
+  }
+
+  .note-body :global(.inline-media--left) {
+    width: min(70%, 36rem);
+    margin-right: auto;
+  }
+
+  .note-body :global(.inline-media--center) {
+    width: min(100%, 42rem);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .note-body :global(.inline-media--wide) {
+    width: min(100%, 62rem);
+    margin-left: auto;
+    margin-right: auto;
+  }
+
   /* -------------------------------------------------------------------------
    * Right sidebar — related notes + cite
    * ----------------------------------------------------------------------- */

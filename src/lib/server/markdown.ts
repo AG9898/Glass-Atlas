@@ -14,6 +14,7 @@ import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import { createRequire } from 'module';
 import type { Plugin } from 'unified';
+import { remarkInlineMediaEmbeds } from '$lib/utils/inline-media';
 
 // rehype-shiki@0.0.9 is a legacy CJS package; use createRequire to import it.
 const _require = createRequire(import.meta.url);
@@ -30,6 +31,7 @@ async function buildProcessor() {
   return unified()
     .use(remarkParse)
     .use(remarkGfm)
+    .use(remarkInlineMediaEmbeds)
     .use(remarkRehype, { allowDangerousHtml: false })
     .use(rehypeShiki, { theme: 'github-dark' })
     .use(rehypeStringify);

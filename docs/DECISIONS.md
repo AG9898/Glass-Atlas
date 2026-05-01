@@ -29,7 +29,7 @@ No open decisions right now.
 **Alternatives rejected:** In-memory IP map was rejected because it is tied to process lifetime and remains unfair for shared IPs. Redis-backed counters were rejected for now to avoid adding another paid service/dependency at this scale. Visitor login/accounts were rejected because public chat is intentionally anonymous.
 **Accepted tradeoff:** Clearing browser cookies resets the anonymous session quota; this is explicitly accepted for the no-login visitor model.
 **Affects:** docs/PRD.md, docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/ENV_VARS.md, docs/TESTING.md, chat rate-limit implementation tasks
-**Implementation status (2026-04-30):** Decision accepted; code migration from IP-map limiting to cookie-session DB counters is pending implementation.
+**Implementation status (2026-05-01):** Mostly implemented. `CHAT-05A` shipped the DB layer migration (`chat_rate_limits.ip_hash` -> `session_hash`) and atomic quota persistence helper (`consumeChatRateLimit`), and `CHAT-05B` shipped `/api/chat` cookie issuance + per-session enforcement before retrieval/LLM work with route-level coverage. Additional quota test hardening remains queued in `CHAT-05C`.
 
 ### RESOLVED-16 — Semantic Retrieval Upgrade Direction (Chunked + OpenRouter)
 
@@ -38,7 +38,7 @@ No open decisions right now.
 **Why:** The current body-level single vector is cheap and simple but can blur intent for targeted queries. Section-aware chunk vectors improve semantic precision and recall without introducing a new provider or inference infrastructure. Metadata inclusion helps taxonomy-driven matching while preserving semantic body grounding.
 **Alternatives rejected:** Staying with one vector per full note was rejected due lower retrieval granularity. Switching to self-hosted embeddings now was rejected due operational overhead and migration complexity for this phase.
 **Affects:** docs/workboard.json, docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/TESTING.md
-**Implementation status (2026-04-30):** Direction accepted and queued as new CHAT workboard tasks; code implementation not started yet.
+**Implementation status (2026-05-01):** `CHAT-04A` shipped the chunk storage/retrieval foundation (`note_chunks` schema + indexes, `replaceNoteChunks`, `searchChunksBySimilarity`). Chat orchestration still uses note-level retrieval in production; chunk generation, prompt integration, and hybrid rerank steps remain queued in later CHAT tasks.
 
 ---
 

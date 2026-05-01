@@ -1,4 +1,5 @@
 <script lang="ts">
+  import NoteReviewPanel from '$lib/components/admin/NoteReviewPanel.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import { Select } from '$lib/components/ui';
   import type { UiSelectOption } from '$lib/components/ui';
@@ -391,6 +392,8 @@
           <p class="eyebrow">Related Notes</p>
           <p class="related-placeholder">Backlinks and wiki-link suggestions are planned for a later editor pass.</p>
         </section>
+
+        <NoteReviewPanel {title} {takeaway} {body} />
 
         <section class="sidebar-card checklist">
           <p class="eyebrow">Pre-publish Checklist</p>

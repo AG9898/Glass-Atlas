@@ -64,8 +64,9 @@ RALPH-SUMMARY-END
 
 ## Publish Policy
 
-- Default: monitor does not commit/push.
-- If user explicitly requested publishing for this run, worker may commit/push only on `SUCCESS` after docs+tests gates pass.
+- Monitor policy: the monitor/orchestrator never creates commits and never pushes.
+- Worker commit policy: workers create local commits when the delegated skill requires commits (for example, `start-task`) and checks pass.
+- Worker push policy: workers never push unless the user explicitly requested publishing for this run; when publishing is requested, push only on `SUCCESS` after docs+tests gates pass.
 
 ## Success Handling
 
@@ -85,4 +86,3 @@ RALPH-SUMMARY-END
 - Never auto-discard changes with destructive git commands.
 - Never continue past reached threshold.
 - Never treat `SUCCESS` as valid when docs/tests/publish gates fail for a publish-required run.
-

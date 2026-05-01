@@ -10,7 +10,12 @@ vi.mock('$env/dynamic/private', () => ({
   env: envMock,
 }));
 
-import { embedText } from './embeddings';
+import {
+  buildChunkEmbeddingPayload,
+  chunkBodyBySectionAndParagraph,
+  embedNoteBodyChunks,
+  embedText,
+} from './embeddings';
 
 describe('embedText', () => {
   beforeEach(() => {
@@ -61,5 +66,128 @@ describe('embedText', () => {
     await expect(embedText('Body text')).rejects.toThrow(
       'OpenRouter embeddings response did not include a numeric embedding',
     );
+  });
+});
+
+describe('chunkBodyBySectionAndParagraph', () => {
+  it('splits markdown by heading sections and paragraph boundaries in stable order', () => {
+    const body = [
+      'Preamble line one.',
+      'Preamble line two.',
+      '',
+      '## First Section',
+      'Paragraph one line one.',
+      'Paragraph one line two.',
+      '',
+      'Paragraph two.',
+      '',
+      '### Deep Dive',
+      'Nested section paragraph.',
+    ].join('\n');
+
+    expect(chunkBodyBySectionAndParagraph(body)).toEqual([
+      {
+        sectionHeading: null,
+        sectionIndex: 0,
+        chunkIndex: 0,
+        chunkText: 'Preamble line one. Preamble line two.',
+      },
+      {
+        sectionHeading: 'First Section',
+        sectionIndex: 1,
+        chunkIndex: 1,
+        chunkText: 'Paragraph one line one. Paragraph one line two.',
+      },
+      {
+        sectionHeading: 'First Section',
+        sectionIndex: 1,
+        chunkIndex: 2,
+        chunkText: 'Paragraph two.',
+      },
+      {
+        sectionHeading: 'Deep Dive',
+        sectionIndex: 2,
+        chunkIndex: 3,
+        chunkText: 'Nested section paragraph.',
+      },
+    ]);
+  });
+});
+
+describe('buildChunkEmbeddingPayload', () => {
+  it('renders a canonical metadata + chunk payload', () => {
+    const payload = buildChunkEmbeddingPayload(
+      {
+        title: '  Vector Search  ',
+        category: ' databases ',
+        tags: ['rag', '  pgvector  '],
+        series: ' retrieval ',
+      },
+      {
+        sectionHeading: ' Intro ',
+        chunkText: '  Use focused chunk context.  ',
+      },
+    );
+
+    expect(payload).toBe(
+      [
+        'Glass Atlas note chunk',
+        'Title: Vector Search',
+        'Category: databases',
+        'Tags: rag, pgvector',
+        'Series: retrieval',
+        'Section: Intro',
+        'Chunk: Use focused chunk context.',
+      ].join('\n'),
+    );
+  });
+});
+
+describe('embedNoteBodyChunks', () => {
+  it('embeds each chunk using metadata-enriched payloads', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }] }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: [{ embedding: [0.4, 0.5, 0.6] }] }), { status: 200 }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await embedNoteBodyChunks('One.\n\n## Topic\nTwo.', {
+      title: 'Chunked Note',
+      category: 'search',
+      tags: ['rag'],
+      series: null,
+    });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        sectionHeading: null,
+        sectionIndex: 0,
+        chunkIndex: 0,
+        chunkText: 'One.',
+        embedding: [0.1, 0.2, 0.3],
+      }),
+      expect.objectContaining({
+        sectionHeading: 'Topic',
+        sectionIndex: 1,
+        chunkIndex: 1,
+        chunkText: 'Two.',
+        embedding: [0.4, 0.5, 0.6],
+      }),
+    ]);
+
+    const firstPayload = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string) as {
+      input: string;
+    };
+    const secondPayload = JSON.parse((fetchMock.mock.calls[1]?.[1] as RequestInit).body as string) as {
+      input: string;
+    };
+    expect(firstPayload.input).toContain('Title: Chunked Note');
+    expect(firstPayload.input).toContain('Chunk: One.');
+    expect(secondPayload.input).toContain('Section: Topic');
+    expect(secondPayload.input).toContain('Chunk: Two.');
   });
 });

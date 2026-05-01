@@ -1,6 +1,6 @@
-import { and, count, desc, eq, ilike, inArray, isNotNull, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, ilike, inArray, isNotNull, notInArray, or, sql } from 'drizzle-orm';
 import { db } from './index';
-import { citationEvents, noteLinks, notes } from './schema';
+import { chatRateLimits, citationEvents, noteChunks, noteLinks, notes } from './schema';
 import { parseWikiLinks } from '$lib/utils/wiki-links';
 
 // ---------------------------------------------------------------------------
@@ -40,6 +40,41 @@ export type CreateNoteInput = {
   series?: string | null;
   status?: 'draft' | 'published';
   embedding?: number[] | null;
+};
+
+export type ReplaceNoteChunkInput = {
+  sectionHeading?: string | null;
+  sectionIndex: number;
+  chunkIndex: number;
+  chunkText: string;
+  embedding: number[];
+};
+
+export type RetrievedNoteChunk = {
+  id: number;
+  noteSlug: string;
+  noteTitle: string;
+  sectionHeading: string | null;
+  sectionIndex: number;
+  chunkIndex: number;
+  chunkText: string;
+  distance: number;
+};
+
+export type ConsumeChatRateLimitInput = {
+  sessionHash: string;
+  maxMessages: number;
+  windowMs: number;
+  now?: Date;
+};
+
+export type ChatRateLimitResult = {
+  allowed: boolean;
+  messageCount: number;
+  remaining: number;
+  limit: number;
+  windowStart: Date;
+  resetAt: Date;
 };
 
 export type UpdateNoteInput = {
@@ -225,9 +260,155 @@ export async function getTotalCitations(): Promise<number> {
   return row?.value ?? 0;
 }
 
+/**
+ * Atomically consumes one chat request against an anonymous session hash quota window.
+ * The DB row is keyed by session hash only; raw session tokens are never stored.
+ */
+export async function consumeChatRateLimit({
+  sessionHash,
+  maxMessages,
+  windowMs,
+  now = new Date(),
+}: ConsumeChatRateLimitInput): Promise<ChatRateLimitResult> {
+  if (maxMessages <= 0) {
+    throw new Error('maxMessages must be greater than 0');
+  }
+  if (windowMs <= 0) {
+    throw new Error('windowMs must be greater than 0');
+  }
+
+  const windowCutoff = new Date(now.getTime() - windowMs);
+
+  const [row] = await db
+    .insert(chatRateLimits)
+    .values({
+      sessionHash,
+      messageCount: 1,
+      windowStart: now,
+    })
+    .onConflictDoUpdate({
+      target: [chatRateLimits.sessionHash],
+      set: {
+        messageCount: sql`CASE
+          WHEN ${chatRateLimits.windowStart} <= ${windowCutoff} THEN 1
+          ELSE ${chatRateLimits.messageCount} + 1
+        END`,
+        windowStart: sql`CASE
+          WHEN ${chatRateLimits.windowStart} <= ${windowCutoff} THEN ${now}
+          ELSE ${chatRateLimits.windowStart}
+        END`,
+      },
+    })
+    .returning({
+      messageCount: chatRateLimits.messageCount,
+      windowStart: chatRateLimits.windowStart,
+    });
+
+  const allowed = row.messageCount <= maxMessages;
+  const remaining = Math.max(0, maxMessages - row.messageCount);
+  const resetAt = new Date(row.windowStart.getTime() + windowMs);
+
+  return {
+    allowed,
+    messageCount: row.messageCount,
+    remaining,
+    limit: maxMessages,
+    windowStart: row.windowStart,
+    resetAt,
+  };
+}
+
 /** @deprecated Use searchNotesBySimilarity instead (ADMIN-01b). */
 export async function findSimilarNotes(embedding: number[], limit = 5): Promise<Note[]> {
   return searchNotesBySimilarity(embedding, limit);
+}
+
+// ---------------------------------------------------------------------------
+// Chunk retrieval
+// ---------------------------------------------------------------------------
+
+/**
+ * Replaces the current chunk set for a note.
+ * Existing rows with matching (note_slug, chunk_index) are upserted; stale chunk indexes are deleted.
+ */
+export async function replaceNoteChunks(
+  noteSlug: string,
+  chunks: ReplaceNoteChunkInput[],
+): Promise<void> {
+  const normalized = Array.from(
+    new Map(chunks.map((chunk) => [chunk.chunkIndex, chunk] as const)).values(),
+  ).sort((a, b) => a.chunkIndex - b.chunkIndex);
+
+  if (normalized.length === 0) {
+    await db.delete(noteChunks).where(eq(noteChunks.noteSlug, noteSlug));
+    return;
+  }
+
+  await db
+    .insert(noteChunks)
+    .values(
+      normalized.map((chunk) => ({
+        noteSlug,
+        sectionHeading: chunk.sectionHeading ?? null,
+        sectionIndex: chunk.sectionIndex,
+        chunkIndex: chunk.chunkIndex,
+        chunkText: chunk.chunkText,
+        embedding: chunk.embedding,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: [noteChunks.noteSlug, noteChunks.chunkIndex],
+      set: {
+        sectionHeading: sql`excluded.section_heading`,
+        sectionIndex: sql`excluded.section_index`,
+        chunkText: sql`excluded.chunk_text`,
+        embedding: sql`excluded.embedding`,
+      },
+    });
+
+  await db
+    .delete(noteChunks)
+    .where(
+      and(
+        eq(noteChunks.noteSlug, noteSlug),
+        notInArray(
+          noteChunks.chunkIndex,
+          normalized.map((chunk) => chunk.chunkIndex),
+        ),
+      ),
+    );
+}
+
+/** Cosine similarity search over published note chunks. */
+export async function searchChunksBySimilarity(
+  embedding: number[],
+  limit: number,
+): Promise<RetrievedNoteChunk[]> {
+  const safeLimit = Math.max(0, Math.floor(limit));
+  if (safeLimit === 0) return [];
+
+  const vectorLiteral = JSON.stringify(embedding);
+  const rows = await db
+    .select({
+      id: noteChunks.id,
+      noteSlug: noteChunks.noteSlug,
+      noteTitle: notes.title,
+      sectionHeading: noteChunks.sectionHeading,
+      sectionIndex: noteChunks.sectionIndex,
+      chunkIndex: noteChunks.chunkIndex,
+      chunkText: noteChunks.chunkText,
+      distance: sql<number>`${noteChunks.embedding} <=> ${vectorLiteral}::vector`,
+    })
+    .from(noteChunks)
+    .innerJoin(notes, eq(noteChunks.noteSlug, notes.slug))
+    .where(eq(notes.status, 'published'))
+    .orderBy(sql`${noteChunks.embedding} <=> ${vectorLiteral}::vector`)
+    .limit(safeLimit);
+
+  return rows.map((row) => ({
+    ...row,
+    distance: Number(row.distance),
+  }));
 }
 
 // ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@ Glass Atlas is a SvelteKit-based editorial site where the author publishes notes
 | Service | Where it runs |
 |---|---|
 | SvelteKit app (UI + API routes) | Railway (persistent Bun HTTP server; SvelteKit node adapter; auto-deploy on push to `main`) |
-| PostgreSQL database (notes, citation_events, conversations, messages, Auth.js tables) | Neon (serverless HTTP driver; `glass_atlas` Postgres schema; production project + dev branch) |
+| PostgreSQL database (notes, note_chunks, citation_events, conversations, messages, Auth.js tables) | Neon (serverless HTTP driver; `glass_atlas` Postgres schema; production project + dev branch) |
 | Object storage (note media uploads) | Railway Storage Buckets (private, S3-compatible; presigned URL upload + delivery) |
 | LLM inference (chat completions, streaming) | OpenRouter API (remote, HTTP) |
 | Embedding generation (query + note body vectors) | OpenRouter API (remote, HTTP) |
@@ -35,10 +35,10 @@ The server is a persistent Bun process. In-memory state survives between request
 ### Server-side lib (`src/lib/server/`)
 
 - `db/index.ts` — Drizzle ORM client wired to the Neon HTTP driver; all SQL goes through here
-- `db/schema.ts` — Drizzle table definitions: `notes`, `note_links`, `citation_events`, Auth.js tables
-- `db/notes.ts` — note CRUD helpers: `listNotes(filter?)`, `getNoteBySlug`, `createNote`, `updateNote`, `deleteNote`, `getBacklinks`, `getOutlinks`; RAG helpers: `searchNotesBySimilarity` (published notes ordered by pgvector cosine distance), `recordCitations`, `getTotalCitations`. Exports plain-object types `Note`, `CreateNoteInput`, `UpdateNoteInput`, including note metadata (`image`, `mediaType`, `publishedAt`, `series`).
+- `db/schema.ts` — Drizzle table definitions: `notes`, `note_chunks`, `note_links`, `citation_events`, Auth.js tables
+- `db/notes.ts` — note CRUD helpers: `listNotes(filter?)`, `getNoteBySlug`, `createNote`, `updateNote`, `deleteNote`, `getBacklinks`, `getOutlinks`; RAG helpers: `searchNotesBySimilarity` (published notes ordered by pgvector cosine distance), `replaceNoteChunks`, `searchChunksBySimilarity`, `recordCitations`, `getTotalCitations`; chat quota helper: `consumeChatRateLimit` (atomic window-reset + increment keyed by `chat_rate_limits.session_hash`). Exports plain-object types `Note`, `CreateNoteInput`, `UpdateNoteInput`, including note metadata (`image`, `mediaType`, `publishedAt`, `series`).
 - `chat.ts` — builds the RAG prompt, calls OpenRouter for streaming completions, returns a `ReadableStream`
-- `embeddings.ts` — calls the OpenRouter-compatible `/embeddings` endpoint with `OPENROUTER_API_KEY` from `$env/dynamic/private`; returns `vector(1536)` arrays for storage in `notes.embedding`
+- `embeddings.ts` — calls the OpenRouter-compatible `/embeddings` endpoint with `OPENROUTER_API_KEY` from `$env/dynamic/private`; provides note-level embeddings plus section-aware chunk generation/payload helpers for `note_chunks` indexing
 - `personality.ts` — exports the system prompt personality block as a string constant; never inlined elsewhere
 - `ai/review.ts` — builds the note critique prompt from `{ title, takeaway, body }`, calls a free-tier OpenRouter model, returns a `ReadableStream`; never reads from or writes to the database
 
@@ -102,7 +102,7 @@ Current production remains note-level semantic retrieval. The sequence below des
 
 **Latency strategy:** Streaming is the primary UX fix for perceived latency. Gemini Flash targets ~400–600 ms TTFT. Retrieval remains bounded by small `k` limits and parallel query execution (semantic + lexical/topic) so hybrid precision gains do not create outsized latency overhead. Prompt size stays compact (note summary + bounded evidence excerpts), not full bodies.
 
-**Approved next retrieval direction (not yet implemented):** Move to section-aware chunk embeddings with metadata-enriched embedding payloads, then run always-on light hybrid retrieval (semantic + topic/lexical), fuse/rerank candidates, and use confidence-gated fallback behavior (see `RESOLVED-16` and `RESOLVED-18` in `docs/DECISIONS.md`). Current production behavior remains the simpler note-level semantic flow until CHAT retrieval tasks ship.
+**Approved next retrieval direction (partially implemented):** Section-aware chunk storage and retrieval primitives are now in place (`note_chunks`, `replaceNoteChunks`, `searchChunksBySimilarity`), but `/api/chat` orchestration still uses note-level semantic retrieval in production. Hybrid fuse/rerank and confidence-gated fallback behavior are still queued in later CHAT tasks (see `RESOLVED-16` and `RESOLVED-18` in `docs/DECISIONS.md`).
 
 ### Note save flow (admin)
 
@@ -113,9 +113,10 @@ Current production remains note-level semantic retrieval. The sequence below des
 2. Browser submits a SvelteKit form action (create or update) to the admin +page.server.ts handler
 3. Auth.js session verified by middleware before the handler runs
 4. Create actions generate the slug from the title with `slugify.ts`; edit actions keep the slug immutable and patch the note row in the notes table through `db/notes.ts` helpers, which also sync wiki-link rows when the body changes
-5. Form action calls `embedText(body)` in `src/lib/server/embeddings.ts`, which posts the full note body to the OpenRouter-compatible embedding endpoint
-   → receives vector(1536)
-6. Form action stores the embedding in `notes.embedding` with a second `updateNote()` call. If OpenRouter fails or returns malformed data, the action logs the error, writes `embedding: null`, and still completes the note save.
+5. Form action regenerates semantic indexes in fail-soft mode:
+   - Note-level: calls `embedText(body)` and stores the result in `notes.embedding` with a follow-up `updateNote()`
+   - Chunk-level: splits body into section/paragraph chunks, builds metadata-enriched embedding payloads (`title`, `category`, `tags`, `series` + chunk text), embeds each chunk, then upserts the full chunk set via `replaceNoteChunks()`
+6. If embedding calls fail or return malformed data, the action logs the error and still completes the note save. Note-level fallback writes `embedding: null`; chunk-level fallback skips chunk replacement to avoid partial row churn.
 7. Form action calls SvelteKit redirect() to send the browser to /admin/notes/[slug]/edit
 8. Browser navigates to the edit page
 ```
@@ -148,6 +149,8 @@ Current production remains note-level semantic retrieval. The sequence below des
 6. On upstream 429/503, client shows a visible error; no note data is mutated
 ```
 
+The review UI is shared between both admin editors via `src/lib/components/admin/NoteReviewPanel.svelte`. Streaming transport/parsing lives in the client-safe utility `src/lib/utils/note-review.ts`, which consumes SSE tokens and updates panel state without touching save/publish flows.
+
 ### Wiki-link data model
 
 Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to link between notes. These are stored as rows in the `note_links` table on every save:
@@ -173,7 +176,7 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 
 **Credential verification:** `src/hooks.server.ts` calls `event.locals.auth()` on every `/admin/**` request. Any request to an `/admin` or `/api/admin` path without a valid session is redirected to `/auth/signin` (the Auth.js sign-in page, which initiates the GitHub OAuth flow). No `/admin` route handler is ever reached without a confirmed session.
 
-**Visitor chat sessions:** Visitor identity for rate limiting is an anonymous browser cookie (`chat_session`) generated server-side and stored as an opaque random token. Chat history is not persisted in Phase 1 — it lives exclusively in the `Chat.svelte` component's `$state` and clears on page reload. The `conversations` and `messages` tables exist in the schema and are reserved for a future persistence phase. The chat quota counter is persisted server-side in `chat_rate_limits` using a hash of the session token (not the raw token). Clearing cookies can reset quota; this is an accepted no-login tradeoff. The only other chat-related data written per request is `citation_events` rows (one per note retrieved by the RAG search), which power the landing page "total citations served" stat.
+**Visitor chat sessions:** Visitor identity for rate limiting is an anonymous browser cookie (`chat_session`) generated server-side and stored as an opaque random token. Chat history is not persisted in Phase 1 — it lives exclusively in the `Chat.svelte` component's `$state` and clears on page reload. The `conversations` and `messages` tables exist in the schema and are reserved for a future persistence phase. Chat quota persistence uses `chat_rate_limits.session_hash` (hash only, never raw token) with atomic window-reset/increment logic in `consumeChatRateLimit`, and `/api/chat` issues/reads the cookie before retrieval and LLM calls. Clearing cookies can reset quota; this is an accepted no-login tradeoff. The only other chat-related data written per request is `citation_events` rows (one per note retrieved by the RAG search), which power the landing page "total citations served" stat.
 
 ---
 

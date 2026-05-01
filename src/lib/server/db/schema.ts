@@ -1,5 +1,6 @@
 import {
   customType,
+  index,
   integer,
   pgSchema,
   primaryKey,
@@ -96,6 +97,42 @@ export const noteLinks = glassAtlas.table(
 export type NoteLink = typeof noteLinks.$inferSelect;
 
 // ---------------------------------------------------------------------------
+// Note chunks (section-aware semantic retrieval)
+// ---------------------------------------------------------------------------
+//
+// Stores one embedding per note chunk with stable ordering metadata.
+// Chunks are replaced per note on re-index and queried by cosine distance.
+
+export const noteChunks = glassAtlas.table(
+  'note_chunks',
+  {
+    id: serial('id').primaryKey(),
+    noteSlug: text('note_slug')
+      .notNull()
+      .references(() => notes.slug, { onDelete: 'cascade' }),
+    // Optional source section heading from the markdown body.
+    sectionHeading: text('section_heading'),
+    // Zero-based order of the source section in the note.
+    sectionIndex: integer('section_index').notNull().default(0),
+    // Zero-based order of the chunk in the full note.
+    chunkIndex: integer('chunk_index').notNull(),
+    chunkText: text('chunk_text').notNull(),
+    embedding: vector('embedding', { dimensions: 1536 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    // Upsert target for replace helpers.
+    unique('note_chunks_note_slug_chunk_index_unique').on(table.noteSlug, table.chunkIndex),
+    // Fast note-level maintenance (replace/delete by note slug).
+    index('note_chunks_note_slug_idx').on(table.noteSlug),
+    // ANN index for cosine-distance retrieval.
+    index('note_chunks_embedding_cosine_idx').using('hnsw', table.embedding.op('vector_cosine_ops')),
+  ],
+);
+
+export type NoteChunk = typeof noteChunks.$inferSelect;
+
+// ---------------------------------------------------------------------------
 // Citation events
 // ---------------------------------------------------------------------------
 // One row per note retrieved by the chat RAG pipeline. Powers the landing page
@@ -166,11 +203,12 @@ export const verificationTokens = glassAtlas.table(
 // ---------------------------------------------------------------------------
 // Chat rate limiting
 // ---------------------------------------------------------------------------
-// Keyed by hashed IP. Window resets each hour; 10 messages max (see PRD).
+// Keyed by hashed anonymous chat session token (never raw token persistence).
+// Window resets each hour; 10 messages max (see PRD).
 
 export const chatRateLimits = glassAtlas.table('chat_rate_limits', {
   id: serial('id').primaryKey(),
-  ipHash: text('ip_hash').unique().notNull(),
+  sessionHash: text('session_hash').unique().notNull(),
   messageCount: integer('message_count').default(0).notNull(),
   windowStart: timestamp('window_start', { withTimezone: true }).defaultNow().notNull(),
 });

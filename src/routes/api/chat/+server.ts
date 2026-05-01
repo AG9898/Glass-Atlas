@@ -1,24 +1,22 @@
 import { type RequestHandler } from '@sveltejs/kit';
+import { env } from '$env/dynamic/private';
 import { assembleContext } from '$lib/server/chat';
 import { streamChatCompletion } from '$lib/server/ai/openrouter';
 import { SYSTEM_PROMPT } from '$lib/server/personality';
-import { recordCitations } from '$lib/server/db/notes';
+import { consumeChatRateLimit, recordCitations } from '$lib/server/db/notes';
 
-// ---------------------------------------------------------------------------
-// In-memory rate limiter: 10 requests per IP per hour.
-// Keys are SHA-256 hashes of the requester's IP address.
-// State survives between requests on the same persistent server process.
-// ---------------------------------------------------------------------------
+const RATE_LIMIT_MAX_DEFAULT = 10;
+const RATE_LIMIT_WINDOW_MINUTES_DEFAULT = 60;
+const CHAT_SESSION_COOKIE_NAME_DEFAULT = 'chat_session';
+const CHAT_SESSION_COOKIE_TTL_SECONDS = 60 * 60 * 24 * 365;
 
-type RateLimitEntry = {
-  count: number;
-  windowStart: number;
-};
-
-const RATE_LIMIT_MAX = 10;
-const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour in ms
-
-const rateLimitMap = new Map<string, RateLimitEntry>();
+const RATE_LIMIT_MAX = parsePositiveInt(env.CHAT_RATE_LIMIT_MAX, RATE_LIMIT_MAX_DEFAULT);
+const RATE_LIMIT_WINDOW_MINUTES = parsePositiveInt(
+  env.CHAT_RATE_LIMIT_WINDOW_MINUTES,
+  RATE_LIMIT_WINDOW_MINUTES_DEFAULT,
+);
+const RATE_LIMIT_WINDOW_MS = RATE_LIMIT_WINDOW_MINUTES * 60 * 1000;
+const CHAT_SESSION_COOKIE_NAME = env.CHAT_SESSION_COOKIE_NAME ?? CHAT_SESSION_COOKIE_NAME_DEFAULT;
 
 /**
  * Returns a SHA-256 hex digest of `input`.
@@ -31,35 +29,54 @@ async function sha256Hex(input: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/**
- * Checks the rate limit for the given IP address string.
- * Returns `true` when the request should be allowed, `false` when it should be blocked.
- * Increments the counter on every allowed request.
- */
-async function checkRateLimit(ip: string): Promise<boolean> {
-  const key = await sha256Hex(ip);
-  const now = Date.now();
-  const entry = rateLimitMap.get(key);
-
-  if (!entry || now - entry.windowStart >= RATE_LIMIT_WINDOW_MS) {
-    // No entry or window expired — start a fresh window
-    rateLimitMap.set(key, { count: 1, windowStart: now });
-    return true;
+function parsePositiveInt(rawValue: string | undefined, fallback: number): number {
+  if (!rawValue) return fallback;
+  const parsed = Number.parseInt(rawValue, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return fallback;
   }
+  return parsed;
+}
 
-  if (entry.count >= RATE_LIMIT_MAX) {
-    return false;
-  }
+function generateSessionToken(): string {
+  return crypto.randomUUID().replace(/-/g, '');
+}
 
-  entry.count += 1;
-  return true;
+function isValidSessionToken(value: string): boolean {
+  return /^[a-f0-9]{32}$/i.test(value);
+}
+
+function setChatSessionCookie(
+  cookies: {
+    set: (
+      name: string,
+      value: string,
+      options: {
+        httpOnly: boolean;
+        sameSite: 'lax';
+        secure: boolean;
+        path: string;
+        maxAge: number;
+      },
+    ) => void;
+  },
+  url: URL,
+  sessionToken: string,
+): void {
+  cookies.set(CHAT_SESSION_COOKIE_NAME, sessionToken, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: url.protocol === 'https:',
+    path: '/',
+    maxAge: CHAT_SESSION_COOKIE_TTL_SECONDS,
+  });
 }
 
 // ---------------------------------------------------------------------------
 // POST /api/chat
 // ---------------------------------------------------------------------------
 
-export const POST: RequestHandler = async ({ request, getClientAddress }) => {
+export const POST: RequestHandler = async ({ request, cookies, url }) => {
   // --- 1. Parse and validate request body ---
   let message: string;
   try {
@@ -79,13 +96,32 @@ export const POST: RequestHandler = async ({ request, getClientAddress }) => {
     });
   }
 
-  // --- 2. Determine requester IP ---
-  const forwarded = request.headers.get('x-forwarded-for');
-  const ip = forwarded ? forwarded.split(',')[0].trim() : getClientAddress();
+  // --- 2. Read or issue anonymous chat session cookie ---
+  let sessionToken = cookies.get(CHAT_SESSION_COOKIE_NAME);
+  if (!sessionToken || !isValidSessionToken(sessionToken)) {
+    sessionToken = generateSessionToken();
+    setChatSessionCookie(cookies, url, sessionToken);
+  }
 
-  // --- 3. Enforce rate limit ---
-  const allowed = await checkRateLimit(ip);
-  if (!allowed) {
+  // --- 3. Enforce per-session quota before retrieval/LLM work ---
+  const sessionHash = await sha256Hex(sessionToken);
+  let quota: Awaited<ReturnType<typeof consumeChatRateLimit>>;
+  try {
+    quota = await consumeChatRateLimit({
+      sessionHash,
+      maxMessages: RATE_LIMIT_MAX,
+      windowMs: RATE_LIMIT_WINDOW_MS,
+    });
+  } catch (err: unknown) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error('[chat] Rate-limit persistence error:', detail);
+    return new Response(JSON.stringify({ error: 'Rate limit check failed' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (!quota.allowed) {
     return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
       status: 429,
       headers: { 'Content-Type': 'application/json' },

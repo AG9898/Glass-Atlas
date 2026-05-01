@@ -787,7 +787,7 @@
       "group_id": "ADMIN",
       "title": "Signed-in admin navigation routes to /admin",
       "description": "Add signed-in admin routing affordances in the global navigation so authenticated admins can reach /admin directly from public pages. Hide admin entry points for unauthenticated visitors and ensure mobile/desktop nav parity.",
-      "status": "todo",
+      "status": "done",
       "priority": "medium",
       "depends_on": [
         "ADMIN-08A",
@@ -881,7 +881,7 @@
       "group_id": "POLISH",
       "title": "Theme parity sweep for dropdown-adjacent controls",
       "description": "Run a targeted UI parity pass for dropdown-adjacent controls and menu-like surfaces after the Select migration, including any related trigger wrappers, filter bars, admin side panels, and nav-adjacent controls affected by theme toggle transitions. Fix residual mismatches where dark and light mode tokens do not fully propagate during initial load or live theme switches, and document any intentional browser/platform limitations if true native UI surfaces cannot be themed consistently.",
-      "status": "todo",
+      "status": "done",
       "priority": "medium",
       "depends_on": [
         "POLISH-04B",
@@ -950,7 +950,7 @@
       "group_id": "ADMIN",
       "title": "Admin editor Review UI integration (new + edit)",
       "description": "Integrate the optional manual Review experience into both admin note editors (`/admin/notes/new` and `/admin/notes/[slug]/edit`). Add a Review trigger and critique panel UX that POSTs current form state `{ title, takeaway, body }` to `/api/admin/notes/review`, streams compact structured critique output, and shows explicit loading/error states. Keep Save Draft/Create/Publish fully independent of critique success or failure.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "ADMIN-09A",
@@ -1053,7 +1053,7 @@
       "group_id": "ADMIN",
       "title": "Wire split-pane live preview into admin new/edit routes",
       "description": "Integrate the enhanced split-pane editor into both `/admin/notes/new` and `/admin/notes/[slug]/edit` flows, including loading the note slug/title list once per page request for wiki-link preview resolution. Ensure existing create/save draft/publish behavior remains unchanged and that preview concerns do not impact form action success.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "ADMIN-10B",
@@ -1092,7 +1092,7 @@
       "group_id": "CHAT",
       "title": "Chunk embedding data model + retrieval helpers",
       "description": "Add a chunk-level retrieval data model for semantic RAG by introducing a `note_chunks` table in the `glass_atlas` schema, storing one embedding per section-aware chunk (vector(1536)), and implementing typed DB helpers for replacing a note’s chunks and searching top published chunks by cosine distance. Include suitable indexes for note-level maintenance and vector similarity reads.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "ADMIN-01B",
@@ -1127,7 +1127,7 @@
       "group_id": "CHAT",
       "title": "Section-aware chunk generation + metadata-enriched embedding ingest",
       "description": "Implement section-aware chunking for note bodies, construct canonical embedding payloads that include note metadata (`title`, `category`, `tags`, `series`) plus chunk text, and update admin note save flows to regenerate chunk embeddings on create/update/publish with fail-soft behavior preserved when embedding calls fail.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "CHAT-04A",
@@ -1201,7 +1201,7 @@
       "id": "CHAT-05A",
       "title": "Persist anonymous chat quota counters by session hash",
       "description": "Refactor chat quota persistence to use an anonymous browser-session identifier hash in `chat_rate_limits` instead of IP identity. Add or adjust DB helper methods for atomic window reset and increment logic, and keep all identifiers opaque and non-PII.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "group_id": "CHAT",
       "depends_on": [],
@@ -1230,7 +1230,7 @@
       "id": "CHAT-05B",
       "title": "Issue anonymous chat session cookie and enforce quota in /api/chat",
       "description": "Update `POST /api/chat` to read or issue a secure anonymous session cookie, enforce per-session quota before embeddings and LLM calls, and return 429 on threshold+1 while preserving SSE behavior for allowed requests.",
-      "status": "todo",
+      "status": "done",
       "priority": "critical",
       "group_id": "CHAT",
       "depends_on": [
@@ -1263,7 +1263,7 @@
       "id": "CHAT-05C",
       "title": "Add route and utility tests for anonymous session quota",
       "description": "Replace IP-based quota tests with cookie-session coverage, including cookie issuance, persistence across requests, independent buckets per cookie, malformed or missing cookie fallback, and 429 boundary behavior.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "group_id": "CHAT",
       "depends_on": [

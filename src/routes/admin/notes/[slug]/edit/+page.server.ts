@@ -1,7 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { embedText } from '$lib/server/embeddings';
-import { getNoteBySlug, listNotes, updateNote } from '$lib/server/db/notes';
+import { embedNoteBodyChunks, embedText } from '$lib/server/embeddings';
+import { getNoteBySlug, listNotes, replaceNoteChunks, updateNote } from '$lib/server/db/notes';
 
 type NoteStatus = 'draft' | 'published';
 type NoteMediaType = 'image-jpeg' | 'image-png' | 'image-svg' | 'image-gif' | 'video-mp4';
@@ -75,7 +75,16 @@ function validate(values: EditFormValues): string | null {
   return null;
 }
 
-async function updateEmbeddingAfterSave(slug: string, body: string): Promise<void> {
+async function updateEmbeddingAfterSave(
+  slug: string,
+  body: string,
+  metadata: {
+    title: string;
+    category: string | null;
+    tags: string[] | null;
+    series: string | null;
+  },
+): Promise<void> {
   let embedding: number[] | null = null;
 
   try {
@@ -88,6 +97,13 @@ async function updateEmbeddingAfterSave(slug: string, body: string): Promise<voi
     await updateNote(slug, { embedding });
   } catch (error) {
     console.error(`Failed to store embedding for note "${slug}".`, error);
+  }
+
+  try {
+    const chunkEmbeddings = await embedNoteBodyChunks(body, metadata);
+    await replaceNoteChunks(slug, chunkEmbeddings);
+  } catch (error) {
+    console.error(`Failed to regenerate chunk embeddings for note "${slug}".`, error);
   }
 }
 
@@ -128,7 +144,12 @@ export const actions: Actions = {
 
     if (!note) error(404, 'Note not found');
 
-    await updateEmbeddingAfterSave(note.slug, values.body);
+    await updateEmbeddingAfterSave(note.slug, values.body, {
+      title: note.title,
+      category: note.category,
+      tags: note.tags,
+      series: note.series,
+    });
 
     return { message: 'Draft saved.', saved: true };
   },
@@ -157,7 +178,12 @@ export const actions: Actions = {
 
     if (!note) error(404, 'Note not found');
 
-    await updateEmbeddingAfterSave(note.slug, values.body);
+    await updateEmbeddingAfterSave(note.slug, values.body, {
+      title: note.title,
+      category: note.category,
+      tags: note.tags,
+      series: note.series,
+    });
 
     throw redirect(303, `/admin/notes/${note.slug}/edit`);
   },

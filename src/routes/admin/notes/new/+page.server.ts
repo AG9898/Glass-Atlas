@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { embedText } from '$lib/server/embeddings';
-import { createNote, getNoteBySlug, listNotes, updateNote } from '$lib/server/db/notes';
+import { embedNoteBodyChunks, embedText } from '$lib/server/embeddings';
+import { createNote, getNoteBySlug, listNotes, replaceNoteChunks, updateNote } from '$lib/server/db/notes';
 import { slugify } from '$lib/utils/slugify';
 
 type NoteStatus = 'draft' | 'published';
@@ -65,7 +65,16 @@ function readValues(formData: FormData): CreateFormValues {
   };
 }
 
-async function updateEmbeddingAfterSave(slug: string, body: string): Promise<void> {
+async function updateEmbeddingAfterSave(
+  slug: string,
+  body: string,
+  metadata: {
+    title: string;
+    category: string | null;
+    tags: string[] | null;
+    series: string | null;
+  },
+): Promise<void> {
   let embedding: number[] | null = null;
 
   try {
@@ -78,6 +87,13 @@ async function updateEmbeddingAfterSave(slug: string, body: string): Promise<voi
     await updateNote(slug, { embedding });
   } catch (error) {
     console.error(`Failed to store embedding for note "${slug}".`, error);
+  }
+
+  try {
+    const chunkEmbeddings = await embedNoteBodyChunks(body, metadata);
+    await replaceNoteChunks(slug, chunkEmbeddings);
+  } catch (error) {
+    console.error(`Failed to regenerate chunk embeddings for note "${slug}".`, error);
   }
 }
 
@@ -122,7 +138,12 @@ export const actions: Actions = {
       status: values.status,
     });
 
-    await updateEmbeddingAfterSave(note.slug, values.body);
+    await updateEmbeddingAfterSave(note.slug, values.body, {
+      title: note.title,
+      category: note.category,
+      tags: note.tags,
+      series: note.series,
+    });
 
     throw redirect(303, `/admin/notes/${note.slug}/edit`);
   },

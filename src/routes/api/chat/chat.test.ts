@@ -1,18 +1,8 @@
 /**
  * Unit tests for POST /api/chat
- *
- * Tests are structured to exercise:
- * - Rate limiting (10 req/hr per hashed IP)
- * - SSE streaming response
- * - Fire-and-forget citation recording
- * - Error handling for bad bodies and upstream failures
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-// ---------------------------------------------------------------------------
-// Hoist mocks before module imports
-// ---------------------------------------------------------------------------
 
 vi.mock('$lib/server/chat', () => ({
   assembleContext: vi.fn(),
@@ -27,101 +17,87 @@ vi.mock('$lib/server/personality', () => ({
 }));
 
 vi.mock('$lib/server/db/notes', () => ({
+  consumeChatRateLimit: vi.fn(),
   recordCitations: vi.fn(),
 }));
 
+import { POST } from './+server';
 import { assembleContext } from '$lib/server/chat';
 import { streamChatCompletion } from '$lib/server/ai/openrouter';
-import { recordCitations } from '$lib/server/db/notes';
+import { consumeChatRateLimit, recordCitations } from '$lib/server/db/notes';
 
 const mockAssembleContext = vi.mocked(assembleContext);
 const mockStreamChatCompletion = vi.mocked(streamChatCompletion);
+const mockConsumeChatRateLimit = vi.mocked(consumeChatRateLimit);
 const mockRecordCitations = vi.mocked(recordCitations);
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+type CookieSetOptions = {
+  httpOnly: boolean;
+  sameSite: 'lax';
+  secure: boolean;
+  path: string;
+  maxAge: number;
+};
 
-/** Builds a minimal SvelteKit-like request event for the route handler. */
-function makeEvent(body: unknown, ip = '127.0.0.1') {
+type CookieStub = {
+  get: ReturnType<typeof vi.fn>;
+  set: ReturnType<typeof vi.fn>;
+};
+
+function createCookies(initial: Record<string, string> = {}): CookieStub {
+  const store = new Map<string, string>(Object.entries(initial));
+  return {
+    get: vi.fn((name: string) => store.get(name)),
+    set: vi.fn((name: string, value: string) => {
+      store.set(name, value);
+    }),
+  };
+}
+
+function makeEvent(body: unknown, cookies = createCookies()) {
   return {
     request: new Request('http://localhost/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }),
-    getClientAddress: () => ip,
+    cookies,
+    url: new URL('http://localhost/api/chat'),
   };
 }
 
-/** Builds an event with a custom x-forwarded-for header. */
-function makeEventForwarded(body: unknown, forwarded: string) {
-  return {
-    request: new Request('http://localhost/api/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-forwarded-for': forwarded,
-      },
-      body: JSON.stringify(body),
-    }),
-    getClientAddress: () => '10.0.0.1',
-  };
+type ChatEvent = Parameters<typeof POST>[0];
+
+function callPost(event: ReturnType<typeof makeEvent>): Promise<Response> {
+  return Promise.resolve(POST(event as unknown as ChatEvent));
 }
 
-// ---------------------------------------------------------------------------
-// Import handler *after* mocks are set up
-// ---------------------------------------------------------------------------
-
-// We use a dynamic import so vi.mock() hoisting has fully settled.
-// The module is re-imported fresh per test run via vi.resetModules().
-let POST: (event: ReturnType<typeof makeEvent>) => Promise<Response>;
-
-beforeEach(async () => {
+beforeEach(() => {
   vi.clearAllMocks();
 
-  // Default happy-path returns
   mockAssembleContext.mockResolvedValue({ context: 'some context', citedSlugs: ['note-a'] });
   mockStreamChatCompletion.mockResolvedValue(new ReadableStream());
+  mockConsumeChatRateLimit.mockResolvedValue({
+    allowed: true,
+    messageCount: 1,
+    remaining: 9,
+    limit: 10,
+    windowStart: new Date('2026-05-01T00:00:00.000Z'),
+    resetAt: new Date('2026-05-01T01:00:00.000Z'),
+  });
   mockRecordCitations.mockResolvedValue(undefined);
-
-  // Re-import the handler module to get a fresh rate-limit map each test.
-  vi.resetModules();
-
-  // Re-apply mocks after module reset
-  vi.mock('$lib/server/chat', () => ({
-    assembleContext: vi.fn().mockResolvedValue({ context: 'some context', citedSlugs: ['note-a'] }),
-  }));
-  vi.mock('$lib/server/ai/openrouter', () => ({
-    streamChatCompletion: vi.fn().mockResolvedValue(new ReadableStream()),
-  }));
-  vi.mock('$lib/server/personality', () => ({
-    SYSTEM_PROMPT: 'Test system prompt.',
-  }));
-  vi.mock('$lib/server/db/notes', () => ({
-    recordCitations: vi.fn().mockResolvedValue(undefined),
-  }));
-
-  const mod = await import('./+server');
-  POST = mod.POST as unknown as typeof POST;
 });
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('POST /api/chat', () => {
   it('returns a text/event-stream response on a valid request', async () => {
-    const event = makeEvent({ message: 'Hello' });
-    const res = await POST(event);
+    const res = await callPost(makeEvent({ message: 'Hello' }));
 
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('text/event-stream');
   });
 
   it('returns 400 when message field is missing', async () => {
-    const event = makeEvent({ notMessage: 'oops' });
-    const res = await POST(event);
+    const res = await callPost(makeEvent({ notMessage: 'oops' }));
 
     expect(res.status).toBe(400);
     const body = await res.json();
@@ -129,96 +105,148 @@ describe('POST /api/chat', () => {
   });
 
   it('returns 400 when body is not valid JSON', async () => {
-    const event = {
-      request: new Request('http://localhost/api/chat', {
-        method: 'POST',
-        body: 'not-json',
-      }),
-      getClientAddress: () => '127.0.0.1',
-    };
-    const res = await POST(event);
+    const res = await callPost({
+      request: new Request('http://localhost/api/chat', { method: 'POST', body: 'not-json' }),
+      cookies: createCookies(),
+      url: new URL('http://localhost/api/chat'),
+    });
 
     expect(res.status).toBe(400);
   });
 
-  it('calls assembleContext with the user message', async () => {
-    const event = makeEvent({ message: 'What is RAG?' });
-    await POST(event);
+  it('issues a new anonymous cookie on first request when missing', async () => {
+    const cookies = createCookies();
+    const res = await callPost(makeEvent({ message: 'First request' }, cookies));
 
-    const { assembleContext: ac } = await import('$lib/server/chat');
-    expect(vi.mocked(ac)).toHaveBeenCalledWith('What is RAG?');
+    expect(res.status).toBe(200);
+    expect(cookies.set).toHaveBeenCalledTimes(1);
+
+    const [name, value, options] = cookies.set.mock.calls[0] as [string, string, CookieSetOptions];
+    expect(name).toBe('chat_session');
+    expect(value.length).toBeGreaterThan(20);
+    expect(options).toMatchObject({
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: false,
+      path: '/',
+    });
   });
 
-  it('records citations for cited slugs (fire-and-forget)', async () => {
-    const event = makeEvent({ message: 'Tell me about embeddings' });
-    await POST(event);
+  it('reuses the same session cookie bucket across requests', async () => {
+    await callPost(makeEvent({ message: 'one' }, createCookies({ chat_session: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' })));
+    await callPost(makeEvent({ message: 'two' }, createCookies({ chat_session: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' })));
 
-    // Allow the microtask queue to flush so the fire-and-forget runs
-    await Promise.resolve();
+    expect(mockConsumeChatRateLimit).toHaveBeenCalledTimes(2);
 
-    const { recordCitations: rc } = await import('$lib/server/db/notes');
-    expect(vi.mocked(rc)).toHaveBeenCalledWith(['note-a']);
+    const firstHash = mockConsumeChatRateLimit.mock.calls[0][0].sessionHash;
+    const secondHash = mockConsumeChatRateLimit.mock.calls[1][0].sessionHash;
+    expect(firstHash).toBe(secondHash);
   });
 
-  it('does NOT call recordCitations when citedSlugs is empty', async () => {
-    const { assembleContext: ac } = await import('$lib/server/chat');
-    vi.mocked(ac).mockResolvedValue({ context: '', citedSlugs: [] });
+  it('uses independent quota buckets for different session cookies', async () => {
+    await callPost(makeEvent({ message: 'one' }, createCookies({ chat_session: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' })));
+    await callPost(makeEvent({ message: 'two' }, createCookies({ chat_session: 'cccccccccccccccccccccccccccccccc' })));
 
-    const event = makeEvent({ message: 'unknown topic' });
-    await POST(event);
-
-    await Promise.resolve();
-
-    const { recordCitations: rc } = await import('$lib/server/db/notes');
-    expect(vi.mocked(rc)).not.toHaveBeenCalled();
+    expect(mockConsumeChatRateLimit).toHaveBeenCalledTimes(2);
+    const firstHash = mockConsumeChatRateLimit.mock.calls[0][0].sessionHash;
+    const secondHash = mockConsumeChatRateLimit.mock.calls[1][0].sessionHash;
+    expect(firstHash).not.toBe(secondHash);
   });
 
-  it('returns 429 on the 11th request from the same IP within the window', async () => {
-    const ip = 'unique-ip-for-rate-limit-test';
+  it('falls back to a new cookie when an existing cookie is malformed', async () => {
+    const cookies = createCookies({ chat_session: 'not-a-valid-session-token' });
 
-    // Allowed for requests 1–10
-    for (let i = 0; i < 10; i++) {
-      const res = await POST(makeEvent({ message: 'hi' }, ip));
-      expect(res.status).toBe(200);
+    const res = await callPost(makeEvent({ message: 'hello' }, cookies));
+
+    expect(res.status).toBe(200);
+    expect(cookies.set).toHaveBeenCalledTimes(1);
+
+    const [name, value] = cookies.set.mock.calls[0] as [string, string, CookieSetOptions];
+    expect(name).toBe('chat_session');
+    expect(value).toMatch(/^[a-f0-9]{32}$/i);
+    expect(value).not.toBe('not-a-valid-session-token');
+  });
+
+  it('returns 429 on request limit+1 for the same session', async () => {
+    for (let i = 1; i <= 10; i += 1) {
+      mockConsumeChatRateLimit.mockResolvedValueOnce({
+        allowed: true,
+        messageCount: i,
+        remaining: 10 - i,
+        limit: 10,
+        windowStart: new Date('2026-05-01T00:00:00.000Z'),
+        resetAt: new Date('2026-05-01T01:00:00.000Z'),
+      });
+    }
+    mockConsumeChatRateLimit.mockResolvedValueOnce({
+      allowed: false,
+      messageCount: 11,
+      remaining: 0,
+      limit: 10,
+      windowStart: new Date('2026-05-01T00:00:00.000Z'),
+      resetAt: new Date('2026-05-01T01:00:00.000Z'),
+    });
+
+    let lastResponse: Response | null = null;
+    for (let i = 0; i < 11; i += 1) {
+      lastResponse = await callPost(
+        makeEvent({ message: `message-${i}` }, createCookies({ chat_session: 'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' })),
+      );
     }
 
-    // 11th request should be blocked
-    const res = await POST(makeEvent({ message: 'hi' }, ip));
+    expect(lastResponse).not.toBeNull();
+    expect(lastResponse?.status).toBe(429);
+    expect(mockAssembleContext).toHaveBeenCalledTimes(10);
+    expect(mockStreamChatCompletion).toHaveBeenCalledTimes(10);
+  });
+
+  it('returns 429 before retrieval/LLM work when over quota', async () => {
+    mockConsumeChatRateLimit.mockResolvedValueOnce({
+      allowed: false,
+      messageCount: 11,
+      remaining: 0,
+      limit: 10,
+      windowStart: new Date('2026-05-01T00:00:00.000Z'),
+      resetAt: new Date('2026-05-01T01:00:00.000Z'),
+    });
+
+    const res = await callPost(makeEvent({ message: 'blocked' }, createCookies({ chat_session: 'dddddddddddddddddddddddddddddddd' })));
+
     expect(res.status).toBe(429);
+    expect(mockAssembleContext).not.toHaveBeenCalled();
+    expect(mockStreamChatCompletion).not.toHaveBeenCalled();
 
     const body = await res.json();
     expect(body.error).toBe('Rate limit exceeded');
   });
 
-  it('uses the first value from x-forwarded-for to determine the rate-limit key', async () => {
-    const ip = '203.0.113.1';
+  it('calls assembleContext with the user message', async () => {
+    await callPost(makeEvent({ message: 'What is RAG?' }));
 
-    for (let i = 0; i < 10; i++) {
-      const res = await POST(makeEventForwarded({ message: 'hi' }, `${ip}, 10.0.0.2`));
-      expect(res.status).toBe(200);
-    }
-
-    const res = await POST(makeEventForwarded({ message: 'hi' }, `${ip}, 10.0.0.2`));
-    expect(res.status).toBe(429);
+    expect(mockAssembleContext).toHaveBeenCalledWith('What is RAG?');
   });
 
-  it('different IPs have separate rate-limit counters', async () => {
-    // Fill up ip-A (10 requests)
-    for (let i = 0; i < 10; i++) {
-      await POST(makeEvent({ message: 'hi' }, 'ip-A'));
-    }
+  it('records citations for cited slugs (fire-and-forget)', async () => {
+    await callPost(makeEvent({ message: 'Tell me about embeddings' }));
 
-    // ip-B should still be allowed
-    const res = await POST(makeEvent({ message: 'hi' }, 'ip-B'));
-    expect(res.status).toBe(200);
+    await Promise.resolve();
+
+    expect(mockRecordCitations).toHaveBeenCalledWith(['note-a']);
+  });
+
+  it('does NOT call recordCitations when citedSlugs is empty', async () => {
+    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [] });
+
+    await callPost(makeEvent({ message: 'unknown topic' }));
+    await Promise.resolve();
+
+    expect(mockRecordCitations).not.toHaveBeenCalled();
   });
 
   it('returns 503 when streamChatCompletion throws', async () => {
-    const { streamChatCompletion: sc } = await import('$lib/server/ai/openrouter');
-    vi.mocked(sc).mockRejectedValue(new Error('OpenRouter down'));
+    mockStreamChatCompletion.mockRejectedValueOnce(new Error('OpenRouter down'));
 
-    const event = makeEvent({ message: 'hello' });
-    const res = await POST(event);
+    const res = await callPost(makeEvent({ message: 'hello' }));
 
     expect(res.status).toBe(503);
     const body = await res.json();
@@ -226,10 +254,10 @@ describe('POST /api/chat', () => {
   });
 
   it('the response uses new Response(stream), not json()', async () => {
-    const event = makeEvent({ message: 'test' });
-    const res = await POST(event);
+    const res = await callPost(makeEvent({ message: 'test' }));
 
-    // Verify it is a streaming response (body must be a ReadableStream)
+    expect(res.status).toBe(200);
     expect(res.body).toBeInstanceOf(ReadableStream);
+    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
   });
 });

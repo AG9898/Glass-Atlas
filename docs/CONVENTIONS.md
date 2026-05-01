@@ -270,6 +270,7 @@ function wikiLinkCompletions(notes: { slug: string; title: string }[]): Completi
 - DB columns use snake_case. Drizzle maps them to camelCase TypeScript properties automatically.
 - Tags are stored as `text[]` (Postgres array) on the notes table — not a separate join table.
 - Note cover media and editorial metadata live directly on the `notes` table: `image` stores the pasted/presigned media URL, `published_at` maps to `publishedAt`, and `series` stores an optional series label.
+- Section-aware retrieval chunks are stored in `note_chunks` with `note_slug`, section/chunk ordering metadata, chunk text, and one `vector(1536)` embedding per chunk.
 - Embeddings are stored as `vector(1536)` using pgvector. Only pgvector similarity queries may use raw SQL (via Drizzle `sql` template tag). All other queries use Drizzle query builders.
 
 Example column conventions:
@@ -304,6 +305,7 @@ export const notes = pgTable('notes', {
 - All query helpers live in `src/lib/server/db/notes.ts` (or a peer file for other domains). No inline Drizzle queries in route files.
 - Return plain serializable objects from query helpers, not raw Drizzle result types.
 - Use Drizzle's type inference for return types: `typeof notes.$inferSelect`.
+- Chunk indexing helpers must go through typed helpers (`replaceNoteChunks`, `searchChunksBySimilarity`) rather than inline route SQL.
 
 ```ts
 // src/lib/server/db/notes.ts
@@ -337,7 +339,9 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Embeddings are generated in `src/lib/server/embeddings.ts` and called at note create/update time.
 - Always regenerate the embedding when the note `body` changes.
 - Embedding generation must not block the HTTP response — fire it synchronously as part of the save transaction, or enqueue it if latency is a concern.
-- Current implementation uses one body-level embedding per note (`notes.embedding`). The approved next step is section-aware chunk embeddings with metadata-enriched payloads (tracked in `RESOLVED-16` and CHAT workboard tasks); do not document this as shipped behavior until implemented.
+- Chunk ingestion uses deterministic section/paragraph chunk ordering and a canonical payload template: note metadata (`title`, `category`, `tags`, `series`) plus chunk text.
+- Chunk rows must be replaced as one set via `replaceNoteChunks` only after all chunk embeddings are ready; on embedding failure, log and skip replacement (fail-soft, no partial chunk churn).
+- Current implementation stores both note-level embeddings (`notes.embedding`) and section-aware chunk embeddings (`note_chunks.embedding`). Chat orchestration still reads note-level retrieval in production; chunk retrieval wiring is tracked in remaining CHAT tasks under `RESOLVED-16`.
 
 ---
 
@@ -372,6 +376,8 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Trigger critique only from an explicit manual Review action. Never auto-run critique on save, publish, or every body change.
 - Critique output should be compact and structured (brief sections + concrete rewrite suggestions), optimized for fast editorial iteration.
 - Critique is always optional. Never gate note save or publish on a successful review response.
+- Use the shared admin UI component (`src/lib/components/admin/NoteReviewPanel.svelte`) in both new/edit note pages so trigger/error/output behavior stays consistent.
+- Keep review stream parsing in a client-safe utility (`src/lib/utils/note-review.ts`), not inline duplicated logic inside route components.
 
 ---
 
@@ -380,6 +386,7 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Auth.js manages sessions. Session data is attached to `event.locals.session` in `hooks.server.ts`.
 - The `hooks.server.ts` file guards every route under `/admin` and `/api/admin`. Never add per-route auth checks as a substitute for the hook guard — they can be forgotten.
 - Rate limiting for `/api/chat` is enforced server-side per anonymous browser session cookie (`chat_session`), not per IP. Persist counters in `chat_rate_limits` keyed by SHA-256 hash of the cookie token, tracking `{ message_count, window_start }`. The limit check runs at the top of the `/api/chat` `+server.ts` handler before any embedding or LLM call.
+- Use `consumeChatRateLimit()` from `src/lib/server/db/notes.ts` for quota persistence so increment + window reset stay atomic in one DB upsert. Do not split reset/increment into multiple round trips.
 - The `chat_session` cookie must be opaque/random and set with secure defaults (`httpOnly`, `sameSite: 'lax'`, `path: '/'`, `secure` in production). Never trust client-submitted session IDs in JSON bodies for quota enforcement.
 - Cookie-clearing reset behavior is accepted for anonymous public chat. Do not add visitor accounts just to make chat quota non-resettable.
 - Never expose internal error messages or stack traces in API responses. Return generic error strings to the client.

@@ -39,7 +39,7 @@ There is no Playwright, Cypress, or any browser automation in this project. End-
 |---|---|---|
 | Utility functions | `src/lib/utils/slugify.ts`, taxonomy helpers, markdown section extractors | Pure unit tests — no mocks needed |
 | DB query layer | `src/lib/server/db/notes.ts` | Unit tests with mocked Drizzle client (`vi.mock`) |
-| Embeddings module | `src/lib/server/embeddings.ts` | Mock OpenRouter HTTP call; assert correct endpoint and response shape |
+| Embeddings module | `src/lib/server/embeddings.ts` | Mock OpenRouter HTTP calls; assert note/chunk embedding payload generation, endpoint usage, and response-shape validation |
 | Chat module | `src/lib/server/chat.ts` | Mock semantic + lexical retrieval inputs; assert hybrid candidate fusion, confidence-gated fallback selection, and compact prompt assembly |
 | API route — chat | `src/routes/api/chat/+server.ts` | Import handler directly, call with mock `Request`; assert rate limiting, streaming response shape, and safe insufficient-coverage behavior |
 | API route — admin note review | `src/routes/api/admin/notes/review/+server.ts` | Mock auth session and OpenRouter review adapter; assert payload validation, SSE response shape, and upstream 429/503 pass-through |
@@ -67,11 +67,13 @@ This table starts empty and is filled in as test files are added to the project.
 
 | Test file | Module under test | What it covers |
 |---|---|---|
-| `src/lib/server/db/notes.test.ts` | `src/lib/server/db/notes.ts` | Mocked Drizzle coverage for pgvector similarity search and citation tracking helpers |
-| `src/lib/server/embeddings.test.ts` | `src/lib/server/embeddings.ts` | Mocked OpenRouter embedding requests, missing key handling, HTTP failure handling, and malformed payload rejection |
+| `src/lib/server/db/notes.test.ts` | `src/lib/server/db/notes.ts` | Mocked Drizzle coverage for note-level similarity, chunk replace/search helpers, and citation tracking |
+| `src/lib/server/embeddings.test.ts` | `src/lib/server/embeddings.ts` | Mocked OpenRouter embedding requests, section/paragraph chunk ordering, metadata payload template stability, missing key handling, HTTP failure handling, and malformed payload rejection |
+| `src/routes/api/chat/chat.test.ts` | `src/routes/api/chat/+server.ts` | Anonymous cookie issuance/reuse, malformed-cookie fallback, per-cookie quota isolation, DB-backed per-session quota enforcement, early 429 short-circuit (including limit+1), and SSE response contract |
 | `src/lib/utils/chat-format.test.ts` | `src/lib/utils/chat-format.ts` | Safe chat formatting for italics, local note links (`[[slug]]`, markdown links), and HTML escaping |
 | `src/tests/auth-redirect.test.ts` | `src/hooks.server.ts`, `src/routes/auth/signin/+page.server.ts` | `buildSigninRedirectUrl` pure helper, sign-in load function callbackUrl defaults and pass-through, empty/absent param fallback to /admin |
 | `src/tests/api-admin-notes-review.test.ts` | `src/routes/api/admin/notes/review/+server.ts` | Auth guard (401), payload validation (400 for missing/invalid fields), SSE success path, upstream 429/503 pass-through, and service-error handling (502/503) |
+| `src/lib/utils/note-review.test.ts` | `src/lib/utils/note-review.ts` | Review trigger payload POST shape, stream callback transitions (`onStart`/`onChunk`/`onComplete`), and explicit upstream 429/503 error handling |
 | `src/lib/utils/markdown-preview.test.ts` | `src/lib/utils/markdown-preview.ts` | Wiki-link resolution (resolved/unresolved), GFM markdown structure output (headings, lists, emphasis, code, blockquotes, tables), fail-soft contract (ok:false on pipeline error, never throws), and `renderPreviewSync` variant |
 
 Naming rules that govern where each file lives are in the next section.
@@ -202,22 +204,7 @@ Manual smoke verification is still required in local dev for typing latency and 
 
 ### Testing rate limiting
 
-Rate limit logic should live in an isolated utility that accepts an anonymous session token (or its hash) and a state store as arguments. Pass a mock store so tests do not share state between runs.
-
-```ts
-import { checkRateLimit } from '$lib/server/rateLimit';
-
-test('blocks requests after threshold is exceeded', () => {
-  const store = new Map<string, number[]>();
-  const sessionToken = 'anon-session-token';
-
-  for (let i = 0; i < 10; i++) {
-    checkRateLimit(sessionToken, store);
-  }
-
-  expect(() => checkRateLimit(sessionToken, store)).toThrow(/rate limit/i);
-});
-```
+Rate limit persistence is tested through `consumeChatRateLimit()` in `src/lib/server/db/notes.test.ts`. Mock Drizzle write chains and assert allowed/blocked behavior, window resets, and input validation (`maxMessages`, `windowMs`).
 
 For `POST /api/chat`, add route-level tests for:
 - first request without a cookie sets the anonymous chat-session cookie and succeeds

@@ -8,7 +8,7 @@
 
 ## Overview
 
-Glass Atlas is a blog/editorial SvelteKit site where the primary content is structured knowledge notes written by the author. Agents implement workboard tasks: scaffold, note CRUD, RAG chat, public browse, and polish. The canonical task queue is `docs/workboard.json`. Skills are available at `.claude/skills/` (synced from ag.dev).
+Glass Atlas is a blog/editorial SvelteKit site where the primary content is structured knowledge notes written by the author. Agents implement workboard tasks: scaffold, note CRUD, RAG chat, public browse, and polish. The canonical task queue is `docs/workboard.json`. Skills are available at `.codex/skills/` (synced from ag.dev).
 
 ---
 
@@ -325,3 +325,6 @@ The split-pane editor contract is live typing feedback without network calls on 
 
 ### 2026-04-30 — Public chat quota identity is anonymous cookie session, not IP
 Rate-limit fairness now targets per-browser anonymous sessions instead of per-IP buckets, so quota enforcement should key off a server-issued opaque cookie token (`chat_session`) and persist counters in DB. Keep identifiers anonymous (store only token hashes server-side), and accept cookie-clearing as a valid quota reset behavior for no-login visitors.
+
+### 2026-05-01 — `drizzle-kit generate` rename prompts need an interactive TTY
+When a schema change renames a column (for example `ip_hash` -> `session_hash`), `drizzle-kit generate` prompts for create-vs-rename resolution and fails in non-TTY shells. Run it in an interactive TTY and select the rename mapping so Drizzle emits a clean rename migration instead of a destructive drop/create sequence.

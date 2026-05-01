@@ -22,6 +22,20 @@
       "when": 1777564000056,
       "tag": "0002_fair_vision",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1777616509715,
+      "tag": "0003_left_strong_guy",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1777617172268,
+      "tag": "0004_brown_toad_men",
+      "breakpoints": true
     }
   ]
 }

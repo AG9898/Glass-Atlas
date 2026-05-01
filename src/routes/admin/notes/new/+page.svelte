@@ -1,4 +1,5 @@
 <script lang="ts">
+  import NoteReviewPanel from '$lib/components/admin/NoteReviewPanel.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import { Select } from '$lib/components/ui';
   import type { UiSelectOption } from '$lib/components/ui';
@@ -354,6 +355,8 @@
         <span class:complete={category !== ''}>Category assigned</span>
         <span class:complete={tagsValue !== ''}>Tags added</span>
       </section>
+
+      <NoteReviewPanel {title} {takeaway} {body} />
 
       <button class="submit-button" type="submit">Create note</button>
     </aside>

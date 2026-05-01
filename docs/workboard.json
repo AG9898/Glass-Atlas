@@ -849,7 +849,7 @@
       "group_id": "POLISH",
       "title": "Migrate native selects to custom themed Select",
       "description": "Replace existing native <select> controls in note browsing and admin note forms with the shared custom Select component so dropdown behavior and theming are consistent across the app. Preserve existing UX behavior and data wiring: notes filter query-param updates, admin create/edit form binding, and submitted values for category/status/mediaType fields. Ensure desktop and mobile layouts preserve current spacing and hierarchy after component substitution.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "POLISH-04A"

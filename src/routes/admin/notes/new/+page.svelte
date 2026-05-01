@@ -1,5 +1,7 @@
 <script lang="ts">
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
+  import { Select } from '$lib/components/ui';
+  import type { UiSelectOption } from '$lib/components/ui';
   import { CATEGORIES } from '$lib/utils/note-taxonomy';
   import type { ActionData } from './$types';
 
@@ -24,6 +26,18 @@
     { value: 'image-gif', label: 'GIF image' },
     { value: 'video-mp4', label: 'MP4 video' },
   ];
+
+  const categoryOptions: UiSelectOption[] = [
+    { value: '', label: 'Uncategorized' },
+    ...CATEGORIES.map((c) => ({ value: c, label: c })),
+  ];
+
+  const statusOptions: UiSelectOption[] = [
+    { value: 'draft', label: 'Draft' },
+    { value: 'published', label: 'Published' },
+  ];
+
+  const mediaTypeOptions: UiSelectOption[] = MEDIA_TYPE_OPTIONS;
 
   let { form }: { form: ActionData } = $props();
 
@@ -231,18 +245,19 @@
           <textarea bind:value={takeaway} name="takeaway" rows="3" placeholder="What should a reader remember?" ></textarea>
         </label>
 
-        <label class="field-row">
+        <div class="field-row">
           <span class="field-label">
             <strong>Category</strong>
             <small>Canonical list from note-taxonomy.ts.</small>
           </span>
-          <select bind:value={category} name="category">
-            <option value="">Uncategorized</option>
-            {#each CATEGORIES as option}
-              <option value={option}>{option}</option>
-            {/each}
-          </select>
-        </label>
+          <Select
+            items={categoryOptions}
+            bind:value={category}
+            name="category"
+            placeholder="Uncategorized"
+            class="field-select"
+          />
+        </div>
 
         <div class="field-row">
           <span class="field-label">
@@ -278,13 +293,15 @@
     <aside class="editor-sidebar" aria-label="Publication settings">
       <section class="sidebar-card">
         <p class="eyebrow">Publish State</p>
-        <label>
+        <div class="sidebar-label-group">
           <span>Status</span>
-          <select bind:value={status} name="status">
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-          </select>
-        </label>
+          <Select
+            items={statusOptions}
+            bind:value={status}
+            name="status"
+            placeholder="Draft"
+          />
+        </div>
         <label>
           <span>Published date</span>
           <input bind:value={publishedAt} name="publishedAt" type="date" />
@@ -306,14 +323,15 @@
           />
         </label>
         <div class="cover-fields">
-          <label>
+          <div class="sidebar-label-group">
             <span>Media type</span>
-            <select bind:value={mediaType} name="mediaType">
-              {#each MEDIA_TYPE_OPTIONS as option (option.value)}
-                <option value={option.value}>{option.label}</option>
-              {/each}
-            </select>
-          </label>
+            <Select
+              items={mediaTypeOptions}
+              bind:value={mediaType}
+              name="mediaType"
+              placeholder="JPEG image"
+            />
+          </div>
           <label>
             <span>Cover media URL</span>
             <input bind:value={image} name="image" inputmode="url" placeholder="https://.../cover.png" />
@@ -494,8 +512,7 @@
   }
 
   input,
-  textarea,
-  select {
+  textarea {
     width: 100%;
     border: 0;
     border-bottom: var(--line-std) solid var(--color-line-3);
@@ -510,13 +527,8 @@
     resize: vertical;
   }
 
-  select {
-    color: var(--color-text-strong);
-  }
-
   input:focus,
   textarea:focus,
-  select:focus,
   .tag-chip:focus,
   .submit-button:focus,
   .back-link:focus {
@@ -526,10 +538,22 @@
 
   .field-row > input,
   .field-row > textarea,
-  .field-row > select,
   .tag-input {
     align-self: center;
     margin: 0.875rem 1.5rem;
+  }
+
+  /* Position the custom Select wrapper inside a field-row */
+  :global(.field-select) {
+    align-self: center;
+    margin: 0.875rem 1.5rem;
+    width: auto;
+  }
+
+  /* Match sidebar-card label layout for divs used with the custom Select */
+  .sidebar-label-group {
+    display: grid;
+    gap: 0.5rem;
   }
 
   .tag-list {

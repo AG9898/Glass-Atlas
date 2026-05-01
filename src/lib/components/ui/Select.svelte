@@ -8,6 +8,7 @@
     name?: string;
     placeholder?: string;
     disabled?: boolean;
+    onValueChange?: (value: string) => void;
     class?: string;
     triggerClass?: string;
     contentClass?: string;
@@ -19,6 +20,7 @@
     name,
     placeholder = 'Select an option',
     disabled = false,
+    onValueChange,
     class: className = '',
     triggerClass = '',
     contentClass = ''
@@ -30,7 +32,7 @@
 </script>
 
 <div class={className}>
-  <BitsSelect.Root type="single" bind:value {name} {disabled} {items}>
+  <BitsSelect.Root type="single" bind:value {name} {disabled} {items} onValueChange={onValueChange}>
     <BitsSelect.Trigger class={triggerClasses}>
       <BitsSelect.Value>
         {#snippet children({ selection })}

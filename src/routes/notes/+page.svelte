@@ -2,6 +2,8 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import NoteCard from '$lib/components/NoteCard.svelte';
+  import { Select } from '$lib/components/ui';
+  import type { UiSelectOption } from '$lib/components/ui';
   import { CATEGORIES } from '$lib/utils/note-taxonomy';
   import type { PageData } from './$types';
 
@@ -11,6 +13,16 @@
   let selectedSort = $state('newest');
   let searchQuery = $state('');
   let searchInput: HTMLInputElement | null = null;
+
+  const topicOptions: UiSelectOption[] = [
+    { value: '', label: 'All topics' },
+    ...CATEGORIES.map((c) => ({ value: c, label: c })),
+  ];
+
+  const sortOptions: UiSelectOption[] = [
+    { value: 'newest', label: 'Newest first' },
+    { value: 'oldest', label: 'Oldest first' },
+  ];
 
   $effect(() => {
     selectedTopic = data.topic ?? '';
@@ -42,14 +54,14 @@
     );
   }
 
-  function handleTopicChange(event: Event): void {
-    selectedTopic = (event.currentTarget as HTMLSelectElement).value;
-    applyFilters({ topic: selectedTopic });
+  function handleTopicChange(value: string): void {
+    selectedTopic = value;
+    applyFilters({ topic: value });
   }
 
-  function handleSortChange(event: Event): void {
-    selectedSort = (event.currentTarget as HTMLSelectElement).value;
-    applyFilters({ sort: selectedSort });
+  function handleSortChange(value: string): void {
+    selectedSort = value;
+    applyFilters({ sort: value });
   }
 
   function handleSearchChange(event: Event): void {
@@ -103,33 +115,29 @@
         />
       </label>
 
-      <label class="filter-field">
-        <span class="filter-label">Topic</span>
-        <select
-          name="topic"
+      <div class="filter-field">
+        <span class="filter-label" id="topic-label">Topic</span>
+        <Select
+          items={topicOptions}
           value={selectedTopic}
-          onchange={handleTopicChange}
-          aria-label="Filter by topic"
-        >
-          <option value="">All topics</option>
-          {#each CATEGORIES as category}
-            <option value={category}>{category}</option>
-          {/each}
-        </select>
-      </label>
+          name="topic"
+          placeholder="All topics"
+          triggerClass="filter-select-trigger"
+          onValueChange={handleTopicChange}
+        />
+      </div>
 
-      <label class="filter-field">
-        <span class="filter-label">Sort</span>
-        <select
-          name="sort"
+      <div class="filter-field">
+        <span class="filter-label" id="sort-label">Sort</span>
+        <Select
+          items={sortOptions}
           value={selectedSort}
-          onchange={handleSortChange}
-          aria-label="Sort order"
-        >
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-        </select>
-      </label>
+          name="sort"
+          placeholder="Newest first"
+          triggerClass="filter-select-trigger"
+          onValueChange={handleSortChange}
+        />
+      </div>
 
       <noscript>
         <button class="filter-submit" type="submit">Apply</button>
@@ -220,8 +228,7 @@
     text-transform: uppercase;
   }
 
-  input,
-  select {
+  input {
     border: 0;
     border-bottom: var(--line-std) solid var(--color-line-3);
     border-radius: 0;
@@ -231,25 +238,30 @@
     font-size: 0.8rem;
     font-weight: 500;
     padding: 0.35rem 0;
-    min-width: 10rem;
-  }
-
-  input {
     min-width: 12rem;
-  }
-
-  select {
-    cursor: pointer;
   }
 
   .filter-field--search {
     min-width: 14rem;
   }
 
-  input:focus,
-  select:focus {
+  input:focus {
     outline: var(--line-std) solid var(--color-accent-700);
     outline-offset: 3px;
+  }
+
+  /* Override ga-select-trigger geometry to match the filter bar's underline style */
+  :global(.filter-select-trigger) {
+    border: 0 !important;
+    border-bottom: var(--line-std) solid var(--color-line-3) !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    font-family: 'Space Grotesk', 'Inter', 'Segoe UI', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 0.35rem 0 !important;
+    min-width: 10rem;
+    height: auto;
   }
 
   .filter-submit {

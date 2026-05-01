@@ -248,6 +248,8 @@ function wikiLinkCompletions(notes: { slug: string; title: string }[]): Completi
 
 - The shared `ga-select-*` CSS class system lives in `src/app.css` under `@layer components`. Never duplicate these classes in route-local `<style>` blocks.
 - `Select.svelte` (`src/lib/components/ui/Select.svelte`) wraps Bits `Select` and applies `ga-select-trigger`, `ga-select-content`, and `ga-select-item` classes. Use this wrapper for all interactive selects in the codebase.
+- `Select.svelte` props: `items` (required), `value` (bindable string, default `''`), `name` (form field name), `placeholder`, `disabled`, `onValueChange` (optional `(value: string) => void` callback for imperative reactions such as client-side navigation), `class`, `triggerClass`, `contentClass`.
+- For context-specific trigger geometry (for example the notes filter bar's underline style), pass a modifier class name via `triggerClass` and define the override using `:global()` in the route's `<style>` block. Do not add route-specific trigger overrides to `app.css`.
 - State styling uses Bits-emitted data attributes: `[data-state="open"]` on trigger, `[data-highlighted]` on items (keyboard/hover focus), `[data-selected]` on items (currently chosen), and `[data-disabled]` on items and trigger.
 - For bare native `<select>` elements (e.g., progressive-enhancement filter bars), `app.css` sets `color-scheme: light dark` globally so the browser-rendered popup always respects the active dark theme. Route-local styles may override geometry/layout properties but must not remove `color-scheme`.
 

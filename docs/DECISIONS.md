@@ -12,6 +12,14 @@ No open decisions right now.
 
 ## Resolved Decisions
 
+### RESOLVED-20 — Production Auth Routing Failure (`UnknownAction`) Root Cause and Fix
+
+**Resolved:** 2026-05-01
+**Decision:** Reserve `/auth/*` exclusively for Auth.js action endpoints and host custom sign-in UI outside that prefix (`/signin`), configured via `pages.signIn`. Keep provider initiation delegated to the Auth.js `signIn` action from `/signin`, now with immediate client-side auto-submit for direct GitHub redirect UX while retaining a manual fallback button. Also remove `AUTH_URL` from Railway for this `@auth/sveltekit@1.0.0` setup to avoid redundant base-path warnings and ambiguous action URL construction.
+**Why:** Production login failed with `error=Configuration` and deploy logs showed `UnknownAction: Unsupported action` plus `env-url-basepath-redundant`. Root cause was twofold: (1) custom route collision (`/auth/signin` page under the same prefix Auth.js intercepts for actions), which made SvelteKit client data requests like `/auth/signin/__data.json` hit Auth.js and parse as unsupported sign-in action variants; (2) `AUTH_URL` remained set in Railway, producing redundant base-path warnings and increasing auth-route ambiguity during troubleshooting. After stabilizing route ownership, `/signin` auto-submit was added to preserve a direct-to-provider experience without reintroducing `/auth/*` collisions.
+**Alternatives rejected:** Keeping custom UI under `/auth/signin` and attempting to special-case requests in hooks was rejected as brittle and contrary to Auth.js route ownership. Renaming environment keys (for example changing `AUTH_GITHUB_ID`) was rejected because provider env key names were not the failure mode.
+**Affects:** `src/auth.ts` (`pages.signIn`), `src/hooks.server.ts` (admin redirect target), `src/routes/signin/*` (custom sign-in UI/action + auto-submit guard), `src/lib/components/Nav.svelte` (login link), Railway production variables (`AUTH_URL` removed), docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/TESTING.md, AGENTS.md discoveries
+
 ### RESOLVED-19 — Inline Body Media Strategy (Markdown Token + Shared Renderer Pass)
 
 **Resolved:** 2026-05-01

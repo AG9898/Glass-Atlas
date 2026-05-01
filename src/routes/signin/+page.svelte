@@ -1,7 +1,20 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
+  let signInForm: HTMLFormElement | undefined;
+
+  onMount(() => {
+    // If Auth.js bounced back with an error, keep the page interactive and
+    // avoid an automatic retry loop.
+    const error = new URLSearchParams(window.location.search).get('error');
+    if (error) {
+      return;
+    }
+
+    signInForm?.requestSubmit();
+  });
 </script>
 
 <svelte:head>
@@ -15,7 +28,7 @@
     <h1>Sign In</h1>
     <p class="lede">Use your GitHub account to access the Glass Atlas admin dashboard.</p>
 
-    <form method="POST">
+    <form method="POST" bind:this={signInForm}>
       <!--
         providerId tells the Auth.js SvelteKitAuth action which provider to use.
         redirectTo is forwarded to Auth.js as the post-sign-in destination.

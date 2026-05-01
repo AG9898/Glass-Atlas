@@ -1,13 +1,21 @@
 import { SvelteKitAuth } from '@auth/sveltekit';
 import GitHub from '@auth/sveltekit/providers/github';
 import { env } from '$env/dynamic/private';
+import { building } from '$app/environment';
 
 function requiredEnv(name: 'AUTH_GITHUB_ID' | 'AUTH_GITHUB_SECRET' | 'AUTH_SECRET'): string {
   const value = env[name];
-  if (!value) {
+  if (value) {
+    return value;
+  }
+
+  // SvelteKit executes server modules during build analysis. Defer strict
+  // env validation to runtime so production builds don't require secrets.
+  if (!building) {
     throw new Error(`Missing required Auth.js env var: ${name}`);
   }
-  return value;
+
+  return `__MISSING_${name}__`;
 }
 
 const AUTH_GITHUB_ID = requiredEnv('AUTH_GITHUB_ID');

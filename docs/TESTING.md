@@ -75,6 +75,7 @@ This table starts empty and is filled in as test files are added to the project.
 | `src/tests/api-admin-notes-review.test.ts` | `src/routes/api/admin/notes/review/+server.ts` | Auth guard (401), payload validation (400 for missing/invalid fields), SSE success path, upstream 429/503 pass-through, and service-error handling (502/503) |
 | `src/lib/utils/note-review.test.ts` | `src/lib/utils/note-review.ts` | Review trigger payload POST shape, stream callback transitions (`onStart`/`onChunk`/`onComplete`), and explicit upstream 429/503 error handling |
 | `src/lib/utils/markdown-preview.test.ts` | `src/lib/utils/markdown-preview.ts` | Wiki-link resolution (resolved/unresolved), GFM markdown structure output (headings, lists, emphasis, code, blockquotes, tables), fail-soft contract (ok:false on pipeline error, never throws), and `renderPreviewSync` variant |
+| `src/lib/server/chat.test.ts` | `src/lib/server/chat.ts` | Chunk-level retrieval via `searchChunksBySimilarity`, per-note grouping (cap 2 chunks/note), max-5-note limit, section heading inclusion/omission, slug/title inclusion, ranked citation slug order, and empty-result handling |
 
 Naming rules that govern where each file lives are in the next section.
 

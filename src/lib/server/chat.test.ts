@@ -7,50 +7,47 @@ vi.mock('./embeddings', () => ({
 
 // Mock DB notes module
 vi.mock('./db/notes', () => ({
-  searchNotesBySimilarity: vi.fn(),
+  searchChunksBySimilarity: vi.fn(),
 }));
 
 import { embedText } from './embeddings';
-import { searchNotesBySimilarity } from './db/notes';
+import { searchChunksBySimilarity } from './db/notes';
 import { assembleContext } from './chat';
 
 const mockEmbedText = vi.mocked(embedText);
-const mockSearchNotes = vi.mocked(searchNotesBySimilarity);
+const mockSearchChunks = vi.mocked(searchChunksBySimilarity);
 
-const noteA = {
+const chunkA1 = {
   id: 1,
-  slug: 'vector-search',
-  title: 'Vector Search',
-  body: 'First paragraph of vector search.\n\nSecond paragraph.',
-  takeaway: 'Use pgvector cosine search for RAG.',
-  category: 'databases',
-  tags: ['postgres', 'rag'],
-  image: null,
-  mediaType: 'image-jpeg' as const,
-  publishedAt: new Date('2026-04-03T00:00:00Z'),
-  series: null,
-  status: 'published' as const,
-  embedding: [0.1, 0.2, 0.3],
-  createdAt: new Date('2026-04-01T00:00:00Z'),
-  updatedAt: new Date('2026-04-02T00:00:00Z'),
+  noteSlug: 'vector-search',
+  noteTitle: 'Vector Search',
+  sectionHeading: 'Overview',
+  sectionIndex: 0,
+  chunkIndex: 0,
+  chunkText: 'Use pgvector cosine search for RAG retrieval.',
+  distance: 0.05,
 };
 
-const noteB = {
+const chunkA2 = {
   id: 2,
-  slug: 'rag-pipeline',
-  title: 'RAG Pipeline',
-  body: '# RAG Pipeline\n\nRetrieval-augmented generation combines search with LLMs.',
-  takeaway: null,
-  category: 'ai',
-  tags: ['rag', 'llm'],
-  image: null,
-  mediaType: 'image-jpeg' as const,
-  publishedAt: new Date('2026-04-04T00:00:00Z'),
-  series: null,
-  status: 'published' as const,
-  embedding: [0.4, 0.5, 0.6],
-  createdAt: new Date('2026-04-01T00:00:00Z'),
-  updatedAt: new Date('2026-04-02T00:00:00Z'),
+  noteSlug: 'vector-search',
+  noteTitle: 'Vector Search',
+  sectionHeading: 'Implementation',
+  sectionIndex: 1,
+  chunkIndex: 1,
+  chunkText: 'Index your embeddings with an HNSW index for fast ANN queries.',
+  distance: 0.12,
+};
+
+const chunkB1 = {
+  id: 3,
+  noteSlug: 'rag-pipeline',
+  noteTitle: 'RAG Pipeline',
+  sectionHeading: null,
+  sectionIndex: 0,
+  chunkIndex: 0,
+  chunkText: 'Retrieval-augmented generation combines search with LLMs.',
+  distance: 0.18,
 };
 
 describe('assembleContext', () => {
@@ -59,8 +56,8 @@ describe('assembleContext', () => {
     mockEmbedText.mockResolvedValue([0.1, 0.2, 0.3]);
   });
 
-  it('returns context string and cited slugs from top-N notes', async () => {
-    mockSearchNotes.mockResolvedValue([noteA, noteB]);
+  it('returns context string and cited slugs from retrieved chunks', async () => {
+    mockSearchChunks.mockResolvedValue([chunkA1, chunkB1]);
 
     const result = await assembleContext('how does vector search work?');
 
@@ -69,49 +66,117 @@ describe('assembleContext', () => {
     expect(result.context).toContain('rag-pipeline');
   });
 
-  it('embeds the query before searching', async () => {
-    mockSearchNotes.mockResolvedValue([noteA]);
+  it('embeds the query before searching chunks', async () => {
+    mockSearchChunks.mockResolvedValue([chunkA1]);
 
     await assembleContext('query text');
 
     expect(mockEmbedText).toHaveBeenCalledWith('query text');
-    expect(mockSearchNotes).toHaveBeenCalledWith([0.1, 0.2, 0.3], 5);
+    expect(mockSearchChunks).toHaveBeenCalledWith([0.1, 0.2, 0.3], 20);
   });
 
-  it('includes the takeaway when present', async () => {
-    mockSearchNotes.mockResolvedValue([noteA]);
+  it('includes chunk text in context', async () => {
+    mockSearchChunks.mockResolvedValue([chunkA1]);
 
     const result = await assembleContext('test');
 
-    expect(result.context).toContain('Use pgvector cosine search for RAG.');
+    expect(result.context).toContain('Use pgvector cosine search for RAG retrieval.');
   });
 
-  it('falls back to first non-heading line when takeaway is null', async () => {
-    mockSearchNotes.mockResolvedValue([noteB]);
+  it('includes section heading when present', async () => {
+    mockSearchChunks.mockResolvedValue([chunkA1]);
 
     const result = await assembleContext('test');
 
-    // noteB has no takeaway; first non-heading, non-blank line is the paragraph text
+    expect(result.context).toContain('Section: Overview');
+  });
+
+  it('omits section heading line when sectionHeading is null', async () => {
+    mockSearchChunks.mockResolvedValue([chunkB1]);
+
+    const result = await assembleContext('test');
+
+    expect(result.context).not.toContain('Section:');
     expect(result.context).toContain('Retrieval-augmented generation combines search with LLMs.');
   });
 
-  it('never includes the full body — only takeaway and first paragraph', async () => {
-    mockSearchNotes.mockResolvedValue([noteA]);
+  it('groups multiple chunks from the same note under one context block', async () => {
+    mockSearchChunks.mockResolvedValue([chunkA1, chunkA2]);
+
+    const result = await assembleContext('vector indexing');
+
+    // Only one slug for the note, but both excerpts should appear
+    expect(result.citedSlugs).toEqual(['vector-search']);
+    expect(result.context).toContain('Use pgvector cosine search for RAG retrieval.');
+    expect(result.context).toContain('Index your embeddings with an HNSW index for fast ANN queries.');
+  });
+
+  it('caps chunks per note at MAX_CHUNKS_PER_NOTE (2)', async () => {
+    const chunkA3 = {
+      id: 4,
+      noteSlug: 'vector-search',
+      noteTitle: 'Vector Search',
+      sectionHeading: 'Advanced',
+      sectionIndex: 2,
+      chunkIndex: 2,
+      chunkText: 'Third chunk that should be excluded.',
+      distance: 0.25,
+    };
+    mockSearchChunks.mockResolvedValue([chunkA1, chunkA2, chunkA3]);
 
     const result = await assembleContext('test');
 
-    // Full second paragraph must not appear
-    expect(result.context).not.toContain('Second paragraph.');
-    // Only first paragraph is allowed
-    expect(result.context).toContain('First paragraph of vector search.');
+    // Third chunk text must not appear
+    expect(result.context).not.toContain('Third chunk that should be excluded.');
+    // But the first two should
+    expect(result.context).toContain('Use pgvector cosine search for RAG retrieval.');
+    expect(result.context).toContain('Index your embeddings with an HNSW index for fast ANN queries.');
   });
 
-  it('returns empty context and no slugs when no notes match', async () => {
-    mockSearchNotes.mockResolvedValue([]);
+  it('limits distinct notes to MAX_NOTES_IN_CONTEXT (5)', async () => {
+    const manyChunks = Array.from({ length: 10 }, (_, i) => ({
+      id: i + 10,
+      noteSlug: `note-${i}`,
+      noteTitle: `Note ${i}`,
+      sectionHeading: null,
+      sectionIndex: 0,
+      chunkIndex: 0,
+      chunkText: `Content of note ${i}.`,
+      distance: 0.1 * (i + 1),
+    }));
+    mockSearchChunks.mockResolvedValue(manyChunks);
+
+    const result = await assembleContext('broad query');
+
+    // Should cite exactly 5 notes, not 10
+    expect(result.citedSlugs).toHaveLength(5);
+  });
+
+  it('returns empty context and no slugs when no chunks match', async () => {
+    mockSearchChunks.mockResolvedValue([]);
 
     const result = await assembleContext('unknown topic');
 
     expect(result.context).toBe('');
     expect(result.citedSlugs).toEqual([]);
+  });
+
+  it('includes note slug and title in context block', async () => {
+    mockSearchChunks.mockResolvedValue([chunkA1]);
+
+    const result = await assembleContext('test');
+
+    expect(result.context).toContain('Slug: vector-search');
+    expect(result.context).toContain('Title: Vector Search');
+  });
+
+  it('preserves order of notes by chunk similarity rank', async () => {
+    // chunkA1 has distance 0.05, chunkB1 has 0.18 — A should be cited first
+    mockSearchChunks.mockResolvedValue([chunkA1, chunkB1]);
+
+    const result = await assembleContext('test');
+
+    expect(result.citedSlugs[0]).toBe('vector-search');
+    expect(result.citedSlugs[1]).toBe('rag-pipeline');
   });
 });

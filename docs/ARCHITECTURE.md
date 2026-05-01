@@ -74,7 +74,7 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 
 ### RAG chat flow (public, approved target state)
 
-Current production remains note-level semantic retrieval. The sequence below describes the approved retrieval orchestration target after the CHAT-04 task chain ships.
+The sequence below describes the retrieval orchestration as shipped through CHAT-04C.
 
 ```
 1. User submits query in the chat UI
@@ -82,9 +82,9 @@ Current production remains note-level semantic retrieval. The sequence below des
 3. Frontend POSTs `{ message }` to `POST /api/chat`; browser sends the existing `chat_session` cookie automatically
 4. API route embeds the query → vector(1536) via OpenRouter embedding API (~300 ms)
 5. API route runs retrieval:
-   - semantic similarity search (current: note-level embeddings; target: chunk-level embeddings)
-   - lightweight topic/lexical match query (title/tags/category)
-   - both queries run in parallel, then results are fused/reranked into a bounded candidate set
+   - chunk-level cosine similarity search via `searchChunksBySimilarity` (top 20 candidates)
+   - chunks grouped by note slug (≤2 chunks per note), capped at 5 distinct notes
+   - lightweight topic/lexical fuse/rerank is queued for a later CHAT task
 6. API route builds the LLM prompt:
      [personality block from personality.ts]
      + [Takeaway + first paragraph of each retrieved note] (not full body)
@@ -102,7 +102,7 @@ Current production remains note-level semantic retrieval. The sequence below des
 
 **Latency strategy:** Streaming is the primary UX fix for perceived latency. Gemini Flash targets ~400–600 ms TTFT. Retrieval remains bounded by small `k` limits and parallel query execution (semantic + lexical/topic) so hybrid precision gains do not create outsized latency overhead. Prompt size stays compact (note summary + bounded evidence excerpts), not full bodies.
 
-**Approved next retrieval direction (partially implemented):** Section-aware chunk storage and retrieval primitives are now in place (`note_chunks`, `replaceNoteChunks`, `searchChunksBySimilarity`), but `/api/chat` orchestration still uses note-level semantic retrieval in production. Hybrid fuse/rerank and confidence-gated fallback behavior are still queued in later CHAT tasks (see `RESOLVED-16` and `RESOLVED-18` in `docs/DECISIONS.md`).
+**Current retrieval (CHAT-04C shipped):** `/api/chat` now uses chunk-level semantic retrieval via `searchChunksBySimilarity`. `assembleContext()` retrieves the top 20 chunk candidates, groups them by note (capped at 2 chunks per note), limits context to 5 distinct notes, and assembles a compact block per note containing the title, section heading(s), and chunk excerpt(s). Hybrid fuse/rerank and confidence-gated fallback behavior are still queued in later CHAT tasks (see `RESOLVED-16` and `RESOLVED-18` in `docs/DECISIONS.md`).
 
 ### Note save flow (admin)
 

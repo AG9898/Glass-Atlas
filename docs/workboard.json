@@ -7,7 +7,7 @@
       "id": "SCAFFOLD-01",
       "group_id": "SCAFFOLD",
       "title": "Neon DB connection + Drizzle migrations",
-      "description": "Configure drizzle.config.ts for the glass_atlas Postgres schema. Add db:generate, db:migrate, db:studio scripts to package.json. Verify src/lib/server/db/index.ts uses DATABASE_URL via $env/dynamic/private (already in place — confirm and document). Add a citation_events table to schema.ts (columns: id serial PK, note_slug text NOT NULL, cited_at timestamp NOT NULL DEFAULT now()) — this lightweight counter records each time a note is retrieved by the chat RAG pipeline and powers the landing page 'total citations served' stat. Generate the initial migration from the existing schema.ts, then run it against Neon. The pgvector extension must be enabled in the Neon console before migrating. All tables must use the glass_atlas schema prefix (pgSchema('glass_atlas') in Drizzle).",
+      "description": "Configure drizzle.config.ts for the glass_atlas Postgres schema. Add db:generate, db:migrate, db:studio scripts to package.json. Verify src/lib/server/db/index.ts uses DATABASE_URL via $env/dynamic/private (already in place \u2014 confirm and document). Add a citation_events table to schema.ts (columns: id serial PK, note_slug text NOT NULL, cited_at timestamp NOT NULL DEFAULT now()) \u2014 this lightweight counter records each time a note is retrieved by the chat RAG pipeline and powers the landing page 'total citations served' stat. Generate the initial migration from the existing schema.ts, then run it against Neon. The pgvector extension must be enabled in the Neon console before migrating. All tables must use the glass_atlas schema prefix (pgSchema('glass_atlas') in Drizzle).",
       "status": "done",
       "priority": "critical",
       "depends_on": [],
@@ -39,7 +39,7 @@
       "id": "SCAFFOLD-02",
       "group_id": "SCAFFOLD",
       "title": "Auth.js GitHub OAuth + admin route guard",
-      "description": "Configure SvelteKitAuth in src/auth.ts with the GitHub provider using AUTH_GITHUB_ID and AUTH_GITHUB_SECRET env vars. Sessions are stateless JWT — no DrizzleAdapter needed. Implement hooks.server.ts to intercept all requests to /admin/** and redirect unauthenticated users to the GitHub OAuth flow. Read session from event.locals.session only — never read cookies manually. AUTH_TRUST_HOST must NOT be set (Railway deployment, not Vercel).",
+      "description": "Configure SvelteKitAuth in src/auth.ts with the GitHub provider using AUTH_GITHUB_ID and AUTH_GITHUB_SECRET env vars. Sessions are stateless JWT \u2014 no DrizzleAdapter needed. Implement hooks.server.ts to intercept all requests to /admin/** and redirect unauthenticated users to the GitHub OAuth flow. Read session from event.locals.session only \u2014 never read cookies manually. AUTH_TRUST_HOST must NOT be set (Railway deployment, not Vercel).",
       "status": "done",
       "priority": "critical",
       "depends_on": [],
@@ -68,7 +68,7 @@
       "id": "SCAFFOLD-03",
       "group_id": "SCAFFOLD",
       "title": "Root layout + global nav shell",
-      "description": "Update src/routes/+layout.svelte to render Nav.svelte and a <slot /> (or {@render children()} in Svelte 5). Create src/lib/components/Nav.svelte: Glass Atlas logo centered, NOTES and CHAT links on the left, search icon (non-functional placeholder — wired in PUBLIC-03) + login-or-logout link + dark mode toggle on the right. Dark mode toggle: reads prefers-color-scheme on first load, persists preference to localStorage, and applies a .dark class to <html>. Update src/app.css to add a .dark selector block mirroring the existing @media (prefers-color-scheme: dark) tokens so the class-toggle approach works. Match the nav design from reference/UI/design_handoff_glass_atlas/Landing dark.png and Landing light.png.",
+      "description": "Update src/routes/+layout.svelte to render Nav.svelte and a <slot /> (or {@render children()} in Svelte 5). Create src/lib/components/Nav.svelte: Glass Atlas logo centered, NOTES and CHAT links on the left, search icon (non-functional placeholder \u2014 wired in PUBLIC-03) + login-or-logout link + dark mode toggle on the right. Dark mode toggle: reads prefers-color-scheme on first load, persists preference to localStorage, and applies a .dark class to <html>. Update src/app.css to add a .dark selector block mirroring the existing @media (prefers-color-scheme: dark) tokens so the class-toggle approach works. Match the nav design from reference/UI/design_handoff_glass_atlas/Landing dark.png and Landing light.png.",
       "status": "done",
       "priority": "high",
       "depends_on": [
@@ -99,8 +99,8 @@
     {
       "id": "ADMIN-01A",
       "group_id": "ADMIN",
-      "title": "Notes DB query layer — CRUD helpers",
-      "description": "Implement core CRUD helpers in src/lib/server/db/notes.ts. Functions: listNotes(filter?: { topic?: string, status?: 'draft'|'published', q?: string }), getNoteBySlug(slug: string), createNote(data: CreateNoteInput), updateNote(slug: string, data: UpdateNoteInput), deleteNote(slug: string). All functions must return typed plain objects — never raw Drizzle ORM objects. The q param in listNotes filters notes where title ILIKE '%q%' OR any element of tags ILIKE '%q%'. Export corresponding TypeScript types (Note, CreateNoteInput, UpdateNoteInput). Leave stub exports for searchNotesBySimilarity, recordCitations, and getTotalCitations — these are implemented in ADMIN-01b.",
+      "title": "Notes DB query layer \u2014 CRUD helpers",
+      "description": "Implement core CRUD helpers in src/lib/server/db/notes.ts. Functions: listNotes(filter?: { topic?: string, status?: 'draft'|'published', q?: string }), getNoteBySlug(slug: string), createNote(data: CreateNoteInput), updateNote(slug: string, data: UpdateNoteInput), deleteNote(slug: string). All functions must return typed plain objects \u2014 never raw Drizzle ORM objects. The q param in listNotes filters notes where title ILIKE '%q%' OR any element of tags ILIKE '%q%'. Export corresponding TypeScript types (Note, CreateNoteInput, UpdateNoteInput). Leave stub exports for searchNotesBySimilarity, recordCitations, and getTotalCitations \u2014 these are implemented in ADMIN-01b.",
       "status": "done",
       "priority": "high",
       "depends_on": [
@@ -131,7 +131,7 @@
     {
       "id": "ADMIN-01B",
       "group_id": "ADMIN",
-      "title": "Notes DB query layer — similarity search + citations",
+      "title": "Notes DB query layer \u2014 similarity search + citations",
       "description": "Extend src/lib/server/db/notes.ts (built in ADMIN-01a) with the advanced query functions. Functions: searchNotesBySimilarity(embedding: number[], limit: number), recordCitations(slugs: string[]): Promise<void> (bulk-inserts one citation_events row per slug), getTotalCitations(): Promise<number> (returns COUNT(*) from citation_events). Similarity search uses Drizzle's sql template tag for the pgvector cosine distance operator (<=>). All functions must return typed plain objects.",
       "status": "done",
       "priority": "high",
@@ -224,7 +224,7 @@
       "id": "ADMIN-04A",
       "group_id": "ADMIN",
       "title": "Admin note create page",
-      "description": "Create src/routes/admin/notes/new/+page.server.ts and +page.svelte. Layout: two-column matching reference/UI/design_handoff_glass_atlas/Admin note editor dark.png — left column (title input, takeaway input, MarkdownEditor for body, tags multi-input, category select from note-taxonomy.ts), right sidebar (publishedAt date picker, status selector, series input, cover media URL input that maps to the `image` column — author can paste a JPEG/PNG/SVG/GIF/MP4 URL directly). Form action: create — slug auto-generated from title via src/lib/utils/slugify.ts. After create, redirect to the edit page for the new slug. First-party upload control wiring is handled in ADMIN-07.",
+      "description": "Create src/routes/admin/notes/new/+page.server.ts and +page.svelte. Layout: two-column matching reference/UI/design_handoff_glass_atlas/Admin note editor dark.png \u2014 left column (title input, takeaway input, MarkdownEditor for body, tags multi-input, category select from note-taxonomy.ts), right sidebar (publishedAt date picker, status selector, series input, cover media URL input that maps to the `image` column \u2014 author can paste a JPEG/PNG/SVG/GIF/MP4 URL directly). Form action: create \u2014 slug auto-generated from title via src/lib/utils/slugify.ts. After create, redirect to the edit page for the new slug. First-party upload control wiring is handled in ADMIN-07.",
       "status": "done",
       "priority": "high",
       "depends_on": [
@@ -290,7 +290,7 @@
       "id": "ADMIN-05",
       "group_id": "ADMIN",
       "title": "Embedding generation on note save",
-      "description": "Implement src/lib/server/embeddings.ts exporting embedText(text: string): Promise<number[]>. Call the OpenRouter embeddings endpoint (POST to the OpenAI-compatible /embeddings route) with the note body text. In the ADMIN-04a create and ADMIN-04b update form actions, call embedText(body) after saving the note row and update the note's embedding column. If the OpenRouter call fails, log the error but do not block the save — the note saves with a null embedding. Read OPENROUTER_API_KEY from $env/dynamic/private.",
+      "description": "Implement src/lib/server/embeddings.ts exporting embedText(text: string): Promise<number[]>. Call the OpenRouter embeddings endpoint (POST to the OpenAI-compatible /embeddings route) with the note body text. In the ADMIN-04a create and ADMIN-04b update form actions, call embedText(body) after saving the note row and update the note's embedding column. If the OpenRouter call fails, log the error but do not block the save \u2014 the note saves with a null embedding. Read OPENROUTER_API_KEY from $env/dynamic/private.",
       "status": "done",
       "priority": "high",
       "depends_on": [
@@ -322,7 +322,7 @@
       "id": "PUBLIC-01",
       "group_id": "PUBLIC",
       "title": "NoteCard component + notes browse page",
-      "description": "Create src/lib/components/NoteCard.svelte: displays note number (zero-padded to 3 digits, e.g. 042), publishedAt date, tag badges, title, excerpt (first ~150 chars of body), and a READ NOTE link to /notes/[slug]. If `note.image` is set, render it above the excerpt using an `<img>` tag (aspect-ratio: 16/9, object-fit: cover). When no image is set, render the row without any placeholder. See styleguide.md Section 6 for cover media rules. Match the note row design from reference/UI/design_handoff_glass_atlas/Landing dark.png 'latest field notes' section — row-separated layout, no rounded cards. Create src/routes/notes/+page.server.ts: load all published notes, accept optional ?topic= query param for filtering via listNotes(). Create src/routes/notes/+page.svelte: page heading 'The latest field notes.', filter bar with topic select and sort controls, then a list of NoteCard rows.",
+      "description": "Create src/lib/components/NoteCard.svelte: displays note number (zero-padded to 3 digits, e.g. 042), publishedAt date, tag badges, title, excerpt (first ~150 chars of body), and a READ NOTE link to /notes/[slug]. If `note.image` is set, render it above the excerpt using an `<img>` tag (aspect-ratio: 16/9, object-fit: cover). When no image is set, render the row without any placeholder. See styleguide.md Section 6 for cover media rules. Match the note row design from reference/UI/design_handoff_glass_atlas/Landing dark.png 'latest field notes' section \u2014 row-separated layout, no rounded cards. Create src/routes/notes/+page.server.ts: load all published notes, accept optional ?topic= query param for filtering via listNotes(). Create src/routes/notes/+page.svelte: page heading 'The latest field notes.', filter bar with topic select and sort controls, then a list of NoteCard rows.",
       "status": "done",
       "priority": "high",
       "depends_on": [
@@ -357,7 +357,7 @@
     {
       "id": "PUBLIC-02A",
       "group_id": "PUBLIC",
-      "title": "Note detail page — server + Markdown rendering",
+      "title": "Note detail page \u2014 server + Markdown rendering",
       "description": "Create src/routes/notes/[slug]/+page.server.ts: load the note by slug (404 if not found or not published), load all published notes for the left sidebar catalog, derive 3 related notes (same topic or category). Create the initial src/routes/notes/[slug]/+page.svelte scaffold: render the note title, cover image (if `note.image` is set, render it as a full-width `<img>` with aspect-ratio: 16/9 and object-fit: cover above the title), and the full note body rendered as Markdown using unified with remark-gfm and rehype-shiki for syntax-highlighted code blocks. Return 404 for unpublished or unknown slugs. Three-column layout and sidebars are wired in PUBLIC-02b. See styleguide.md Section 6 for cover media rules.",
       "status": "done",
       "priority": "high",
@@ -389,7 +389,7 @@
     {
       "id": "PUBLIC-02B",
       "group_id": "PUBLIC",
-      "title": "Note detail page — three-column layout + sidebars",
+      "title": "Note detail page \u2014 three-column layout + sidebars",
       "description": "Extend src/routes/notes/[slug]/+page.svelte (built in PUBLIC-02a) with the full three-column layout from reference/UI/design_handoff_glass_atlas/Note viewer dark.png: left sidebar (NEW CONVERSATION CTA button at top linking to /, then a scrollable list of all published notes by date with the current note highlighted), main column (cover image + title + Markdown body from PUBLIC-02a, already in place), right sidebar (OTHER NOTES section with 3 related note links, CITE THIS NOTE section with note slug/date/URL). Ensure layout matches the design reference in both light and dark modes.",
       "status": "done",
       "priority": "high",
@@ -432,7 +432,7 @@
         "openrouter.ts sends a valid streaming request to OpenRouter and returns a ReadableStream",
         "personality.ts exports a non-empty SYSTEM_PROMPT string",
         "chat.ts assembleContext() returns { context: string; citedSlugs: string[] } from top-N similar notes",
-        "Full note bodies are never passed to the LLM — only takeaway and first paragraph",
+        "Full note bodies are never passed to the LLM \u2014 only takeaway and first paragraph",
         "npm run lint passes"
       ],
       "docs": [
@@ -453,7 +453,7 @@
       "id": "CHAT-02",
       "group_id": "CHAT",
       "title": "Chat API endpoint with IP-based rate limiting",
-      "description": "Create src/routes/api/chat/+server.ts handling POST requests with body { message: string }. Rate limiting: maintain an in-memory Map keyed by a SHA-256 hash of the requester's IP address (read from request.headers.get('x-forwarded-for') or getClientAddress()). Each entry tracks { count: number, windowStart: number }. On each request, if count >= 10 within the current 1-hour window, return a 429 Response with JSON { error: 'Rate limit exceeded' }. Otherwise increment count and call assembleContext(message) from chat.ts to get { context, citedSlugs }, then immediately call recordCitations(citedSlugs) from notes.ts (fire-and-forget — do not await, do not block the stream on it). Pass context to the streaming OpenRouter call. Return new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } }). Never use SvelteKit's json() helper for this endpoint.",
+      "description": "Create src/routes/api/chat/+server.ts handling POST requests with body { message: string }. Rate limiting: maintain an in-memory Map keyed by a SHA-256 hash of the requester's IP address (read from request.headers.get('x-forwarded-for') or getClientAddress()). Each entry tracks { count: number, windowStart: number }. On each request, if count >= 10 within the current 1-hour window, return a 429 Response with JSON { error: 'Rate limit exceeded' }. Otherwise increment count and call assembleContext(message) from chat.ts to get { context, citedSlugs }, then immediately call recordCitations(citedSlugs) from notes.ts (fire-and-forget \u2014 do not await, do not block the stream on it). Pass context to the streaming OpenRouter call. Return new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } }). Never use SvelteKit's json() helper for this endpoint.",
       "status": "done",
       "priority": "high",
       "depends_on": [
@@ -482,7 +482,7 @@
       "id": "CHAT-03",
       "group_id": "CHAT",
       "title": "Chat.svelte component",
-      "description": "Create src/lib/components/Chat.svelte using Svelte 5 runes. Props via $props(): compact (boolean, defaults to false). State: messages $state([]), input $state(''), loading $state(false), error $state(''), onSubmit handler POSTs to /api/chat using fetch + ReadableStream (not EventSource — POST body is required). While awaiting the first token, show an optimistic 'Searching notes…' message. Stream tokens into the last assistant message as they arrive. On 429, show 'Rate limit reached — try again in an hour.' Chat history lives in component $state only — it is never persisted and clears on page reload. Compact mode constrains the height for use in the landing hero panel. Matches the chat panel design from reference/UI/design_handoff_glass_atlas/Landing dark.png. Input placeholder: 'Ask anything grounded in these notes…'",
+      "description": "Create src/lib/components/Chat.svelte using Svelte 5 runes. Props via $props(): compact (boolean, defaults to false). State: messages $state([]), input $state(''), loading $state(false), error $state(''), onSubmit handler POSTs to /api/chat using fetch + ReadableStream (not EventSource \u2014 POST body is required). While awaiting the first token, show an optimistic 'Searching notes\u2026' message. Stream tokens into the last assistant message as they arrive. On 429, show 'Rate limit reached \u2014 try again in an hour.' Chat history lives in component $state only \u2014 it is never persisted and clears on page reload. Compact mode constrains the height for use in the landing hero panel. Matches the chat panel design from reference/UI/design_handoff_glass_atlas/Landing dark.png. Input placeholder: 'Ask anything grounded in these notes\u2026'",
       "status": "done",
       "priority": "high",
       "depends_on": [
@@ -492,7 +492,7 @@
       "acceptance_criteria": [
         "Typing a message and submitting sends a POST to /api/chat",
         "Response tokens stream into the UI one by one",
-        "Loading state shows 'Searching notes…' before first token arrives",
+        "Loading state shows 'Searching notes\u2026' before first token arrives",
         "A 429 response shows the rate limit message",
         "Chat history clears on page reload (no persistence)",
         "Compact mode fits within the landing hero panel column",
@@ -515,7 +515,7 @@
       "id": "POLISH-01",
       "group_id": "POLISH",
       "title": "Landing page",
-      "description": "Replace the 'Coming soon' placeholder in src/routes/+page.svelte. Create src/routes/+page.server.ts: load 4 stats (count of published notes, count of distinct topics, average word count across notes, total note citations served through chat via getTotalCitations() from notes.ts), and fetch the 3 most recent published notes. Layout per reference/UI/design_handoff_glass_atlas/Landing dark.png: top nav (from SCAFFOLD-03), two-column hero (left ~40%: large Literata serif headline 'Notes from a developer who would rather show his work.' + READ THE LATEST CTA button linking to /notes; right ~60%: Chat component in compact mode). The chat panel background in dark mode must use --color-surface-1 (#232019) — this is the fix; the design reference incorrectly shows a custom olive-green surface, use the standard token instead. Stats row below hero (4 stats). 'The latest field notes.' section with 3 NoteCard rows.",
+      "description": "Replace the 'Coming soon' placeholder in src/routes/+page.svelte. Create src/routes/+page.server.ts: load 4 stats (count of published notes, count of distinct topics, average word count across notes, total note citations served through chat via getTotalCitations() from notes.ts), and fetch the 3 most recent published notes. Layout per reference/UI/design_handoff_glass_atlas/Landing dark.png: top nav (from SCAFFOLD-03), two-column hero (left ~40%: large Literata serif headline 'Notes from a developer who would rather show his work.' + READ THE LATEST CTA button linking to /notes; right ~60%: Chat component in compact mode). The chat panel background in dark mode must use --color-surface-1 (#232019) \u2014 this is the fix; the design reference incorrectly shows a custom olive-green surface, use the standard token instead. Stats row below hero (4 stats). 'The latest field notes.' section with 3 NoteCard rows.",
       "status": "done",
       "priority": "medium",
       "depends_on": [
@@ -580,7 +580,7 @@
       "id": "PUBLIC-03",
       "group_id": "PUBLIC",
       "title": "Notes text search",
-      "description": "Extend listNotes() in src/lib/server/db/notes.ts to filter by q?: string — title ILIKE '%q%' OR any element of tags ILIKE '%q%' (case-insensitive; already specified in ADMIN-01a). Update src/routes/notes/+page.server.ts to forward the ?q= query parameter into listNotes(). Update src/routes/notes/+page.svelte: add a text search input to the existing filter bar; on change/submit navigate to /notes?q=<value> (preserve any active ?topic= param). When the page loads with ?focus=search in the URL, auto-focus the search input via a Svelte action or bind:this + $effect. Wire the nav search icon in src/lib/components/Nav.svelte to navigate to /notes?focus=search on click.",
+      "description": "Extend listNotes() in src/lib/server/db/notes.ts to filter by q?: string \u2014 title ILIKE '%q%' OR any element of tags ILIKE '%q%' (case-insensitive; already specified in ADMIN-01a). Update src/routes/notes/+page.server.ts to forward the ?q= query parameter into listNotes(). Update src/routes/notes/+page.svelte: add a text search input to the existing filter bar; on change/submit navigate to /notes?q=<value> (preserve any active ?topic= param). When the page loads with ?focus=search in the URL, auto-focus the search input via a Svelte action or bind:this + $effect. Wire the nav search icon in src/lib/components/Nav.svelte to navigate to /notes?focus=search on click.",
       "status": "done",
       "priority": "medium",
       "depends_on": [
@@ -592,7 +592,7 @@
         "?q=<term> filters /notes to notes whose title or any tag matches (case-insensitive)",
         "Empty state is shown when no notes match the search term",
         "Clicking the nav search icon navigates to /notes?focus=search and focuses the search input",
-        "?q= and ?topic= params compose correctly — both can be active simultaneously",
+        "?q= and ?topic= params compose correctly \u2014 both can be active simultaneously",
         "Clearing the search input navigates back to the unfiltered list",
         "npm run lint and npm run test:run pass"
       ],
@@ -651,8 +651,8 @@
     {
       "id": "ADMIN-06A",
       "group_id": "ADMIN",
-      "title": "Cover media type system — schema + migration + helpers",
-      "description": "Implement the schema layer for the resolved media type scope (RESOLVED-14): JPEG, PNG, SVG, GIF, and MP4. Add a `media_type` text column to the `notes` table in schema.ts, defaulting to `image-jpeg`, accepting `image-jpeg` | `image-png` | `image-svg` | `image-gif` | `video-mp4`. Generate and run a Drizzle migration. Update CreateNoteInput and UpdateNoteInput types and all CRUD helpers in notes.ts (built in ADMIN-01b) to include `media_type`. Do not update UI components in this task — that is ADMIN-06b.",
+      "title": "Cover media type system \u2014 schema + migration + helpers",
+      "description": "Implement the schema layer for the resolved media type scope (RESOLVED-14): JPEG, PNG, SVG, GIF, and MP4. Add a `media_type` text column to the `notes` table in schema.ts, defaulting to `image-jpeg`, accepting `image-jpeg` | `image-png` | `image-svg` | `image-gif` | `video-mp4`. Generate and run a Drizzle migration. Update CreateNoteInput and UpdateNoteInput types and all CRUD helpers in notes.ts (built in ADMIN-01b) to include `media_type`. Do not update UI components in this task \u2014 that is ADMIN-06b.",
       "status": "done",
       "priority": "low",
       "depends_on": [
@@ -685,7 +685,7 @@
     {
       "id": "ADMIN-06B",
       "group_id": "ADMIN",
-      "title": "Cover media type system — admin form + render dispatch",
+      "title": "Cover media type system \u2014 admin form + render dispatch",
       "description": "Wire the `media_type` field (added in ADMIN-06a) into the admin UI and public render components. Update the admin new and edit note forms to add a media type selector with the five options (image-jpeg, image-png, image-svg, image-gif, video-mp4) next to the cover media URL input. Update NoteCard.svelte to dispatch on `media_type`: render `<img>` for image types and render `<video controls preload=\"metadata\">` for `video-mp4` (no autoplay). Update the note detail page to dispatch cover media at the top of the main column by `media_type`. Implement all rules from docs/styleguide.md Section 6.",
       "status": "done",
       "priority": "low",
@@ -1091,7 +1091,7 @@
       "id": "CHAT-04A",
       "group_id": "CHAT",
       "title": "Chunk embedding data model + retrieval helpers",
-      "description": "Add a chunk-level retrieval data model for semantic RAG by introducing a `note_chunks` table in the `glass_atlas` schema, storing one embedding per section-aware chunk (vector(1536)), and implementing typed DB helpers for replacing a note’s chunks and searching top published chunks by cosine distance. Include suitable indexes for note-level maintenance and vector similarity reads.",
+      "description": "Add a chunk-level retrieval data model for semantic RAG by introducing a `note_chunks` table in the `glass_atlas` schema, storing one embedding per section-aware chunk (vector(1536)), and implementing typed DB helpers for replacing a note\u2019s chunks and searching top published chunks by cosine distance. Include suitable indexes for note-level maintenance and vector similarity reads.",
       "status": "done",
       "priority": "high",
       "depends_on": [
@@ -1164,7 +1164,7 @@
       "group_id": "CHAT",
       "title": "Chunk retrieval + hybrid prompt context assembly",
       "description": "Refactor chat context assembly to retrieve top similar chunks, group and cap them per note, and construct hybrid context blocks that combine note summary (`takeaway` fallback) with top chunk excerpt(s). Keep `/api/chat` request/response contract unchanged while preserving citation tracking and grounded-response behavior.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "CHAT-04A",

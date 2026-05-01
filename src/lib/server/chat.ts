@@ -1,8 +1,15 @@
 import { embedText } from './embeddings';
-import { searchNotesBySimilarity } from './db/notes';
-import type { Note } from './db/notes';
+import { searchChunksBySimilarity } from './db/notes';
+import type { RetrievedNoteChunk } from './db/notes';
 
-const TOP_N = 5;
+/** Maximum number of chunk candidates to retrieve from pgvector. */
+const CHUNK_CANDIDATES = 20;
+
+/** Maximum chunks to include per note in the assembled context. */
+const MAX_CHUNKS_PER_NOTE = 2;
+
+/** Maximum number of distinct notes to include in the context. */
+const MAX_NOTES_IN_CONTEXT = 5;
 
 export type AssembledContext = {
   /** Formatted context block ready to be injected into the LLM prompt. */
@@ -12,93 +19,64 @@ export type AssembledContext = {
 };
 
 /**
- * Embeds `query`, runs pgvector cosine similarity search against published notes,
- * and assembles a compact context block from the top-N results.
+ * Embeds `query`, runs pgvector cosine similarity search against published
+ * note_chunks, groups and caps results per note, and assembles a compact
+ * context block combining the note title, takeaway-or-heading summary, and
+ * the top retrieved chunk excerpt(s).
  *
- * Each note is represented as:
- *   Takeaway: <takeaway or first line of body>
- *   First paragraph: <first paragraph of body>
- *   Slug: <slug>
- *
- * Full note bodies are never passed to the LLM — only the takeaway and first
- * paragraph are included. This keeps token costs low and latency short.
+ * Full note bodies are never passed to the LLM — only the retrieved chunk
+ * text and section heading (where available) are included per note.
+ * This keeps token costs low and retrieval precision high.
  */
 export async function assembleContext(query: string): Promise<AssembledContext> {
   const queryEmbedding = await embedText(query);
-  const notes = await searchNotesBySimilarity(queryEmbedding, TOP_N);
+  const chunks = await searchChunksBySimilarity(queryEmbedding, CHUNK_CANDIDATES);
 
-  if (notes.length === 0) {
+  if (chunks.length === 0) {
     return { context: '', citedSlugs: [] };
   }
 
-  const snippets = notes.map(formatNoteSnippet);
-  const context = `Retrieved notes:\n\n${snippets.join('\n\n---\n\n')}`;
-  const citedSlugs = notes.map((n) => n.slug);
+  // Group chunks by note slug, preserving the order chunks were returned
+  // (already sorted by ascending cosine distance = best match first).
+  const chunksBySlug = new Map<string, RetrievedNoteChunk[]>();
+  for (const chunk of chunks) {
+    const existing = chunksBySlug.get(chunk.noteSlug);
+    if (!existing) {
+      chunksBySlug.set(chunk.noteSlug, [chunk]);
+    } else if (existing.length < MAX_CHUNKS_PER_NOTE) {
+      existing.push(chunk);
+    }
+    // Stop once we have enough distinct notes
+    if (chunksBySlug.size >= MAX_NOTES_IN_CONTEXT) break;
+  }
 
+  const snippets: string[] = [];
+  const citedSlugs: string[] = [];
+
+  for (const [slug, noteChunks] of chunksBySlug) {
+    snippets.push(formatChunkSnippet(slug, noteChunks));
+    citedSlugs.push(slug);
+  }
+
+  const context = `Retrieved notes:\n\n${snippets.join('\n\n---\n\n')}`;
   return { context, citedSlugs };
 }
 
 /**
- * Formats a single note as a compact excerpt.
- * Sends only the takeaway (or first line if no takeaway) and the first paragraph.
- * Never sends the full body.
+ * Formats the retrieved chunks for a single note as a compact excerpt block.
+ * Includes the note slug, title, and one or more chunk excerpts with their
+ * section headings. Never sends the full body.
  */
-function formatNoteSnippet(note: Note): string {
-  const takeaway = note.takeaway?.trim() || extractFirstLine(note.body);
-  const firstParagraph = extractFirstParagraph(note.body);
+function formatChunkSnippet(slug: string, chunks: RetrievedNoteChunk[]): string {
+  const { noteTitle } = chunks[0];
+  const lines: string[] = [`Slug: ${slug}`, `Title: ${noteTitle}`];
 
-  const lines: string[] = [`Slug: ${note.slug}`, `Title: ${note.title}`];
-  if (takeaway) {
-    lines.push(`Takeaway: ${takeaway}`);
-  }
-  if (firstParagraph) {
-    lines.push(`First paragraph: ${firstParagraph}`);
+  for (const chunk of chunks) {
+    if (chunk.sectionHeading) {
+      lines.push(`Section: ${chunk.sectionHeading}`);
+    }
+    lines.push(`Excerpt: ${chunk.chunkText.trim()}`);
   }
 
   return lines.join('\n');
-}
-
-/** Extracts the first non-empty line from a markdown body. */
-function extractFirstLine(body: string): string {
-  for (const line of body.split('\n')) {
-    const trimmed = line.trim();
-    // Skip markdown headings and blank lines
-    if (trimmed && !trimmed.startsWith('#')) {
-      return trimmed;
-    }
-  }
-  return '';
-}
-
-/**
- * Extracts the first non-empty paragraph from a markdown body.
- * A paragraph is a block of consecutive non-blank lines.
- * Headings (lines starting with #) are skipped.
- */
-function extractFirstParagraph(body: string): string {
-  const lines = body.split('\n');
-  const paragraphLines: string[] = [];
-  let inParagraph = false;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-
-    if (!trimmed) {
-      // Blank line — end the current paragraph if we have one
-      if (inParagraph) break;
-      continue;
-    }
-
-    if (trimmed.startsWith('#')) {
-      // Heading — skip and reset
-      if (inParagraph) break;
-      continue;
-    }
-
-    // Content line — start or continue the paragraph
-    inParagraph = true;
-    paragraphLines.push(trimmed);
-  }
-
-  return paragraphLines.join(' ');
 }

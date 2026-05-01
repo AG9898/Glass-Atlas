@@ -24,7 +24,8 @@
     contentClass = ''
   }: Props = $props();
 
-  const triggerClasses = $derived(['ga-select-trigger', 'ga-focus-ring', triggerClass].join(' ').trim());
+  // ga-select-trigger already defines :focus-visible ring; ga-focus-ring is not needed here.
+  const triggerClasses = $derived(['ga-select-trigger', triggerClass].filter(Boolean).join(' ').trim());
   const contentClasses = $derived(['ga-select-content', contentClass].join(' ').trim());
 </script>
 

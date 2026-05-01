@@ -244,6 +244,13 @@ function wikiLinkCompletions(notes: { slug: string; title: string }[]): Completi
   - Use GSAP for complex sequencing, scroll-coupled choreography, and multi-element timeline control.
   - Respect reduced-motion behavior and ensure content remains usable without motion.
 
+**Dropdown/Select design system**
+
+- The shared `ga-select-*` CSS class system lives in `src/app.css` under `@layer components`. Never duplicate these classes in route-local `<style>` blocks.
+- `Select.svelte` (`src/lib/components/ui/Select.svelte`) wraps Bits `Select` and applies `ga-select-trigger`, `ga-select-content`, and `ga-select-item` classes. Use this wrapper for all interactive selects in the codebase.
+- State styling uses Bits-emitted data attributes: `[data-state="open"]` on trigger, `[data-highlighted]` on items (keyboard/hover focus), `[data-selected]` on items (currently chosen), and `[data-disabled]` on items and trigger.
+- For bare native `<select>` elements (e.g., progressive-enhancement filter bars), `app.css` sets `color-scheme: light dark` globally so the browser-rendered popup always respects the active dark theme. Route-local styles may override geometry/layout properties but must not remove `color-scheme`.
+
 ---
 
 ## Database (Drizzle ORM / Neon)

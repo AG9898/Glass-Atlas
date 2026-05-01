@@ -86,6 +86,25 @@
   }
 }
 
+/* Native <select> baseline — token-driven trigger surface.
+   Forces browser popup to respect the system color-scheme so dark-mode
+   popups never render the default white browser surface.
+   Applied globally so every bare <select> in admin and public routes
+   inherits correct theming without route-local duplication. */
+select {
+  color-scheme: light dark;
+  background: var(--color-surface-1);
+  color: var(--color-text-strong);
+  border: 0;
+  border-bottom: var(--line-std) solid var(--color-line-3);
+  border-radius: 0;
+}
+
+select:focus-visible {
+  outline: var(--line-std) solid var(--color-accent-700);
+  outline-offset: 2px;
+}
+
 @layer components {
   .ga-focus-ring:focus-visible {
     outline: var(--line-std) solid var(--color-accent-700);
@@ -288,6 +307,10 @@
     justify-content: flex-end;
   }
 
+  /* --- Bits-UI Select / ga-select design system ---
+     Fully token-driven. Works in both light and dark themes.
+     Never relies on browser-default popup surfaces. */
+
   .ga-select-trigger {
     width: 100%;
     min-height: 2.75rem;
@@ -305,11 +328,33 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+
+  .ga-select-trigger:hover {
+    background: var(--color-surface-2);
+  }
+
+  /* Open state — accent border signals the panel is active */
+  .ga-select-trigger[data-state="open"] {
+    border-color: var(--color-accent-700);
+    background: var(--color-surface-2);
+  }
+
+  .ga-select-trigger[data-state="open"] .ga-select-chevron {
+    transform: rotate(180deg);
   }
 
   .ga-select-trigger:focus-visible {
     outline: var(--line-std) solid var(--color-accent-700);
     outline-offset: 2px;
+  }
+
+  .ga-select-trigger[data-disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
   }
 
   .ga-select-placeholder {
@@ -319,8 +364,11 @@
   .ga-select-chevron {
     color: var(--color-text-muted);
     font-size: 0.9rem;
+    flex-shrink: 0;
+    transition: transform 120ms ease;
   }
 
+  /* Content panel — explicit surface token, no fallback to browser default */
   .ga-select-content {
     z-index: 80;
     width: var(--bits-select-anchor-width, 14rem);
@@ -347,26 +395,43 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     padding: 0.5rem 0.75rem;
+    cursor: pointer;
+    background: transparent;
   }
 
   .ga-select-item:last-child {
     border-bottom: 0;
   }
 
+  /* Highlighted (keyboard or hover focus) */
   .ga-select-item[data-highlighted] {
     background: var(--color-accent-100);
     color: var(--color-accent-900);
     outline: none;
   }
 
+  /* Selected (currently chosen value) */
+  .ga-select-item[data-selected] {
+    background: var(--color-accent-100);
+    color: var(--color-accent-900);
+  }
+
+  /* Highlighted + selected */
+  .ga-select-item[data-highlighted][data-selected] {
+    background: var(--color-accent-300);
+    color: var(--color-accent-900);
+  }
+
   .ga-select-item[data-disabled] {
     opacity: 0.45;
     cursor: not-allowed;
+    pointer-events: none;
   }
 
   .ga-select-indicator {
     color: var(--color-accent-700);
     font-size: 0.9rem;
     line-height: 1;
+    flex-shrink: 0;
   }
 }

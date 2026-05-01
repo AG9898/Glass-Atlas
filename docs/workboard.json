@@ -819,7 +819,7 @@
       "group_id": "POLISH",
       "title": "Theme-aware dropdown design system",
       "description": "Create a shared dropdown/select visual system that follows Glass Atlas theme tokens in both light and dark modes. Define explicit styling for trigger, menu surface, option text, hover/highlight, selected state, focus-visible ring, disabled state, and border treatments so dropdowns no longer inherit browser-default white popup surfaces in dark mode. Keep the component style aligned with the existing editorial UI language (sharp edges, strong lines, uppercase utility labels) and ensure token usage remains centralized in app-level styles rather than route-local one-offs.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "POLISH-03"

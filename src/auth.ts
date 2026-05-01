@@ -33,6 +33,9 @@ export const { handle, signIn, signOut } = SvelteKitAuth({
       clientSecret: AUTH_GITHUB_SECRET,
     }),
   ],
+  pages: {
+    signIn: '/signin',
+  },
   secret: AUTH_SECRET,
   trustHost: true,
 });

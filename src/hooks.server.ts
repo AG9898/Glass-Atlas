@@ -33,7 +33,7 @@ function isAuthBypassEnabled(hostname: string): boolean {
  */
 export function buildSigninRedirectUrl(pathname: string, search: string): string {
   const callbackUrl = pathname + search;
-  return `/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+  return `/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`;
 }
 
 const localAuthBypass: Handle = async ({ event, resolve }) => {

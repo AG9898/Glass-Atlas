@@ -2,15 +2,15 @@
  * Tests for post-sign-in redirect behavior (ADMIN-08A).
  *
  * Covers:
- * - buildSigninRedirectUrl: pure helper that constructs the /auth/signin?callbackUrl=... redirect
- * - /auth/signin load function: reads callbackUrl from URL, defaults to /admin
+ * - buildSigninRedirectUrl: pure helper that constructs the /signin?callbackUrl=... redirect
+ * - /signin load function: reads callbackUrl from URL, defaults to /admin
  *
  * Manual verification steps for the full OAuth flow (cannot be automated in unit tests):
  *   1. Start dev server, clear all cookies, visit http://localhost:5173/admin
- *   2. Should be redirected to /auth/signin?callbackUrl=%2Fadmin
+ *   2. Should be redirected to /signin?callbackUrl=%2Fadmin
  *   3. Clicking "Sign in with GitHub" should complete OAuth and land on /admin
- *   4. Visiting /auth/signin directly (no callbackUrl) and signing in should also land on /admin
- *   5. Visiting /auth/signin?callbackUrl=%2Fadmin%2Fnotes%2Fnew and signing in
+ *   4. Visiting /signin directly (no callbackUrl) and signing in should also land on /admin
+ *   5. Visiting /signin?callbackUrl=%2Fadmin%2Fnotes%2Fnew and signing in
  *      should land on /admin/notes/new (explicit callbackUrl is honoured)
  *   6. Visiting /admin while already authenticated should render the dashboard without redirect
  */
@@ -54,7 +54,7 @@ describe('buildSigninRedirectUrl', () => {
   it('encodes the path as callbackUrl in the redirect URL', async () => {
     const { buildSigninRedirectUrl } = await import('../hooks.server');
     const url = buildSigninRedirectUrl('/admin', '');
-    expect(url).toBe('/auth/signin?callbackUrl=%2Fadmin');
+    expect(url).toBe('/signin?callbackUrl=%2Fadmin');
   });
 
   it('includes search params in the encoded callbackUrl', async () => {
@@ -65,10 +65,10 @@ describe('buildSigninRedirectUrl', () => {
     expect(decoded).toContain('draft=true');
   });
 
-  it('always prefixes with /auth/signin', async () => {
+  it('always prefixes with /signin', async () => {
     const { buildSigninRedirectUrl } = await import('../hooks.server');
     const url = buildSigninRedirectUrl('/admin', '');
-    expect(url.startsWith('/auth/signin?callbackUrl=')).toBe(true);
+    expect(url.startsWith('/signin?callbackUrl=')).toBe(true);
   });
 
   it('handles nested admin paths correctly', async () => {
@@ -80,36 +80,36 @@ describe('buildSigninRedirectUrl', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Tests for /auth/signin load function
+// Tests for /signin load function
 // ---------------------------------------------------------------------------
 
-describe('/auth/signin load function', () => {
+describe('/signin load function', () => {
   beforeEach(() => {
     vi.resetModules();
   });
 
   it('returns the callbackUrl from the query string', async () => {
-    const { load } = await import('../routes/auth/signin/+page.server');
+    const { load } = await import('../routes/signin/+page.server');
 
-    const url = new URL('http://localhost/auth/signin?callbackUrl=%2Fadmin%2Fnotes%2Fnew');
+    const url = new URL('http://localhost/signin?callbackUrl=%2Fadmin%2Fnotes%2Fnew');
     const result = (await load({ url } as Parameters<typeof load>[0])) as { callbackUrl: string };
 
     expect(result.callbackUrl).toBe('/admin/notes/new');
   });
 
   it('defaults callbackUrl to /admin when the query param is absent', async () => {
-    const { load } = await import('../routes/auth/signin/+page.server');
+    const { load } = await import('../routes/signin/+page.server');
 
-    const url = new URL('http://localhost/auth/signin');
+    const url = new URL('http://localhost/signin');
     const result = (await load({ url } as Parameters<typeof load>[0])) as { callbackUrl: string };
 
     expect(result.callbackUrl).toBe('/admin');
   });
 
   it('defaults callbackUrl to /admin when callbackUrl param is an empty string', async () => {
-    const { load } = await import('../routes/auth/signin/+page.server');
+    const { load } = await import('../routes/signin/+page.server');
 
-    const url = new URL('http://localhost/auth/signin?callbackUrl=');
+    const url = new URL('http://localhost/signin?callbackUrl=');
     // URL.searchParams.get returns '' for empty param — treated as absent
     const result = (await load({ url } as Parameters<typeof load>[0])) as { callbackUrl: string };
 
@@ -118,9 +118,9 @@ describe('/auth/signin load function', () => {
   });
 
   it('returns an explicit callbackUrl for a specific admin sub-path', async () => {
-    const { load } = await import('../routes/auth/signin/+page.server');
+    const { load } = await import('../routes/signin/+page.server');
 
-    const url = new URL('http://localhost/auth/signin?callbackUrl=%2Fadmin%2Fnotes%2Fnew');
+    const url = new URL('http://localhost/signin?callbackUrl=%2Fadmin%2Fnotes%2Fnew');
     const result = (await load({ url } as Parameters<typeof load>[0])) as { callbackUrl: string };
 
     expect(result.callbackUrl).toBe('/admin/notes/new');

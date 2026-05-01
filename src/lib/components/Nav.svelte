@@ -115,7 +115,7 @@
           </button>
         </form>
       {:else}
-        <a href="/auth/signin" class="ga-nav__link ga-nav__link--auth">
+        <a href="/signin" class="ga-nav__link ga-nav__link--auth">
           LOGIN
         </a>
       {/if}

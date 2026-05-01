@@ -158,7 +158,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 **Auth session** — read from `event.locals.session` (set by `hooks.server.ts`). Never read cookies manually in load functions or endpoints.
 
-**Post-sign-in redirect** — the admin guard in `hooks.server.ts` redirects unauthenticated `/admin` visits to `/auth/signin?callbackUrl=<encoded-path>`. The custom sign-in page at `src/routes/auth/signin/` reads `callbackUrl` from the query string (defaulting to `/admin`) and passes it as `redirectTo` to the Auth.js `signIn` action. This ensures the user lands back on the intended admin page after OAuth completes. When calling `signIn()` programmatically, pass `{ redirectTo: '/admin' }` as the options to get the same default behavior.
+**Post-sign-in redirect** — the admin guard in `hooks.server.ts` redirects unauthenticated `/admin` visits to `/signin?callbackUrl=<encoded-path>`. The custom sign-in page at `src/routes/signin/` reads `callbackUrl` from the query string (defaulting to `/admin`) and passes it as `redirectTo` to the Auth.js `signIn` action. This ensures the user lands back on the intended admin page after OAuth completes. When calling `signIn()` programmatically, pass `{ redirectTo: '/admin' }` as the options to get the same default behavior.
 
 **Slugs** — always generate via `src/lib/utils/slugify.ts`. Never construct slugs by hand.
 

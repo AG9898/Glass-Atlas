@@ -1,10 +1,10 @@
-import { signIn } from '../../../auth';
+import { signIn } from '../../auth';
 import type { Actions, PageServerLoad } from './$types';
 
 /**
  * Reads the callbackUrl from the query string so the page can pass it
  * back through the form to Auth.js via the redirectTo field.
- * Defaults to /admin so a bare /auth/signin visit always lands on the
+ * Defaults to /admin so a bare /signin visit always lands on the
  * admin dashboard after a successful GitHub sign-in.
  */
 export const load: PageServerLoad = async ({ url }) => {

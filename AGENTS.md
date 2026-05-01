@@ -343,3 +343,6 @@ If `POST /api/admin/media/upload-url` succeeds but browser `PUT` to the presigne
 
 ### 2026-05-01 — Auth.js prod config: `AUTH_URL` must be origin-only and auth secrets should be runtime-loaded
 Setting `AUTH_URL` with a path suffix (for example `/auth`) triggers `env-url-basepath-redundant` and can cause `UnknownAction` routing failures in production. Keep `AUTH_URL` as origin-only (or unset) and do not set `AUTH_TRUST_HOST` on Railway. Load `AUTH_SECRET`, `AUTH_GITHUB_ID`, and `AUTH_GITHUB_SECRET` via `$env/dynamic/private` so credentials are not baked into Docker build artifacts.
+
+### 2026-05-01 — Reserve `/auth/*` for Auth.js actions; host custom sign-in outside that prefix
+With `@auth/sveltekit`, the hook intercepts `/auth/*` as Auth.js action routes. A custom SvelteKit page at `/auth/signin` causes client-side `__data.json` requests like `/auth/signin/__data.json`, which Auth.js parses as `signin` with provider id and throws `UnknownAction: Unsupported action`. Put custom UI at `/signin` (or another non-`/auth` path) and set `pages.signIn` accordingly.

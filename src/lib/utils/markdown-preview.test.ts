@@ -147,10 +147,7 @@ describe('renderPreview — fail-soft contract', () => {
       throw new Error('Forced transform failure');
     });
 
-    let result: Awaited<ReturnType<typeof renderPreview>> | undefined;
-    await expect(async () => {
-      result = await renderPreview('Some body', new Set());
-    }).not.toThrow();
+    const result = await renderPreview('Some body', new Set());
 
     expect(result).toBeDefined();
     expect(result!.ok).toBe(false);

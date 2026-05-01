@@ -755,7 +755,7 @@
       "group_id": "ADMIN",
       "title": "Post-sign-in redirect to admin dashboard",
       "description": "Ensure authenticated admin sign-in lands on /admin by default in local and production OAuth flows. Implement explicit callback/redirect handling so successful auth does not strand the user on the generic sign-in page or landing route.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "SCAFFOLD-02",

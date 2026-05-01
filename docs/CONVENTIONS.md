@@ -156,6 +156,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 **Auth session** — read from `event.locals.session` (set by `hooks.server.ts`). Never read cookies manually in load functions or endpoints.
 
+**Post-sign-in redirect** — the admin guard in `hooks.server.ts` redirects unauthenticated `/admin` visits to `/auth/signin?callbackUrl=<encoded-path>`. The custom sign-in page at `src/routes/auth/signin/` reads `callbackUrl` from the query string (defaulting to `/admin`) and passes it as `redirectTo` to the Auth.js `signIn` action. This ensures the user lands back on the intended admin page after OAuth completes. When calling `signIn()` programmatically, pass `{ redirectTo: '/admin' }` as the options to get the same default behavior.
+
 **Slugs** — always generate via `src/lib/utils/slugify.ts`. Never construct slugs by hand.
 
 **CodeMirror 6 wiring** — initialize the CodeMirror `EditorView` inside `onMount` and tear it down with `onDestroy` or the returned mount cleanup. Svelte holds only the serialized markdown string; sync it from CodeMirror via an `updateListener` extension on every document change. `MarkdownEditor.svelte` exposes a bindable `value` prop, optional `placeholder`, and optional `onChange(value)` callback for non-binding consumers. Never wrap the `EditorView` instance in a Svelte store or reactive variable — it is not serializable.

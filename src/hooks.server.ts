@@ -24,6 +24,18 @@ function isAuthBypassEnabled(hostname: string): boolean {
   );
 }
 
+/**
+ * Builds the sign-in redirect URL, preserving the current path and query
+ * string as the callbackUrl so the user lands back where they intended
+ * after a successful OAuth sign-in.
+ *
+ * Exported for unit testing only — not part of the public API.
+ */
+export function buildSigninRedirectUrl(pathname: string, search: string): string {
+  const callbackUrl = pathname + search;
+  return `/auth/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+}
+
 const localAuthBypass: Handle = async ({ event, resolve }) => {
   if (isAuthBypassEnabled(event.url.hostname)) {
     event.locals.auth = async () => AUTH_BYPASS_SESSION;
@@ -36,7 +48,7 @@ const adminGuard: Handle = async ({ event, resolve }) => {
   if (event.url.pathname.startsWith('/admin')) {
     const session = await event.locals.auth();
     if (!session?.user) {
-      redirect(303, '/auth/signin');
+      redirect(303, buildSigninRedirectUrl(event.url.pathname, event.url.search));
     }
   }
   return resolve(event);

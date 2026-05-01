@@ -70,6 +70,7 @@ This table starts empty and is filled in as test files are added to the project.
 | `src/lib/server/db/notes.test.ts` | `src/lib/server/db/notes.ts` | Mocked Drizzle coverage for pgvector similarity search and citation tracking helpers |
 | `src/lib/server/embeddings.test.ts` | `src/lib/server/embeddings.ts` | Mocked OpenRouter embedding requests, missing key handling, HTTP failure handling, and malformed payload rejection |
 | `src/lib/utils/chat-format.test.ts` | `src/lib/utils/chat-format.ts` | Safe chat formatting for italics, local note links (`[[slug]]`, markdown links), and HTML escaping |
+| `src/tests/auth-redirect.test.ts` | `src/hooks.server.ts`, `src/routes/auth/signin/+page.server.ts` | `buildSigninRedirectUrl` pure helper, sign-in load function callbackUrl defaults and pass-through, empty/absent param fallback to /admin |
 
 Naming rules that govern where each file lives are in the next section.
 

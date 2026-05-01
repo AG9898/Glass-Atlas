@@ -3,12 +3,6 @@ WORKDIR /app
 RUN apt-get update \
   && apt-get install -y --no-install-recommends git python3 make g++ npm \
   && rm -rf /var/lib/apt/lists/*
-ARG AUTH_SECRET
-ARG AUTH_GITHUB_ID
-ARG AUTH_GITHUB_SECRET
-ENV AUTH_SECRET=${AUTH_SECRET}
-ENV AUTH_GITHUB_ID=${AUTH_GITHUB_ID}
-ENV AUTH_GITHUB_SECRET=${AUTH_GITHUB_SECRET}
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .

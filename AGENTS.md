@@ -340,3 +340,6 @@ SvelteKit `redirect()` throws to short-circuit the handler; catching it as a gen
 
 ### 2026-05-01 — Railway bucket upload failures can be CORS-only even when signing works
 If `POST /api/admin/media/upload-url` succeeds but browser `PUT` to the presigned bucket URL fails (`net::ERR_FAILED`), treat it as a bucket CORS issue first, not missing env vars. Railway bucket CORS is configured via S3-compatible API/CLI (not app-service env vars and not a dedicated dashboard toggle in current UX). Ensure CORS allows app origins, `PUT`, and `Content-Type` before debugging app code.
+
+### 2026-05-01 — Auth.js prod config: `AUTH_URL` must be origin-only and auth secrets should be runtime-loaded
+Setting `AUTH_URL` with a path suffix (for example `/auth`) triggers `env-url-basepath-redundant` and can cause `UnknownAction` routing failures in production. Keep `AUTH_URL` as origin-only (or unset) and do not set `AUTH_TRUST_HOST` on Railway. Load `AUTH_SECRET`, `AUTH_GITHUB_ID`, and `AUTH_GITHUB_SECRET` via `$env/dynamic/private` so credentials are not baked into Docker build artifacts.

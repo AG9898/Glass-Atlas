@@ -179,7 +179,9 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 
 **Credential issuance:** The author signs in via GitHub OAuth. Auth.js validates the OAuth callback and issues a **stateless JWT session** (no DrizzleAdapter; no database session storage). Sessions are signed with `AUTH_SECRET` and stored in an HTTP-only cookie. Only the author's specific GitHub account should be permitted — enforced via an Auth.js callback that checks the GitHub user identity.
 
-**`trustHost` handling:** `AUTH_TRUST_HOST` is NOT set on Railway. The `trustHost` option is not set explicitly in `src/auth.ts` — the SvelteKit Auth.js adapter sets it via its own defaults (`true` in the actions path, `dev` in the session path), which is correct for Railway's reverse-proxy environment. Never set `trustHost: Boolean(env.AUTH_TRUST_HOST)` — that would force `false` in production and break the OAuth callback.
+**`trustHost` handling:** `AUTH_TRUST_HOST` is NOT set on Railway. In this codebase (`@auth/sveltekit@1.0.0`), `src/auth.ts` sets `trustHost: true` explicitly to avoid production host validation failures. Never set `trustHost: Boolean(env.AUTH_TRUST_HOST)` — that can force `false` in production and break OAuth callbacks.
+
+**`AUTH_URL` handling:** If `AUTH_URL` is set in Railway, it must be the site origin only (for example `https://glass-atlas-production.up.railway.app`) with no `/auth` suffix. Including a path causes Auth.js `env-url-basepath-redundant` warnings and can route actions incorrectly (`UnknownAction`).
 
 **Credential verification:** `src/hooks.server.ts` calls `event.locals.auth()` on every `/admin/**` request. Any request to an `/admin` or `/api/admin` path without a valid session is redirected to `/auth/signin` (the Auth.js sign-in page, which initiates the GitHub OAuth flow). No `/admin` route handler is ever reached without a confirmed session.
 

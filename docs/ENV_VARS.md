@@ -19,11 +19,12 @@
 | `OPENROUTER_BASE_URL` | No | All | `https://openrouter.ai/api/v1` | `$env/dynamic/private` | Override the OpenRouter base URL. Useful for test mocking. |
 | `OPENROUTER_MODEL` | No | All | `google/gemini-2.0-flash-001` | `$env/static/private` | Override the default LLM model used for chat. |
 | `EMBEDDING_MODEL` | No | All | `text-embedding-3-small` | `$env/dynamic/private` | Override the default embedding model. |
-| `AUTH_SECRET` | Yes | All | — | `$env/static/private` | Random secret for Auth.js session signing. Generate: `openssl rand -hex 32`. |
-| `AUTH_GITHUB_ID` | Yes | All | — | `$env/static/private` | GitHub OAuth app Client ID. |
-| `AUTH_GITHUB_SECRET` | Yes | All | — | `$env/static/private` | GitHub OAuth app Client Secret. |
+| `AUTH_SECRET` | Yes | All | — | `$env/dynamic/private` | Random secret for Auth.js session signing. Generate: `openssl rand -hex 32`. Loaded at runtime so secrets are not baked into build artifacts. |
+| `AUTH_GITHUB_ID` | Yes | All | — | `$env/dynamic/private` | GitHub OAuth app Client ID. Loaded at runtime so credentials rotate without rebuild. |
+| `AUTH_GITHUB_SECRET` | Yes | All | — | `$env/dynamic/private` | GitHub OAuth app Client Secret. Loaded at runtime so credentials rotate without rebuild. |
+| `AUTH_URL` | Optional (recommended on production) | Production | — | N/A (read by Auth.js core) | Auth.js canonical site URL. If set, use origin only (for example `https://glass-atlas-production.up.railway.app`) and do **not** include `/auth`; path suffixes trigger `env-url-basepath-redundant` and can break action routing. |
 | `AUTH_BYPASS` | No | Local development only | `FALSE` | `$env/dynamic/private` | Dev-only auth bypass toggle for localhost testing. Set to `TRUE` to force an authenticated local admin session. Ignored outside `NODE_ENV=development` and non-local hosts. |
-| `AUTH_TRUST_HOST` | No | — | — | `$env/static/private` | Vercel-specific workaround — not required on Railway. Do not set. |
+| `AUTH_TRUST_HOST` | No | — | — | N/A | Legacy/Vercel-specific workaround — not required on Railway. Do not set. |
 | `CHAT_RATE_LIMIT_MAX` | No | All | `10` | `$env/dynamic/private` | Max chat messages allowed per anonymous browser session within one quota window. |
 | `CHAT_RATE_LIMIT_WINDOW_MINUTES` | No | All | `60` | `$env/dynamic/private` | Length of the anonymous chat quota window in minutes. |
 | `CHAT_SESSION_COOKIE_NAME` | No | All | `chat_session` | `$env/dynamic/private` | Cookie name used for anonymous visitor chat session identity. |
@@ -177,6 +178,7 @@ Set via Railway dashboard under Project > Service > Variables. Railway encrypts 
 | `AUTH_SECRET` | Production random hex (separate from local) |
 | `AUTH_GITHUB_ID` | Production GitHub OAuth app client ID |
 | `AUTH_GITHUB_SECRET` | Production GitHub OAuth app client secret |
+| `AUTH_URL` | `https://yourdomain.com` (origin only, no `/auth` suffix) |
 | `PUBLIC_SITE_URL` | `https://yourdomain.com` |
 | `BUCKET` | Railway bucket name (variable reference) |
 | `ENDPOINT` | Railway bucket endpoint (`https://storage.railway.app`) |

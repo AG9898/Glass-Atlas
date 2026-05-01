@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
-import type { Actions } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 import { embedText } from '$lib/server/embeddings';
-import { createNote, getNoteBySlug, updateNote } from '$lib/server/db/notes';
+import { createNote, getNoteBySlug, listNotes, updateNote } from '$lib/server/db/notes';
 import { slugify } from '$lib/utils/slugify';
 
 type NoteStatus = 'draft' | 'published';
@@ -80,6 +80,11 @@ async function updateEmbeddingAfterSave(slug: string, body: string): Promise<voi
     console.error(`Failed to store embedding for note "${slug}".`, error);
   }
 }
+
+export const load: PageServerLoad = async () => {
+  const allNotes = await listNotes();
+  return { noteSlugs: allNotes.map((n) => n.slug) };
+};
 
 export const actions: Actions = {
   create: async ({ request }) => {

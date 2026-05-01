@@ -1022,7 +1022,7 @@
       "group_id": "ADMIN",
       "title": "MarkdownEditor split-pane UI with live typing preview",
       "description": "Upgrade `MarkdownEditor.svelte` from source-only mode to split-pane mode with a right preview pane that updates as the left CodeMirror content changes. Preserve existing bindable `value` behavior, keep update handling local to component state, and surface a non-blocking preview error state when preview rendering fails.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "ADMIN-10A"

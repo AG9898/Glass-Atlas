@@ -3,7 +3,7 @@
   import { Select } from '$lib/components/ui';
   import type { UiSelectOption } from '$lib/components/ui';
   import { CATEGORIES } from '$lib/utils/note-taxonomy';
-  import type { ActionData } from './$types';
+  import type { ActionData, PageData } from './$types';
 
   type NoteStatus = 'draft' | 'published';
   type NoteMediaType = 'image-jpeg' | 'image-png' | 'image-svg' | 'image-gif' | 'video-mp4';
@@ -39,7 +39,9 @@
 
   const mediaTypeOptions: UiSelectOption[] = MEDIA_TYPE_OPTIONS;
 
-  let { form }: { form: ActionData } = $props();
+  let { data, form }: { data: PageData; form: ActionData } = $props();
+
+  let resolvedSlugs = $derived(new Set(data.noteSlugs));
 
   function valuesFromForm(): FormValues | undefined {
     return form?.values;
@@ -286,7 +288,7 @@
           <p class="eyebrow" id="body-title">Body / Markdown</p>
           <p>CodeMirror 6 markdown mode</p>
         </div>
-        <MarkdownEditor bind:value={body} placeholder="Start with the note thesis, then write in Markdown..." />
+        <MarkdownEditor bind:value={body} placeholder="Start with the note thesis, then write in Markdown..." {resolvedSlugs} />
       </section>
     </section>
 

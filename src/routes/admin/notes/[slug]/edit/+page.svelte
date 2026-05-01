@@ -52,6 +52,8 @@
 
   let { data, form }: { data: PageData; form: ActionData } = $props();
 
+  let resolvedSlugs = $derived(new Set(data.noteSlugs));
+
   let title = $state('');
   let takeaway = $state('');
   let body = $state('');
@@ -325,7 +327,7 @@
             <p class="eyebrow" id="body-title">Body / Markdown</p>
             <p>CodeMirror 6 markdown mode</p>
           </div>
-          <MarkdownEditor bind:value={body} placeholder="Revise the note thesis, then write in Markdown..." />
+          <MarkdownEditor bind:value={body} placeholder="Revise the note thesis, then write in Markdown..." {resolvedSlugs} />
         </section>
       </section>
 

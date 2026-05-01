@@ -1,7 +1,7 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { embedText } from '$lib/server/embeddings';
-import { getNoteBySlug, updateNote } from '$lib/server/db/notes';
+import { getNoteBySlug, listNotes, updateNote } from '$lib/server/db/notes';
 
 type NoteStatus = 'draft' | 'published';
 type NoteMediaType = 'image-jpeg' | 'image-png' | 'image-svg' | 'image-gif' | 'video-mp4';
@@ -92,13 +92,14 @@ async function updateEmbeddingAfterSave(slug: string, body: string): Promise<voi
 }
 
 export const load: PageServerLoad = async ({ params }) => {
-  const note = await requireNote(params.slug);
+  const [note, allNotes] = await Promise.all([requireNote(params.slug), listNotes()]);
 
   return {
     note: {
       ...note,
       publishedAtInput: toDateInputValue(note.publishedAt),
     },
+    noteSlugs: allNotes.map((n) => n.slug),
   };
 };
 

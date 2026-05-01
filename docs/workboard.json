@@ -986,7 +986,7 @@
       "group_id": "ADMIN",
       "title": "Admin markdown live-preview transform helper + tests",
       "description": "Implement a client-safe markdown preview transform used by admin editors: take raw `body`, apply wiki-link rendering against a provided resolved-slug set, and produce sanitized HTML for preview rendering. Keep this helper independent from server-only modules and include explicit fail-soft behavior contract (transform errors must not affect note editing/saving).",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "ADMIN-03",

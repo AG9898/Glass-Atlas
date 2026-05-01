@@ -127,9 +127,10 @@ Current production remains note-level semantic retrieval. The sequence below des
 ```
 1. Admin types in the left CodeMirror pane
 2. CodeMirror update listener syncs the full markdown string to Svelte `body` state
-3. Preview pipeline transforms `body` locally:
-   - apply `renderWikiLinks()` against the preloaded set of known note slugs
-   - render markdown to HTML for display in the right pane
+3. Preview pipeline transforms `body` locally via `renderPreview(body, resolvedSlugs)` in `src/lib/utils/markdown-preview.ts`:
+   - applies `renderWikiLinks()` to convert `[[slug]]`/`[[slug|text]]` wiki-links (resolved → anchor; unresolved → `<span class="wiki-link-missing">`)
+   - renders the resulting markdown to HTML using unified (remark-parse → remark-gfm → remark-rehype → rehype-stringify); no rehype-shiki (code is unhighlighted in preview — acceptable parity boundary)
+   - returns a `PreviewResult`; on failure (`ok: false`) renders a non-blocking error notice
 4. Preview pane updates immediately without route navigation, form submission, or API calls
 5. If preview transform fails, editor input remains fully functional and save/publish actions are unaffected
 ```

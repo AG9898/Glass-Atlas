@@ -64,7 +64,9 @@ src/
       Chat.svelte
     utils/
       slugify.ts
-      note-taxonomy.ts — canonical category list
+      note-taxonomy.ts    — canonical category list
+      wiki-links.ts       — parseWikiLinks, renderWikiLinks (client-safe, server-safe)
+      markdown-preview.ts — renderPreview / renderPreviewSync (client-safe preview transform)
   routes/
     +page.svelte                      — landing
     notes/
@@ -226,9 +228,9 @@ function wikiLinkCompletions(notes: { slug: string; title: string }[]): Completi
 
 - Sync source of truth from CodeMirror to a plain `body` string in Svelte state on every `docChanged` event.
 - Build preview from that `body` string only; no request/response cycle is allowed while typing.
-- Apply `renderWikiLinks(body, resolvedSlugs)` before markdown-to-HTML rendering so `[[slug]]` and `[[slug|text]]` display as links/missing refs in preview.
+- Call `renderPreview(body, resolvedSlugs)` (or `renderPreviewSync`) from `src/lib/utils/markdown-preview.ts` to obtain a `PreviewResult`. This helper applies `renderWikiLinks` then converts markdown to HTML via unified (remark-parse → remark-gfm → remark-rehype → rehype-stringify). It is client-safe; do not substitute the server-only `src/lib/server/markdown.ts` renderer in admin `.svelte` files.
 - Never import server-only modules (for example `src/lib/server/**`) into admin `.svelte` files for preview rendering.
-- If preview rendering throws, fail soft: keep typing/save/publish functional and show a lightweight preview error state rather than blocking form actions.
+- `renderPreview` never throws — it returns `{ ok: false, html, errorMessage }` on pipeline failure. Check `result.ok` before rendering; on `false`, show a lightweight preview error state without blocking form actions.
 - Treat right-pane output as sanitized render output; do not inject untrusted raw HTML directly into the DOM.
 
 **Preview parity boundary** — live preview must preserve markdown structure and wiki-link semantics used by public notes. Exact code highlighting/theme parity with the server-side public renderer is optional; correctness of headings/lists/links/emphasis/table structure is required.

@@ -13,7 +13,7 @@ vi.mock('./db/notes', () => ({
 
 import { embedText } from './embeddings';
 import { searchChunksBySimilarity, searchNotesByLexical } from './db/notes';
-import { assembleContext, hasSufficientCoverage, INSUFFICIENT_COVERAGE_RESPONSE } from './chat';
+import { assembleContext, hasSufficientCoverage, buildFallbackResponse, INSUFFICIENT_COVERAGE_RESPONSE } from './chat';
 
 const mockEmbedText = vi.mocked(embedText);
 const mockSearchChunks = vi.mocked(searchChunksBySimilarity);
@@ -337,24 +337,24 @@ describe('assembleContext', () => {
 
 describe('hasSufficientCoverage', () => {
   it('returns true when context is non-empty and citedSlugs is non-empty', () => {
-    expect(hasSufficientCoverage({ context: 'Retrieved notes:\n\nSlug: foo', citedSlugs: ['foo'] })).toBe(true);
+    expect(hasSufficientCoverage({ context: 'Retrieved notes:\n\nSlug: foo', citedSlugs: ['foo'], citedNotes: [{ slug: 'foo', title: 'Foo' }] })).toBe(true);
   });
 
   it('returns false when context is empty string', () => {
-    expect(hasSufficientCoverage({ context: '', citedSlugs: [] })).toBe(false);
+    expect(hasSufficientCoverage({ context: '', citedSlugs: [], citedNotes: [] })).toBe(false);
   });
 
   it('returns false when context is empty but citedSlugs has entries (degenerate state)', () => {
     // Should never happen in practice, but gate is conservative.
-    expect(hasSufficientCoverage({ context: '', citedSlugs: ['foo'] })).toBe(false);
+    expect(hasSufficientCoverage({ context: '', citedSlugs: ['foo'], citedNotes: [{ slug: 'foo', title: 'Foo' }] })).toBe(false);
   });
 
   it('returns false when context is non-empty but citedSlugs is empty (degenerate state)', () => {
-    expect(hasSufficientCoverage({ context: 'some context', citedSlugs: [] })).toBe(false);
+    expect(hasSufficientCoverage({ context: 'some context', citedSlugs: [], citedNotes: [] })).toBe(false);
   });
 
   it('returns true for minimal valid context with a single slug', () => {
-    expect(hasSufficientCoverage({ context: 'x', citedSlugs: ['any-slug'] })).toBe(true);
+    expect(hasSufficientCoverage({ context: 'x', citedSlugs: ['any-slug'], citedNotes: [{ slug: 'any-slug', title: 'Any Slug' }] })).toBe(true);
   });
 });
 
@@ -371,5 +371,98 @@ describe('INSUFFICIENT_COVERAGE_RESPONSE', () => {
     const lowerCased = INSUFFICIENT_COVERAGE_RESPONSE.toLowerCase();
     expect(lowerCased).not.toContain('according to');
     expect(lowerCased).not.toContain('based on my knowledge');
+  });
+});
+
+describe('buildFallbackResponse', () => {
+  it('returns the canned response when no cited notes are provided', () => {
+    const result = buildFallbackResponse([]);
+    expect(result).toBe(INSUFFICIENT_COVERAGE_RESPONSE);
+  });
+
+  it('appends an italicized related-notes footer with wiki-links when notes are provided', () => {
+    const result = buildFallbackResponse([
+      { slug: 'rag-pipeline', title: 'RAG Pipeline' },
+      { slug: 'vector-search', title: 'Vector Search' },
+    ]);
+    expect(result).toContain(INSUFFICIENT_COVERAGE_RESPONSE);
+    expect(result).toContain('*Related notes:');
+    expect(result).toContain('[[rag-pipeline|RAG Pipeline]]');
+    expect(result).toContain('[[vector-search|Vector Search]]');
+  });
+
+  it('wraps the related-notes footer in single asterisks (italic)', () => {
+    const result = buildFallbackResponse([{ slug: 'test-note', title: 'Test Note' }]);
+    // Footer must start and end with * (not **)
+    expect(result).toMatch(/\*Related notes:.*\*$/s);
+  });
+
+  it('filters out notes with unsafe slugs', () => {
+    const result = buildFallbackResponse([
+      { slug: 'valid-note', title: 'Valid Note' },
+      { slug: 'BAD_SLUG!', title: 'Bad Slug' },
+      { slug: 'also invalid slug', title: 'Also Invalid' },
+    ]);
+    expect(result).toContain('[[valid-note|Valid Note]]');
+    expect(result).not.toContain('BAD_SLUG');
+    expect(result).not.toContain('also invalid slug');
+  });
+
+  it('returns canned response without footer when all slugs are unsafe', () => {
+    const result = buildFallbackResponse([
+      { slug: 'BAD SLUG', title: 'Bad' },
+      { slug: 'UPPERCASE', title: 'Upper' },
+    ]);
+    expect(result).toBe(INSUFFICIENT_COVERAGE_RESPONSE);
+  });
+
+  it('includes slugs that start with a digit (valid slug pattern)', () => {
+    const result = buildFallbackResponse([{ slug: '2024-recap', title: '2024 Recap' }]);
+    expect(result).toContain('[[2024-recap|2024 Recap]]');
+  });
+});
+
+describe('assembleContext — citedNotes', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockEmbedText.mockResolvedValue([0.1, 0.2, 0.3]);
+    mockSearchLexical.mockResolvedValue([]);
+  });
+
+  it('populates citedNotes with slug and title from semantic chunks', async () => {
+    mockSearchChunks.mockResolvedValue([chunkA1, chunkB1]);
+
+    const result = await assembleContext('vector search');
+
+    expect(result.citedNotes).toEqual([
+      { slug: 'vector-search', title: 'Vector Search' },
+      { slug: 'rag-pipeline', title: 'RAG Pipeline' },
+    ]);
+  });
+
+  it('citedSlugs mirrors the slug order in citedNotes', async () => {
+    mockSearchChunks.mockResolvedValue([chunkA1, chunkB1]);
+
+    const result = await assembleContext('test');
+
+    expect(result.citedSlugs).toEqual(result.citedNotes.map((n) => n.slug));
+  });
+
+  it('populates citedNotes from lexical-only notes', async () => {
+    mockSearchChunks.mockResolvedValue([]);
+    mockSearchLexical.mockResolvedValue([lexicalNoteC]);
+
+    const result = await assembleContext('language models');
+
+    expect(result.citedNotes).toEqual([{ slug: 'llm-basics', title: 'LLM Basics' }]);
+  });
+
+  it('returns empty citedNotes when no notes are retrieved', async () => {
+    mockSearchChunks.mockResolvedValue([]);
+    mockSearchLexical.mockResolvedValue([]);
+
+    const result = await assembleContext('unknown topic');
+
+    expect(result.citedNotes).toEqual([]);
   });
 });

@@ -361,6 +361,8 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Assemble the final prompt from: personality block + condensed evidence context + user message.
 - Apply confidence gating before answer generation. If confidence is low, return a limited-coverage fallback with related-topic note links instead of speculative direct answers.
 - Keep related-note links deterministic from retrieved note slugs; do not rely on model-invented slugs or URLs.
+- Fallback responses use `buildFallbackResponse(citedNotes)` from `src/lib/server/chat.ts`, which appends an italicised related-notes footer (`*Related notes: [[slug|Title]]*`) for any retrieved notes and drops notes whose slugs fail `isSafeNoteSlug` validation. Never pass model-invented slugs to this function.
+- `isSafeNoteSlug` is exported from `src/lib/utils/chat-format.ts` and is the canonical slug-safety predicate for both the fallback builder and the chat HTML renderer. Import it from that module in both client and server contexts.
 
 ### OpenRouter (`src/lib/server/ai/openrouter.ts`)
 

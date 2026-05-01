@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('$lib/server/chat', () => ({
   assembleContext: vi.fn(),
   hasSufficientCoverage: vi.fn(),
+  buildFallbackResponse: vi.fn(),
   INSUFFICIENT_COVERAGE_RESPONSE: "I don't have a note on that.",
 }));
 
@@ -24,12 +25,13 @@ vi.mock('$lib/server/db/notes', () => ({
 }));
 
 import { POST } from './+server';
-import { assembleContext, hasSufficientCoverage } from '$lib/server/chat';
+import { assembleContext, hasSufficientCoverage, buildFallbackResponse } from '$lib/server/chat';
 import { streamChatCompletion } from '$lib/server/ai/openrouter';
 import { consumeChatRateLimit, recordCitations } from '$lib/server/db/notes';
 
 const mockAssembleContext = vi.mocked(assembleContext);
 const mockHasSufficientCoverage = vi.mocked(hasSufficientCoverage);
+const mockBuildFallbackResponse = vi.mocked(buildFallbackResponse);
 const mockStreamChatCompletion = vi.mocked(streamChatCompletion);
 const mockConsumeChatRateLimit = vi.mocked(consumeChatRateLimit);
 const mockRecordCitations = vi.mocked(recordCitations);
@@ -78,9 +80,15 @@ function callPost(event: ReturnType<typeof makeEvent>): Promise<Response> {
 beforeEach(() => {
   vi.clearAllMocks();
 
-  mockAssembleContext.mockResolvedValue({ context: 'some context', citedSlugs: ['note-a'] });
+  mockAssembleContext.mockResolvedValue({
+    context: 'some context',
+    citedSlugs: ['note-a'],
+    citedNotes: [{ slug: 'note-a', title: 'Note A' }],
+  });
   // Default: sufficient coverage — normal LLM path
   mockHasSufficientCoverage.mockReturnValue(true);
+  // Default: fallback builder returns the canned response
+  mockBuildFallbackResponse.mockReturnValue("I don't have a note on that.");
   mockStreamChatCompletion.mockResolvedValue(new ReadableStream());
   mockConsumeChatRateLimit.mockResolvedValue({
     allowed: true,
@@ -240,7 +248,7 @@ describe('POST /api/chat', () => {
   });
 
   it('does NOT call recordCitations when citedSlugs is empty', async () => {
-    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [] });
+    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [], citedNotes: [] });
 
     await callPost(makeEvent({ message: 'unknown topic' }));
     await Promise.resolve();
@@ -269,7 +277,7 @@ describe('POST /api/chat', () => {
   // ----- Confidence-gate / insufficient-coverage fallback -----
 
   it('returns a 200 SSE stream on low-confidence retrieval without calling the LLM', async () => {
-    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [] });
+    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [], citedNotes: [] });
     mockHasSufficientCoverage.mockReturnValueOnce(false);
 
     const res = await callPost(makeEvent({ message: 'unknown topic' }));
@@ -281,7 +289,7 @@ describe('POST /api/chat', () => {
   });
 
   it('fallback SSE stream contains the canned insufficient-coverage message', async () => {
-    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [] });
+    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [], citedNotes: [] });
     mockHasSufficientCoverage.mockReturnValueOnce(false);
 
     const res = await callPost(makeEvent({ message: 'unknown topic' }));
@@ -302,8 +310,18 @@ describe('POST /api/chat', () => {
     expect(raw).toContain("I don't have a note on that.");
   });
 
+  it('fallback path passes citedNotes to buildFallbackResponse', async () => {
+    const relatedNotes = [{ slug: 'rag-pipeline', title: 'RAG Pipeline' }];
+    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [], citedNotes: relatedNotes });
+    mockHasSufficientCoverage.mockReturnValueOnce(false);
+
+    await callPost(makeEvent({ message: 'unknown topic' }));
+
+    expect(mockBuildFallbackResponse).toHaveBeenCalledWith(relatedNotes);
+  });
+
   it('fallback path does not call recordCitations', async () => {
-    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [] });
+    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [], citedNotes: [] });
     mockHasSufficientCoverage.mockReturnValueOnce(false);
 
     await callPost(makeEvent({ message: 'unknown topic' }));
@@ -323,6 +341,7 @@ describe('POST /api/chat', () => {
     mockAssembleContext.mockResolvedValueOnce({
       context: 'Retrieved notes:\n\nSlug: rag-basics',
       citedSlugs: ['rag-basics'],
+      citedNotes: [{ slug: 'rag-basics', title: 'RAG Basics' }],
     });
     mockHasSufficientCoverage.mockReturnValueOnce(true);
 

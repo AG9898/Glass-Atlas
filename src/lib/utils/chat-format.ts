@@ -7,7 +7,13 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function isSafeSlug(value: string): boolean {
+/**
+ * Returns `true` when `value` is a safe URL slug for a note page.
+ * Slugs must start with a lowercase alphanumeric character and contain only
+ * lowercase letters, digits, and hyphens. This is the canonical slug safety
+ * check used by both the chat renderer and the server-side fallback builder.
+ */
+export function isSafeNoteSlug(value: string): boolean {
   return /^[a-z0-9][a-z0-9-]*$/.test(value);
 }
 
@@ -30,14 +36,14 @@ export function renderChatMessageHtml(content: string): string {
 
   html = html.replace(WIKI_LINK_RE, (raw, slugRaw: string, labelRaw?: string) => {
     const slug = slugRaw.trim().toLowerCase();
-    if (!isSafeSlug(slug)) return raw;
+    if (!isSafeNoteSlug(slug)) return raw;
 
     const label = (labelRaw ?? slugRaw).trim();
     return `<a href="/notes/${slug}" class="ga-chat__note-link">${label}</a>`;
   });
 
   html = html.replace(NOTE_MARKDOWN_LINK_RE, (_raw, label: string, _path: string, slug: string) => {
-    if (!isSafeSlug(slug)) return label;
+    if (!isSafeNoteSlug(slug)) return label;
     return `<a href="/notes/${slug}" class="ga-chat__note-link">${label}</a>`;
   });
 

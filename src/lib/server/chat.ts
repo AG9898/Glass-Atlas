@@ -1,6 +1,7 @@
 import { embedText } from './embeddings';
 import { searchChunksBySimilarity, searchNotesByLexical } from './db/notes';
 import type { RetrievedNoteChunk, RetrievedLexicalNote } from './db/notes';
+import { isSafeNoteSlug } from '$lib/utils/chat-format';
 
 /** Maximum number of chunk candidates to retrieve from pgvector. */
 const CHUNK_CANDIDATES = 20;
@@ -14,11 +15,23 @@ const MAX_CHUNKS_PER_NOTE = 2;
 /** Maximum number of distinct notes to include in the context. */
 const MAX_NOTES_IN_CONTEXT = 5;
 
+export type CitedNote = {
+  /** URL-safe slug identifying the note. */
+  slug: string;
+  /** Human-readable note title. */
+  title: string;
+};
+
 export type AssembledContext = {
   /** Formatted context block ready to be injected into the LLM prompt. */
   context: string;
-  /** Slugs of all notes whose excerpts were included in the context. */
+  /**
+   * Slugs of all notes whose excerpts were included in the context.
+   * Derived from `citedNotes` for convenience.
+   */
   citedSlugs: string[];
+  /** Notes (slug + title) whose excerpts were included in the context. */
+  citedNotes: CitedNote[];
 };
 
 /**
@@ -39,6 +52,30 @@ export function hasSufficientCoverage(ctx: AssembledContext): boolean {
  * notes. Matches the persona and language in `personality.ts`.
  */
 export const INSUFFICIENT_COVERAGE_RESPONSE = "I don't have a note on that.";
+
+/**
+ * Builds the fallback response text for insufficient-coverage situations.
+ *
+ * When `citedNotes` is non-empty, appends an italicized related-notes footer
+ * using wiki-link syntax. Only notes with safe slugs are included — slugs that
+ * fail the safety check are silently dropped to prevent bad links from
+ * appearing in the chat output.
+ *
+ * When no safe related notes exist, returns the base insufficient-coverage
+ * response unchanged.
+ *
+ * @param citedNotes - Notes retrieved by the context assembly step.
+ */
+export function buildFallbackResponse(citedNotes: CitedNote[]): string {
+  const safeNotes = citedNotes.filter((n) => isSafeNoteSlug(n.slug));
+
+  if (safeNotes.length === 0) {
+    return INSUFFICIENT_COVERAGE_RESPONSE;
+  }
+
+  const links = safeNotes.map((n) => `[[${n.slug}|${n.title}]]`).join(', ');
+  return `${INSUFFICIENT_COVERAGE_RESPONSE}\n\n*Related notes: ${links}*`;
+}
 
 /**
  * Embeds `query`, then runs semantic (pgvector cosine) and lexical/topic
@@ -62,7 +99,7 @@ export async function assembleContext(query: string): Promise<AssembledContext> 
   ]);
 
   if (chunks.length === 0 && lexicalNotes.length === 0) {
-    return { context: '', citedSlugs: [] };
+    return { context: '', citedSlugs: [], citedNotes: [] };
   }
 
   // ----- Semantic candidate set -----
@@ -92,22 +129,23 @@ export async function assembleContext(query: string): Promise<AssembledContext> 
 
   // ----- Assemble context -----
   const snippets: string[] = [];
-  const citedSlugs: string[] = [];
+  const citedNotes: CitedNote[] = [];
 
   // Semantic entries first (ranked by cosine similarity).
   for (const [slug, noteChunks] of chunksBySlug) {
     snippets.push(formatChunkSnippet(slug, noteChunks));
-    citedSlugs.push(slug);
+    citedNotes.push({ slug, title: noteChunks[0].noteTitle });
   }
 
   // Lexical-only entries appended after semantic entries.
   for (const note of lexicalOnlyNotes) {
     snippets.push(formatLexicalSnippet(note));
-    citedSlugs.push(note.slug);
+    citedNotes.push({ slug: note.slug, title: note.title });
   }
 
   const context = `Retrieved notes:\n\n${snippets.join('\n\n---\n\n')}`;
-  return { context, citedSlugs };
+  const citedSlugs = citedNotes.map((n) => n.slug);
+  return { context, citedSlugs, citedNotes };
 }
 
 /**

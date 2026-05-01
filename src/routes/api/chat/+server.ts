@@ -1,6 +1,6 @@
 import { type RequestHandler } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
-import { assembleContext, hasSufficientCoverage, INSUFFICIENT_COVERAGE_RESPONSE } from '$lib/server/chat';
+import { assembleContext, hasSufficientCoverage, buildFallbackResponse } from '$lib/server/chat';
 import { streamChatCompletion } from '$lib/server/ai/openrouter';
 import { SYSTEM_PROMPT } from '$lib/server/personality';
 import { consumeChatRateLimit, recordCitations } from '$lib/server/db/notes';
@@ -154,11 +154,12 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 
   // --- 4. Build RAG context ---
   const assembledCtx = await assembleContext(message);
-  const { context, citedSlugs } = assembledCtx;
+  const { context, citedSlugs, citedNotes } = assembledCtx;
 
   // --- 5. Confidence gate: short-circuit to fallback when no notes were retrieved ---
   if (!hasSufficientCoverage(assembledCtx)) {
-    return new Response(makeFallbackStream(INSUFFICIENT_COVERAGE_RESPONSE), {
+    const fallbackText = buildFallbackResponse(citedNotes);
+    return new Response(makeFallbackStream(fallbackText), {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',

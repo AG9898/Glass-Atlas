@@ -22,6 +22,25 @@ export type AssembledContext = {
 };
 
 /**
+ * Returns `true` when `ctx` contains at least one retrieved note excerpt —
+ * i.e., when the LLM has enough grounding material to give a direct answer.
+ *
+ * Returns `false` when both the semantic and lexical retrieval paths came up
+ * empty, signalling that the confidence gate should short-circuit to the
+ * insufficient-coverage fallback instead of forwarding an empty context to
+ * the LLM.
+ */
+export function hasSufficientCoverage(ctx: AssembledContext): boolean {
+  return ctx.context.length > 0 && ctx.citedSlugs.length > 0;
+}
+
+/**
+ * The canned first-person response returned when retrieval finds no relevant
+ * notes. Matches the persona and language in `personality.ts`.
+ */
+export const INSUFFICIENT_COVERAGE_RESPONSE = "I don't have a note on that.";
+
+/**
  * Embeds `query`, then runs semantic (pgvector cosine) and lexical/topic
  * (title/tags/category ILIKE) retrieval in parallel against published notes.
  * Candidate sets are fused: semantic chunks are grouped by note and ranked by

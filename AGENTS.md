@@ -328,3 +328,6 @@ Rate-limit fairness now targets per-browser anonymous sessions instead of per-IP
 
 ### 2026-05-01 — `drizzle-kit generate` rename prompts need an interactive TTY
 When a schema change renames a column (for example `ip_hash` -> `session_hash`), `drizzle-kit generate` prompts for create-vs-rename resolution and fails in non-TTY shells. Run it in an interactive TTY and select the rename mapping so Drizzle emits a clean rename migration instead of a destructive drop/create sequence.
+
+### 2026-05-01 — Confidence gate must skip LLM entirely, not just change the prompt
+The confidence fallback for insufficient coverage must return a canned SSE stream directly — never forward an empty context string to the LLM. An empty context still allows the LLM to answer from training data, violating the grounding contract. Use `hasSufficientCoverage()` in `chat.ts` to gate before the LLM call and emit the fallback via `makeFallbackStream()` in the same SSE format so the client sees a seamless response.

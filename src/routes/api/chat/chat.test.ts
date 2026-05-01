@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('$lib/server/chat', () => ({
   assembleContext: vi.fn(),
+  hasSufficientCoverage: vi.fn(),
+  INSUFFICIENT_COVERAGE_RESPONSE: "I don't have a note on that.",
 }));
 
 vi.mock('$lib/server/ai/openrouter', () => ({
@@ -22,11 +24,12 @@ vi.mock('$lib/server/db/notes', () => ({
 }));
 
 import { POST } from './+server';
-import { assembleContext } from '$lib/server/chat';
+import { assembleContext, hasSufficientCoverage } from '$lib/server/chat';
 import { streamChatCompletion } from '$lib/server/ai/openrouter';
 import { consumeChatRateLimit, recordCitations } from '$lib/server/db/notes';
 
 const mockAssembleContext = vi.mocked(assembleContext);
+const mockHasSufficientCoverage = vi.mocked(hasSufficientCoverage);
 const mockStreamChatCompletion = vi.mocked(streamChatCompletion);
 const mockConsumeChatRateLimit = vi.mocked(consumeChatRateLimit);
 const mockRecordCitations = vi.mocked(recordCitations);
@@ -76,6 +79,8 @@ beforeEach(() => {
   vi.clearAllMocks();
 
   mockAssembleContext.mockResolvedValue({ context: 'some context', citedSlugs: ['note-a'] });
+  // Default: sufficient coverage — normal LLM path
+  mockHasSufficientCoverage.mockReturnValue(true);
   mockStreamChatCompletion.mockResolvedValue(new ReadableStream());
   mockConsumeChatRateLimit.mockResolvedValue({
     allowed: true,
@@ -259,5 +264,73 @@ describe('POST /api/chat', () => {
     expect(res.status).toBe(200);
     expect(res.body).toBeInstanceOf(ReadableStream);
     expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+  });
+
+  // ----- Confidence-gate / insufficient-coverage fallback -----
+
+  it('returns a 200 SSE stream on low-confidence retrieval without calling the LLM', async () => {
+    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [] });
+    mockHasSufficientCoverage.mockReturnValueOnce(false);
+
+    const res = await callPost(makeEvent({ message: 'unknown topic' }));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+    // LLM must not be called on the low-confidence path
+    expect(mockStreamChatCompletion).not.toHaveBeenCalled();
+  });
+
+  it('fallback SSE stream contains the canned insufficient-coverage message', async () => {
+    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [] });
+    mockHasSufficientCoverage.mockReturnValueOnce(false);
+
+    const res = await callPost(makeEvent({ message: 'unknown topic' }));
+
+    expect(res.body).toBeInstanceOf(ReadableStream);
+
+    // Read and decode the full SSE payload
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let raw = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      raw += decoder.decode(value, { stream: true });
+    }
+
+    // Must contain the canned response text somewhere in the SSE payload
+    expect(raw).toContain("I don't have a note on that.");
+  });
+
+  it('fallback path does not call recordCitations', async () => {
+    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [] });
+    mockHasSufficientCoverage.mockReturnValueOnce(false);
+
+    await callPost(makeEvent({ message: 'unknown topic' }));
+    await Promise.resolve();
+
+    expect(mockRecordCitations).not.toHaveBeenCalled();
+  });
+
+  it('high-confidence path still calls the LLM', async () => {
+    // Default mocks: assembleContext returns context + slug, hasSufficientCoverage returns true
+    await callPost(makeEvent({ message: 'What is RAG?' }));
+
+    expect(mockStreamChatCompletion).toHaveBeenCalledTimes(1);
+  });
+
+  it('high-confidence path includes context in the LLM user message', async () => {
+    mockAssembleContext.mockResolvedValueOnce({
+      context: 'Retrieved notes:\n\nSlug: rag-basics',
+      citedSlugs: ['rag-basics'],
+    });
+    mockHasSufficientCoverage.mockReturnValueOnce(true);
+
+    await callPost(makeEvent({ message: 'explain RAG' }));
+
+    const [messages] = mockStreamChatCompletion.mock.calls[0];
+    const userMsg = messages.find((m) => m.role === 'user');
+    expect(userMsg?.content).toContain('Retrieved notes:');
+    expect(userMsg?.content).toContain('explain RAG');
   });
 });

@@ -13,7 +13,7 @@ vi.mock('./db/notes', () => ({
 
 import { embedText } from './embeddings';
 import { searchChunksBySimilarity, searchNotesByLexical } from './db/notes';
-import { assembleContext } from './chat';
+import { assembleContext, hasSufficientCoverage, INSUFFICIENT_COVERAGE_RESPONSE } from './chat';
 
 const mockEmbedText = vi.mocked(embedText);
 const mockSearchChunks = vi.mocked(searchChunksBySimilarity);
@@ -332,5 +332,44 @@ describe('assembleContext', () => {
     expect(result.citedSlugs).toContain('note-e');
     // note-f is the 6th candidate and must be excluded
     expect(result.citedSlugs).not.toContain('note-f');
+  });
+});
+
+describe('hasSufficientCoverage', () => {
+  it('returns true when context is non-empty and citedSlugs is non-empty', () => {
+    expect(hasSufficientCoverage({ context: 'Retrieved notes:\n\nSlug: foo', citedSlugs: ['foo'] })).toBe(true);
+  });
+
+  it('returns false when context is empty string', () => {
+    expect(hasSufficientCoverage({ context: '', citedSlugs: [] })).toBe(false);
+  });
+
+  it('returns false when context is empty but citedSlugs has entries (degenerate state)', () => {
+    // Should never happen in practice, but gate is conservative.
+    expect(hasSufficientCoverage({ context: '', citedSlugs: ['foo'] })).toBe(false);
+  });
+
+  it('returns false when context is non-empty but citedSlugs is empty (degenerate state)', () => {
+    expect(hasSufficientCoverage({ context: 'some context', citedSlugs: [] })).toBe(false);
+  });
+
+  it('returns true for minimal valid context with a single slug', () => {
+    expect(hasSufficientCoverage({ context: 'x', citedSlugs: ['any-slug'] })).toBe(true);
+  });
+});
+
+describe('INSUFFICIENT_COVERAGE_RESPONSE', () => {
+  it('is a non-empty string written in first person', () => {
+    expect(typeof INSUFFICIENT_COVERAGE_RESPONSE).toBe('string');
+    expect(INSUFFICIENT_COVERAGE_RESPONSE.length).toBeGreaterThan(0);
+    // The canned response must use first-person voice ("I")
+    expect(INSUFFICIENT_COVERAGE_RESPONSE).toMatch(/\bI\b/);
+  });
+
+  it('does not contain speculative or fabricated content markers', () => {
+    // Must not claim to know or answer from general knowledge
+    const lowerCased = INSUFFICIENT_COVERAGE_RESPONSE.toLowerCase();
+    expect(lowerCased).not.toContain('according to');
+    expect(lowerCased).not.toContain('based on my knowledge');
   });
 });

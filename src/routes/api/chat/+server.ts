@@ -1,6 +1,6 @@
 import { type RequestHandler } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
-import { assembleContext } from '$lib/server/chat';
+import { assembleContext, hasSufficientCoverage, INSUFFICIENT_COVERAGE_RESPONSE } from '$lib/server/chat';
 import { streamChatCompletion } from '$lib/server/ai/openrouter';
 import { SYSTEM_PROMPT } from '$lib/server/personality';
 import { consumeChatRateLimit, recordCitations } from '$lib/server/db/notes';
@@ -44,6 +44,30 @@ function generateSessionToken(): string {
 
 function isValidSessionToken(value: string): boolean {
   return /^[a-f0-9]{32}$/i.test(value);
+}
+
+/**
+ * Wraps a plain-text `message` in an SSE stream that uses the same
+ * OpenAI streaming chunk format as the real LLM path.
+ *
+ * The client's `extractToken` function reads `choices[0].delta.content`, so
+ * we emit one `data:` line with that structure followed by a `[DONE]`
+ * sentinel, then close the stream. This ensures the confidence-gate fallback
+ * response is indistinguishable from a normal LLM stream at the transport
+ * layer.
+ */
+function makeFallbackStream(message: string): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  const chunk = JSON.stringify({
+    choices: [{ delta: { content: message }, finish_reason: null, index: 0 }],
+  });
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      controller.close();
+    },
+  });
 }
 
 function setChatSessionCookie(
@@ -129,26 +153,36 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
   }
 
   // --- 4. Build RAG context ---
-  const { context, citedSlugs } = await assembleContext(message);
+  const assembledCtx = await assembleContext(message);
+  const { context, citedSlugs } = assembledCtx;
 
-  // --- 5. Record citations (fire-and-forget — does not block the stream) ---
+  // --- 5. Confidence gate: short-circuit to fallback when no notes were retrieved ---
+  if (!hasSufficientCoverage(assembledCtx)) {
+    return new Response(makeFallbackStream(INSUFFICIENT_COVERAGE_RESPONSE), {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
+    });
+  }
+
+  // --- 6. Record citations (fire-and-forget — does not block the stream) ---
   if (citedSlugs.length > 0) {
     recordCitations(citedSlugs).catch((err: unknown) => {
       console.error('[chat] Failed to record citations:', err);
     });
   }
 
-  // --- 6. Assemble messages for LLM ---
-  const userContent = context
-    ? `${context}\n\nUser question: ${message}`
-    : `User question: ${message}`;
+  // --- 7. Assemble messages for LLM ---
+  const userContent = `${context}\n\nUser question: ${message}`;
 
   const messages = [
     { role: 'system' as const, content: SYSTEM_PROMPT },
     { role: 'user' as const, content: userContent },
   ];
 
-  // --- 7. Stream the LLM response ---
+  // --- 8. Stream the LLM response ---
   let stream: ReadableStream<Uint8Array>;
   try {
     stream = await streamChatCompletion(messages);

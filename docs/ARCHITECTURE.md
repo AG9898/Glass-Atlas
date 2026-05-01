@@ -87,13 +87,13 @@ The sequence below describes the retrieval orchestration as shipped through CHAT
    b. Lexical/topic: title/tags/category ILIKE search via `searchNotesByLexical` (top 10 candidates)
    c. Candidate fusion: semantic results fill slots first (ranked by cosine distance); lexical-only notes
       (not already in the semantic set) append in publication-date order; combined slate capped at 5 notes
-6. API route builds the LLM prompt:
+6. API route applies confidence gating (hasSufficientCoverage):
+   - insufficient coverage (empty context): returns canned SSE stream ("I don't have a note on that.") —
+     no LLM call is made; fabrication is impossible on this path
+   - sufficient coverage: continues to step 7
+7. API route builds the LLM prompt:
      [personality block from personality.ts]
-     + [Takeaway + first paragraph of each retrieved note] (not full body)
-     + [prior conversation messages for this session]
-7. API route applies confidence gating:
-   - sufficient coverage: direct first-person answer grounded in retrieved context
-   - insufficient coverage: explicit limited-coverage response + related-topic note links
+     + [retrieved note excerpts — chunks with section headings, lexical-only notes with takeaway]
 8. API route calls OpenRouter (google/gemini-2.0-flash-001) with `stream: true`
 9. OpenRouter streams tokens → API route pipes them as SSE to the frontend
 10. Frontend renders tokens as they arrive
@@ -104,7 +104,7 @@ The sequence below describes the retrieval orchestration as shipped through CHAT
 
 **Latency strategy:** Streaming is the primary UX fix for perceived latency. Gemini Flash targets ~400–600 ms TTFT. Semantic and lexical/topic retrieval execute in parallel via `Promise.all`, so hybrid fusion adds no serial latency. Retrieval limits remain small (20 semantic chunks, 10 lexical notes, 5 fused notes) and deterministic for bounded latency control. Prompt size stays compact (note summary + bounded evidence excerpts), not full bodies.
 
-**Current retrieval (CHAT-04D shipped):** `assembleContext()` runs semantic chunk retrieval and lexical/topic note retrieval in parallel. Semantic chunks are grouped by note (≤2 chunks per note) and ranked by cosine distance. Lexical-only notes not already in the semantic set are appended in publication-date order. The combined slate is capped at 5 distinct notes. Semantic notes contribute title, section headings, and chunk excerpts; lexical-only notes contribute title and takeaway only. Full note bodies are never sent to the LLM. Confidence-gated fallback behavior is still queued in a later CHAT task.
+**Current retrieval (CHAT-04D + CHAT-04E shipped):** `assembleContext()` runs semantic chunk retrieval and lexical/topic note retrieval in parallel. Semantic chunks are grouped by note (≤2 chunks per note) and ranked by cosine distance. Lexical-only notes not already in the semantic set are appended in publication-date order. The combined slate is capped at 5 distinct notes. Semantic notes contribute title, section headings, and chunk excerpts; lexical-only notes contribute title and takeaway only. Full note bodies are never sent to the LLM. After retrieval, `hasSufficientCoverage()` in `chat.ts` gates the LLM call: if both retrieval branches return empty results, the route immediately returns a canned SSE fallback ("I don't have a note on that.") without calling the LLM, preventing fabrication. High-confidence paths (non-empty context) proceed to the LLM as normal.
 
 ### Note save flow (admin)
 

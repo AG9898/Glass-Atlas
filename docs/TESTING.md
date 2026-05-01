@@ -40,7 +40,7 @@ There is no Playwright, Cypress, or any browser automation in this project. End-
 | Utility functions | `src/lib/utils/slugify.ts`, taxonomy helpers, markdown section extractors | Pure unit tests — no mocks needed |
 | DB query layer | `src/lib/server/db/notes.ts` | Unit tests with mocked Drizzle client (`vi.mock`) |
 | Embeddings module | `src/lib/server/embeddings.ts` | Mock OpenRouter HTTP calls; assert note/chunk embedding payload generation, endpoint usage, and response-shape validation |
-| Chat module | `src/lib/server/chat.ts` | Mock semantic + lexical retrieval inputs; assert hybrid candidate fusion, confidence-gated fallback selection, and compact prompt assembly |
+| Chat module | `src/lib/server/chat.ts` | Mock semantic and lexical retrieval; assert parallel call dispatch, hybrid candidate fusion ordering, deduplication, 5-note cap, lexical-only note formatting, and compact prompt assembly |
 | API route — chat | `src/routes/api/chat/+server.ts` | Import handler directly, call with mock `Request`; assert rate limiting, streaming response shape, and safe insufficient-coverage behavior |
 | API route — admin note review | `src/routes/api/admin/notes/review/+server.ts` | Mock auth session and OpenRouter review adapter; assert payload validation, SSE response shape, and upstream 429/503 pass-through |
 | Admin review client behavior | Admin new/edit review UI logic | Assert manual Review trigger builds `{ title, takeaway, body }` payload, stream state updates, and visible error handling on stream failure |
@@ -75,7 +75,7 @@ This table starts empty and is filled in as test files are added to the project.
 | `src/tests/api-admin-notes-review.test.ts` | `src/routes/api/admin/notes/review/+server.ts` | Auth guard (401), payload validation (400 for missing/invalid fields), SSE success path, upstream 429/503 pass-through, and service-error handling (502/503) |
 | `src/lib/utils/note-review.test.ts` | `src/lib/utils/note-review.ts` | Review trigger payload POST shape, stream callback transitions (`onStart`/`onChunk`/`onComplete`), and explicit upstream 429/503 error handling |
 | `src/lib/utils/markdown-preview.test.ts` | `src/lib/utils/markdown-preview.ts` | Wiki-link resolution (resolved/unresolved), GFM markdown structure output (headings, lists, emphasis, code, blockquotes, tables), fail-soft contract (ok:false on pipeline error, never throws), and `renderPreviewSync` variant |
-| `src/lib/server/chat.test.ts` | `src/lib/server/chat.ts` | Chunk-level retrieval via `searchChunksBySimilarity`, per-note grouping (cap 2 chunks/note), max-5-note limit, section heading inclusion/omission, slug/title inclusion, ranked citation slug order, and empty-result handling |
+| `src/lib/server/chat.test.ts` | `src/lib/server/chat.ts` | Parallel semantic + lexical retrieval, candidate fusion ordering (semantic-first then lexical fill), deduplication of overlapping slugs, per-note chunk grouping (cap 2), fused 5-note cap, lexical-only note formatting (title + takeaway), section heading inclusion/omission, slug/title inclusion, ranked citation slug order, and empty-result handling |
 
 Naming rules that govern where each file lives are in the next section.
 

@@ -36,8 +36,8 @@ The server is a persistent Bun process. In-memory state survives between request
 
 - `db/index.ts` — Drizzle ORM client wired to the Neon HTTP driver; all SQL goes through here
 - `db/schema.ts` — Drizzle table definitions: `notes`, `note_chunks`, `note_links`, `citation_events`, Auth.js tables
-- `db/notes.ts` — note CRUD helpers: `listNotes(filter?)`, `getNoteBySlug`, `createNote`, `updateNote`, `deleteNote`, `getBacklinks`, `getOutlinks`; RAG helpers: `searchNotesBySimilarity` (published notes ordered by pgvector cosine distance), `replaceNoteChunks`, `searchChunksBySimilarity`, `recordCitations`, `getTotalCitations`; chat quota helper: `consumeChatRateLimit` (atomic window-reset + increment keyed by `chat_rate_limits.session_hash`). Exports plain-object types `Note`, `CreateNoteInput`, `UpdateNoteInput`, including note metadata (`image`, `mediaType`, `publishedAt`, `series`).
-- `chat.ts` — builds the RAG prompt, calls OpenRouter for streaming completions, returns a `ReadableStream`
+- `db/notes.ts` — note CRUD helpers: `listNotes(filter?)`, `getNoteBySlug`, `createNote`, `updateNote`, `deleteNote`, `getBacklinks`, `getOutlinks`; RAG helpers: `searchNotesBySimilarity` (published notes ordered by pgvector cosine distance), `replaceNoteChunks`, `searchChunksBySimilarity` (chunk-level cosine similarity), `searchNotesByLexical` (title/tags/category ILIKE, published notes only), `recordCitations`, `getTotalCitations`; chat quota helper: `consumeChatRateLimit` (atomic window-reset + increment keyed by `chat_rate_limits.session_hash`). Exports plain-object types `Note`, `CreateNoteInput`, `UpdateNoteInput`, `RetrievedLexicalNote`, including note metadata (`image`, `mediaType`, `publishedAt`, `series`).
+- `chat.ts` — `assembleContext()` runs semantic and lexical/topic retrieval in parallel, fuses candidates (semantic-first, lexical fill, capped at 5 notes), and assembles a compact context block per note; never injects full note bodies. Streaming completion calls and session chat history are not yet wired here — those land in a later CHAT task.
 - `embeddings.ts` — calls the OpenRouter-compatible `/embeddings` endpoint with `OPENROUTER_API_KEY` from `$env/dynamic/private`; provides note-level embeddings plus section-aware chunk generation/payload helpers for `note_chunks` indexing
 - `personality.ts` — exports the system prompt personality block as a string constant; never inlined elsewhere
 - `ai/review.ts` — builds the note critique prompt from `{ title, takeaway, body }`, calls a free-tier OpenRouter model, returns a `ReadableStream`; never reads from or writes to the database
@@ -74,17 +74,19 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 
 ### RAG chat flow (public, approved target state)
 
-The sequence below describes the retrieval orchestration as shipped through CHAT-04C.
+The sequence below describes the retrieval orchestration as shipped through CHAT-04D.
 
 ```
 1. User submits query in the chat UI
 2. Frontend shows "searching notes..." (optimistic UI state)
 3. Frontend POSTs `{ message }` to `POST /api/chat`; browser sends the existing `chat_session` cookie automatically
 4. API route embeds the query → vector(1536) via OpenRouter embedding API (~300 ms)
-5. API route runs retrieval:
-   - chunk-level cosine similarity search via `searchChunksBySimilarity` (top 20 candidates)
-   - chunks grouped by note slug (≤2 chunks per note), capped at 5 distinct notes
-   - lightweight topic/lexical fuse/rerank is queued for a later CHAT task
+5. API route runs retrieval — both branches execute in parallel:
+   a. Semantic: chunk-level cosine similarity search via `searchChunksBySimilarity` (top 20 candidates),
+      chunks grouped by note slug (≤2 chunks per note)
+   b. Lexical/topic: title/tags/category ILIKE search via `searchNotesByLexical` (top 10 candidates)
+   c. Candidate fusion: semantic results fill slots first (ranked by cosine distance); lexical-only notes
+      (not already in the semantic set) append in publication-date order; combined slate capped at 5 notes
 6. API route builds the LLM prompt:
      [personality block from personality.ts]
      + [Takeaway + first paragraph of each retrieved note] (not full body)
@@ -100,9 +102,9 @@ The sequence below describes the retrieval orchestration as shipped through CHAT
 12. Frontend renders italicized related-note links in the assistant output
 ```
 
-**Latency strategy:** Streaming is the primary UX fix for perceived latency. Gemini Flash targets ~400–600 ms TTFT. Retrieval remains bounded by small `k` limits and parallel query execution (semantic + lexical/topic) so hybrid precision gains do not create outsized latency overhead. Prompt size stays compact (note summary + bounded evidence excerpts), not full bodies.
+**Latency strategy:** Streaming is the primary UX fix for perceived latency. Gemini Flash targets ~400–600 ms TTFT. Semantic and lexical/topic retrieval execute in parallel via `Promise.all`, so hybrid fusion adds no serial latency. Retrieval limits remain small (20 semantic chunks, 10 lexical notes, 5 fused notes) and deterministic for bounded latency control. Prompt size stays compact (note summary + bounded evidence excerpts), not full bodies.
 
-**Current retrieval (CHAT-04C shipped):** `/api/chat` now uses chunk-level semantic retrieval via `searchChunksBySimilarity`. `assembleContext()` retrieves the top 20 chunk candidates, groups them by note (capped at 2 chunks per note), limits context to 5 distinct notes, and assembles a compact block per note containing the title, section heading(s), and chunk excerpt(s). Hybrid fuse/rerank and confidence-gated fallback behavior are still queued in later CHAT tasks (see `RESOLVED-16` and `RESOLVED-18` in `docs/DECISIONS.md`).
+**Current retrieval (CHAT-04D shipped):** `assembleContext()` runs semantic chunk retrieval and lexical/topic note retrieval in parallel. Semantic chunks are grouped by note (≤2 chunks per note) and ranked by cosine distance. Lexical-only notes not already in the semantic set are appended in publication-date order. The combined slate is capped at 5 distinct notes. Semantic notes contribute title, section headings, and chunk excerpts; lexical-only notes contribute title and takeaway only. Full note bodies are never sent to the LLM. Confidence-gated fallback behavior is still queued in a later CHAT task.
 
 ### Note save flow (admin)
 

@@ -324,6 +324,68 @@ export async function findSimilarNotes(embedding: number[], limit = 5): Promise<
 }
 
 // ---------------------------------------------------------------------------
+// Lexical / topic retrieval
+// ---------------------------------------------------------------------------
+
+/**
+ * A published note matched by lexical/topic search (title, tags, or category).
+ * Returned by `searchNotesByLexical` and used for candidate fusion in chat retrieval.
+ */
+export type RetrievedLexicalNote = {
+  slug: string;
+  title: string;
+  category: string | null;
+  tags: string[] | null;
+  takeaway: string | null;
+};
+
+/**
+ * Searches published notes by lexical/topic match on title, tags, and category.
+ * All three fields are checked with case-insensitive substring matching.
+ * Results are returned in descending publication-date order (most recent first).
+ * Only published notes are returned.
+ */
+export async function searchNotesByLexical(
+  query: string,
+  limit: number,
+): Promise<RetrievedLexicalNote[]> {
+  const safeLimit = Math.max(0, Math.floor(limit));
+  if (safeLimit === 0 || !query.trim()) return [];
+
+  const pattern = `%${query}%`;
+
+  const rows = await db
+    .select({
+      slug: notes.slug,
+      title: notes.title,
+      category: notes.category,
+      tags: notes.tags,
+      takeaway: notes.takeaway,
+    })
+    .from(notes)
+    .where(
+      and(
+        eq(notes.status, 'published'),
+        or(
+          ilike(notes.title, pattern),
+          ilike(notes.category, pattern),
+          sql`EXISTS (SELECT 1 FROM unnest(${notes.tags}) AS t(tag) WHERE t.tag ILIKE ${pattern})`,
+        ),
+      ),
+    )
+    .orderBy(desc(sql`coalesce(${notes.publishedAt}, ${notes.createdAt})`))
+    .limit(safeLimit);
+
+  return rows.map((row) => ({
+    slug: row.slug,
+    title: row.title,
+    category: row.category,
+    tags: row.tags,
+    takeaway: row.takeaway,
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // Chunk retrieval
 // ---------------------------------------------------------------------------
 

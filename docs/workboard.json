@@ -1293,7 +1293,7 @@
       "group_id": "CHAT",
       "title": "Always-on lexical/topic retrieval + candidate fusion",
       "description": "Extend chat retrieval to run lexical/topic retrieval (title/tags/category) in parallel with semantic retrieval, then fuse and rerank a bounded candidate set for prompt assembly. Keep retrieval limits small and deterministic for latency control, and preserve published-note-only scope.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "CHAT-04C"

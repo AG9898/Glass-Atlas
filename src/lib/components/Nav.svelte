@@ -108,8 +108,9 @@
 
       <!-- Login / Logout -->
       {#if session?.user}
+        <a href="/admin" class="ga-nav__link">ADMIN</a>
         <form method="POST" action="/auth/signout" class="ga-nav__auth-form">
-          <button type="submit" class="ga-nav__link ga-nav__link--auth">
+          <button type="submit" class="ga-nav__link">
             SIGN OUT
           </button>
         </form>

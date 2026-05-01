@@ -916,7 +916,7 @@
       "group_id": "ADMIN",
       "title": "LLM review API for admin note editors",
       "description": "Implement optional admin critique streaming backend for both new and edit note flows. Add `src/lib/server/ai/review.ts` to build a compact structured critique prompt from `{ title, takeaway, body }` and call a free-tier OpenRouter model. Add `POST /api/admin/notes/review` in `src/routes/api/admin/notes/review/+server.ts` with admin auth enforcement, payload validation, SSE streaming response, and transparent upstream status handling for 429/503. This endpoint must not read from or write to the database and must remain non-blocking relative to save/publish flows.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "ADMIN-02",

@@ -18,4 +18,15 @@ describe('SYSTEM_PROMPT', () => {
   it('instructs the LLM to cite note slugs', () => {
     expect(SYSTEM_PROMPT).toMatch(/slug/i);
   });
+
+  it('keeps a relaxed first-person author voice without weakening grounding', () => {
+    expect(SYSTEM_PROMPT).toMatch(/relaxed, friendly/i);
+    expect(SYSTEM_PROMPT).toMatch(/little dry playfulness/i);
+    expect(SYSTEM_PROMPT).toMatch(/only factual source of truth/i);
+  });
+
+  it('includes limited-coverage behavior for borderline retrieval', () => {
+    expect(SYSTEM_PROMPT).toMatch(/limited-coverage instruction/i);
+    expect(SYSTEM_PROMPT).toMatch(/adjacent or partial/i);
+  });
 });

@@ -1434,7 +1434,7 @@
       "group_id": "CHAT",
       "title": "Limited-coverage prompt path and playful grounded voice",
       "description": "Tune the chat prompt contract so borderline-confidence retrieval still streams through the LLM with explicit limited-coverage instructions, while the main personality becomes more relaxed, informal, friendly, and lightly playful without weakening note grounding. Keep social-intent replies non-factual and ensure related-note footers remain deterministic from retrieved slugs.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "CHAT-04G"

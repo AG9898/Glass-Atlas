@@ -307,8 +307,20 @@ describe('POST /api/chat', () => {
     expect(mockStreamChatCompletion).not.toHaveBeenCalled();
 
     const raw = await readStreamBody(res);
-    expect(raw).toContain('knowledge repository');
     expect(raw).toContain('published notes');
+    expect(raw).toContain('actually written');
+  });
+
+  it('keeps social-intent replies templated and outside factual QA', async () => {
+    const res = await callPost(makeEvent({ message: 'who are you?' }));
+
+    expect(res.status).toBe(200);
+    expect(mockAssembleContext).not.toHaveBeenCalled();
+    expect(mockStreamChatCompletion).not.toHaveBeenCalled();
+
+    const raw = await readStreamBody(res);
+    expect(raw).toContain('published notes');
+    expect(raw).not.toContain('Related notes:');
   });
 
   it('the response uses new Response(stream), not json()', async () => {
@@ -423,6 +435,24 @@ describe('POST /api/chat', () => {
     expect(mockStreamChatCompletion).toHaveBeenCalledTimes(1);
   });
 
+  it('borderline-confidence path adds a limited-coverage instruction to the LLM prompt', async () => {
+    mockAssembleContext.mockResolvedValueOnce({
+      context: 'Retrieved notes:\n\nSlug: adjacent-note',
+      citedSlugs: ['adjacent-note'],
+      citedNotes: [{ slug: 'adjacent-note', title: 'Adjacent Note' }],
+      confidence: { tier: 'borderline', bestSemanticDistance: 0.38, lexicalMatchCount: 1 },
+    });
+    mockHasSufficientCoverage.mockReturnValueOnce(true);
+
+    await callPost(makeEvent({ message: 'adjacent question' }));
+
+    const [messages] = mockStreamChatCompletion.mock.calls[0];
+    const userMsg = messages.find((m) => m.role === 'user');
+    expect(userMsg?.content).toContain('Limited coverage:');
+    expect(userMsg?.content).toContain('adjacent or partial evidence');
+    expect(userMsg?.content).toContain('Retrieved notes:');
+  });
+
   it('high-confidence path includes context in the LLM user message', async () => {
     mockAssembleContext.mockResolvedValueOnce({
       context: 'Retrieved notes:\n\nSlug: rag-basics',
@@ -438,5 +468,6 @@ describe('POST /api/chat', () => {
     const userMsg = messages.find((m) => m.role === 'user');
     expect(userMsg?.content).toContain('Retrieved notes:');
     expect(userMsg?.content).toContain('explain RAG');
+    expect(userMsg?.content).not.toContain('Limited coverage:');
   });
 });

@@ -9,6 +9,8 @@ const RATE_LIMIT_MAX_DEFAULT = 10;
 const RATE_LIMIT_WINDOW_MINUTES_DEFAULT = 60;
 const CHAT_SESSION_COOKIE_NAME_DEFAULT = 'chat_session';
 const CHAT_SESSION_COOKIE_TTL_SECONDS = 60 * 60 * 24 * 365;
+const LIMITED_COVERAGE_INSTRUCTION =
+  'Limited coverage: the retrieved notes are adjacent or partial evidence, not a direct hit. Say that plainly, answer only what the notes support, avoid filling gaps, and steer toward the closest documented angle.';
 
 const RATE_LIMIT_MAX = parsePositiveInt(env.CHAT_RATE_LIMIT_MAX, RATE_LIMIT_MAX_DEFAULT);
 const RATE_LIMIT_WINDOW_MINUTES = parsePositiveInt(
@@ -65,15 +67,15 @@ function detectSocialIntent(message: string): SocialIntent | null {
 function buildSocialReply(intent: SocialIntent): string {
   switch (intent) {
     case 'greeting':
-      return "Hey. I can chat, but I am grounded to my published notes. Ask for a topic or a specific note and I will pull from what I have written.";
+      return "Hey. I can chat from my published notes. Ask for a topic or a specific note and I will pull from what I have written.";
     case 'thanks':
       return 'Anytime. If you want to keep going, give me a topic or ask for a specific note and I will share the relevant writing.';
     case 'howItWorks':
-      return 'This site is my knowledge repository. This chat helps you explore my published notes, summarize what I have written on a topic, and point you to specific posts.';
+      return 'I use this chat as a guide to my published notes. Give me a topic and I will stick to what I have actually written.';
     case 'capabilities':
       return 'I can summarize my published notes, answer questions I have already documented, and point you to related posts. Ask for a topic, project, or a specific note title.';
     case 'identity':
-      return 'I am the Glass Atlas assistant, speaking in my voice from my notes. Ask me about a topic and I will answer from what I have documented.';
+      return 'I am the Glass Atlas assistant, speaking from my published notes. Ask me about a topic and I will answer from what I have documented.';
     default:
       return "I don't have a note on that yet.";
   }
@@ -249,7 +251,9 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
   }
 
   // --- 8. Assemble messages for LLM ---
-  const userContent = `${context}\n\nUser question: ${message}`;
+  const limitedCoveragePrefix =
+    assembledCtx.confidence.tier === 'borderline' ? `${LIMITED_COVERAGE_INSTRUCTION}\n\n` : '';
+  const userContent = `${limitedCoveragePrefix}${context}\n\nUser question: ${message}`;
 
   const messages = [
     { role: 'system' as const, content: SYSTEM_PROMPT },

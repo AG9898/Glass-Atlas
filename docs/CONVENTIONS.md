@@ -366,7 +366,7 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Chunk rows must be replaced as one set via `replaceNoteChunks` only after all chunk embeddings are ready; on embedding failure, record `semantic_index_status = 'failed'` and skip replacement (fail-soft, no partial chunk churn).
 - Successful indexing must record `semantic_index_status = 'current'`, clear `semantic_index_error`, set `semantic_indexed_at`, and store the saved note's `updated_at` in `semantic_index_source_updated_at`.
 - Semantic status-only updates must preserve the saved note's `updated_at`; otherwise current indexes can look stale immediately after refresh.
-- Admin note surfaces should expose stale-index state when saved content is newer than the last successful semantic index or when `semantic_index_status = 'failed'`.
+- Admin note surfaces should expose stale-index state when saved content is newer than the last successful semantic index or when `semantic_index_status = 'failed'`. Use the server-side `getSemanticIndexDisplay()` mapper to drive list/editor UI warnings; do not duplicate timestamp/status rules in client components.
 - Current implementation stores both note-level embeddings (`notes.embedding`) and section-aware chunk embeddings (`note_chunks.embedding`). Chat orchestration uses section-aware chunk retrieval plus lexical/topic retrieval for prompt assembly.
 
 ---

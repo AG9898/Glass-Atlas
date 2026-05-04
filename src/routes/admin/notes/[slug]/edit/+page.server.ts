@@ -1,5 +1,6 @@
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { getSemanticIndexDisplay } from '$lib/server/admin/semantic-index-display';
 import { reindexNoteAfterSave } from '$lib/server/embeddings';
 import { getNoteBySlug, listNotes, updateNote } from '$lib/server/db/notes';
 
@@ -96,6 +97,7 @@ export const load: PageServerLoad = async ({ params }) => {
     note: {
       ...note,
       publishedAtInput: toDateInputValue(note.publishedAt),
+      semanticIndexDisplay: getSemanticIndexDisplay(note),
     },
     noteSlugs: allNotes.map((n) => n.slug),
   };

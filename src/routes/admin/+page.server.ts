@@ -1,12 +1,16 @@
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { getSemanticIndexDisplay } from '$lib/server/admin/semantic-index-display';
 import { deleteNote, listNotes } from '$lib/server/db/notes';
 
 export const load: PageServerLoad = async () => {
   const notes = await listNotes();
 
   return {
-    notes,
+    notes: notes.map((note) => ({
+      ...note,
+      semanticIndexDisplay: getSemanticIndexDisplay(note),
+    })),
   };
 };
 

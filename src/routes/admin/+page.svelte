@@ -48,6 +48,7 @@
         <span>No.</span>
         <span>Title</span>
         <span>Status</span>
+        <span>Index</span>
         <span>Published</span>
         <span>Actions</span>
       </div>
@@ -64,6 +65,13 @@
           <p class:published={note.status === 'published'} class="status-badge">
             {note.status === 'published' ? 'PUBLISHED' : 'DRAFT'}
           </p>
+
+          <div class:warning={note.semanticIndexDisplay.showWarning} class="index-state">
+            <strong>{note.semanticIndexDisplay.label}</strong>
+            {#if note.semanticIndexDisplay.showWarning}
+              <span>{note.semanticIndexDisplay.summary}</span>
+            {/if}
+          </div>
 
           <p class="published-date">{formatPublishedDate(note)}</p>
 
@@ -170,7 +178,7 @@
   .table-head,
   .note-row {
     display: grid;
-    grid-template-columns: 5rem minmax(14rem, 1fr) 9rem 12rem 14rem;
+    grid-template-columns: 5rem minmax(14rem, 1fr) 9rem minmax(10rem, 15rem) 12rem 14rem;
     gap: 1rem;
     align-items: center;
   }
@@ -190,6 +198,7 @@
   }
 
   .note-number,
+  .index-state strong,
   .published-date {
     color: var(--color-text-muted);
     font-size: 0.72rem;
@@ -228,6 +237,35 @@
     color: var(--color-success);
   }
 
+  .index-state {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .index-state strong,
+  .index-state span {
+    font-family: "Space Grotesk", "Inter", "Segoe UI", sans-serif;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .index-state strong {
+    line-height: 1.2;
+  }
+
+  .index-state span {
+    color: var(--color-text-muted);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.4;
+    text-transform: none;
+  }
+
+  .index-state.warning strong {
+    color: var(--color-warning);
+  }
+
   .row-actions {
     display: flex;
     flex-wrap: wrap;
@@ -260,6 +298,7 @@
     }
 
     .status-badge,
+    .index-state,
     .published-date,
     .row-actions {
       grid-column: 2;

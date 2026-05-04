@@ -1507,7 +1507,7 @@
       "group_id": "ADMIN",
       "title": "Show stale semantic index state in admin editors",
       "description": "Surface stale or failed semantic indexing state in the admin note editing experience after the preservation contract lands. The warning should be visible enough for the author to understand that chat retrieval may still use the last good vectors, while keeping save and publish actions available.",
-      "status": "todo",
+      "status": "done",
       "priority": "medium",
       "depends_on": [
         "ADMIN-11A"

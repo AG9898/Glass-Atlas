@@ -302,6 +302,18 @@
       <p class:success={form.saved} class="form-message" role="status">{form.message}</p>
     {/if}
 
+    {#if data.note.semanticIndexDisplay.showWarning}
+      <section class="index-warning" aria-label="Semantic index warning" role="status">
+        <div>
+          <p class="eyebrow">{data.note.semanticIndexDisplay.label}</p>
+          <p>{data.note.semanticIndexDisplay.summary}</p>
+          {#if data.note.semanticIndexDisplay.detail}
+            <small>{data.note.semanticIndexDisplay.detail}</small>
+          {/if}
+        </div>
+      </section>
+    {/if}
+
     <section class="editor-meta" aria-label="Note status metadata">
       <div>
         <span class="panel-label">Slug</span>
@@ -311,7 +323,7 @@
       <div>
         <span class="panel-label">Body</span>
         <strong>{wordCount} words</strong>
-        <span>Embedding refresh is wired in ADMIN-05.</span>
+        <span>{data.note.semanticIndexDisplay.label}</span>
       </div>
       <div>
         <span class="panel-label">Version</span>
@@ -583,6 +595,32 @@
   .form-message.success {
     border-color: var(--color-success);
     color: var(--color-success);
+  }
+
+  .index-warning {
+    margin-top: 1rem;
+    border: var(--line-std) solid var(--color-warning);
+    background: color-mix(in srgb, var(--color-warning) 9%, var(--color-bg));
+    color: var(--color-text-strong);
+    padding: 1rem 1.25rem;
+  }
+
+  .index-warning div {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .index-warning p:not(.eyebrow),
+  .index-warning small {
+    max-width: 52rem;
+    margin: 0;
+    color: var(--color-text-muted);
+    line-height: 1.5;
+  }
+
+  .index-warning small {
+    font-family: 'Space Grotesk', 'Inter', 'Segoe UI', sans-serif;
+    font-size: 0.72rem;
   }
 
   .editor-meta {

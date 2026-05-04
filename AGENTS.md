@@ -349,3 +349,6 @@ With `@auth/sveltekit`, the hook intercepts `/auth/*` as Auth.js action routes. 
 
 ### 2026-05-01 — Chat social-intent lane must stay allowlisted and non-factual
 `POST /api/chat` now short-circuits a small allowlist of conversational intents (greeting/thanks/identity/capability/how-it-works) before retrieval and LLM calls, returning templated SSE replies. Keep this lane strictly non-factual and steering-only so it does not become a general-purpose chatbot path. Any informational claim still has to flow through retrieval + grounding constraints.
+
+### 2026-05-04 — Admin review should use the OpenRouter free-model router
+The old hardcoded `google/gemini-2.0-flash-exp:free` review model can return `404 No endpoints found` when OpenRouter has no active provider for that experimental variant. Keep admin critique on `openrouter/free` by default and use `OPENROUTER_REVIEW_MODEL` only for a currently available free model/router unless a new decision changes the cost policy.

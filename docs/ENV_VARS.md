@@ -18,6 +18,7 @@
 | `OPENROUTER_API_KEY` | Yes | All | — | `$env/dynamic/private` | API key for OpenRouter (LLM + embeddings). Never expose client-side. |
 | `OPENROUTER_BASE_URL` | No | All | `https://openrouter.ai/api/v1` | `$env/dynamic/private` | Override the OpenRouter base URL. Useful for test mocking. |
 | `OPENROUTER_MODEL` | No | All | `google/gemini-2.0-flash-001` | `$env/static/private` | Override the default LLM model used for chat. |
+| `OPENROUTER_REVIEW_MODEL` | No | All | `openrouter/free` | `$env/dynamic/private` | Override the admin note critique model. Default uses OpenRouter's free-model router because individual free model endpoints can disappear. Keep this on a free model/router unless a decision explicitly changes the cost policy. |
 | `EMBEDDING_MODEL` | No | All | `text-embedding-3-small` | `$env/dynamic/private` | Override the default embedding model. |
 | `AUTH_SECRET` | Yes | All | — | `$env/dynamic/private` | Random secret for Auth.js session signing. Generate: `openssl rand -hex 32`. Loaded at runtime so secrets are not baked into build artifacts. |
 | `AUTH_GITHUB_ID` | Yes | All | — | `$env/dynamic/private` | GitHub OAuth app Client ID. Loaded at runtime so credentials rotate without rebuild. |
@@ -85,6 +86,7 @@ Optional overrides (only set if you need to change defaults):
 ```dotenv
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 OPENROUTER_MODEL=google/gemini-2.0-flash-001
+OPENROUTER_REVIEW_MODEL=openrouter/free
 EMBEDDING_MODEL=text-embedding-3-small
 CHAT_RATE_LIMIT_MAX=10
 CHAT_RATE_LIMIT_WINDOW_MINUTES=60

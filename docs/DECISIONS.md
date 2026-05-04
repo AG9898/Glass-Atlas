@@ -117,7 +117,7 @@ No open decisions right now.
 ### RESOLVED-10 — LLM Note Critique: Free OpenRouter Model, Non-Blocking
 
 **Resolved:** 2026-04-27
-**Decision:** Add an optional manual "Review" button to both admin note editors (new + edit) that streams an LLM critique via `POST /api/admin/notes/review`, using a free-tier OpenRouter model (e.g. `google/gemini-2.0-flash-exp:free`). The endpoint accepts `{ title, takeaway, body }` from current form state so unsaved drafts can be reviewed. Critique is never a gate on saving or publishing.
+**Decision:** Add an optional manual "Review" button to both admin note editors (new + edit) that streams an LLM critique via `POST /api/admin/notes/review`, using a free-tier OpenRouter model/router (`openrouter/free` by default, overrideable with `OPENROUTER_REVIEW_MODEL`). The endpoint accepts `{ title, takeaway, body }` from current form state so unsaved drafts can be reviewed. Critique is never a gate on saving or publishing.
 **Why:** A single author triggers at most a handful of reviews per day — well within the 200 req/day free-tier limit. Making critique optional and non-blocking means free model unavailability or rate-limit hits (`429`, `503`) never interrupt the authoring flow. Paid models were rejected for a quality-of-life feature on a personal tool.
 **Alternatives rejected:** Blocking save on critique was rejected — it couples publishing to free model availability. Running critique on every save automatically was rejected as wasteful and disruptive to flow. A slug-only endpoint was rejected because it cannot serve new unsaved drafts cleanly.
 **Affects:** ARCHITECTURE.md, CONVENTIONS.md, `src/lib/server/ai/review.ts` (to be created), `src/routes/api/admin/notes/review/+server.ts` (to be created)

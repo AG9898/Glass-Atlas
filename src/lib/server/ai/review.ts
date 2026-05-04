@@ -1,6 +1,6 @@
 import { env } from '$env/dynamic/private';
 
-const REVIEW_MODEL = 'google/gemini-2.0-flash-exp:free';
+const DEFAULT_REVIEW_MODEL = 'openrouter/free';
 const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 export type ReviewInput = {
@@ -24,6 +24,7 @@ export async function streamNoteReview(input: ReviewInput): Promise<Response> {
   }
 
   const baseUrl = (env.OPENROUTER_BASE_URL || DEFAULT_OPENROUTER_BASE_URL).replace(/\/+$/, '');
+  const model = env.OPENROUTER_REVIEW_MODEL || DEFAULT_REVIEW_MODEL;
 
   const systemPrompt = `You are a concise editorial critic. Your job is to give the author fast, structured feedback on a knowledge note so they can improve it in one quick pass.
 
@@ -51,7 +52,7 @@ ${input.body}`;
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: REVIEW_MODEL,
+      model,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage },

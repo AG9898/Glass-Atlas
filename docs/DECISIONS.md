@@ -19,7 +19,7 @@ No open decisions right now.
 **Why:** The author workflow should not lose edits because an embedding provider is temporarily unavailable, but silent stale vectors make chat behavior hard to reason about. Keeping old vectors preserves the last known good retrieval state, while admin-visible status makes the mismatch actionable.
 **Alternatives rejected:** Wiping the note-level embedding to `null` on failure was rejected because it removes a useful previous index. Blocking save/publish on embedding failure was rejected because it makes writing depend too tightly on external AI availability. Server-only logs were rejected as insufficient for a single-author admin workflow.
 **Affects:** docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/TESTING.md, admin embedding workflow tasks
-**Implementation status (2026-05-04):** Planned. Current note-level failure can write `embedding: null`; chunk failure already avoids partial replacement.
+**Implementation status (2026-05-04):** Implemented. Admin note create/save/publish now call `reindexNoteAfterSave()`, which preserves previous note-level and chunk-level vectors unless the fresh note embedding and every chunk embedding are generated successfully. Notes now record `semantic_index_status`, `semantic_index_error`, `semantic_indexed_at`, and `semantic_index_source_updated_at` so admin surfaces can distinguish current, failed, and stale semantic indexes.
 
 ### RESOLVED-21 — Chat Confidence Tiers and Playful Grounded Voice
 

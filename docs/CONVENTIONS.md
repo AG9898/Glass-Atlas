@@ -286,6 +286,7 @@ function wikiLinkCompletions(notes: { slug: string; title: string }[]): Completi
 - DB columns use snake_case. Drizzle maps them to camelCase TypeScript properties automatically.
 - Tags are stored as `text[]` (Postgres array) on the notes table — not a separate join table.
 - Note cover media and editorial metadata live directly on the `notes` table: `image` stores the pasted/presigned media URL, `published_at` maps to `publishedAt`, and `series` stores an optional series label.
+- Semantic index health also lives on `notes`: `semantic_index_status` (`pending`/`current`/`failed`), `semantic_index_error`, `semantic_indexed_at`, and `semantic_index_source_updated_at`.
 - Section-aware retrieval chunks are stored in `note_chunks` with `note_slug`, section/chunk ordering metadata, chunk text, and one `vector(1536)` embedding per chunk.
 - Embeddings are stored as `vector(1536)` using pgvector. Only pgvector similarity queries may use raw SQL (via Drizzle `sql` template tag). All other queries use Drizzle query builders.
 
@@ -304,6 +305,10 @@ export const notes = pgTable('notes', {
   publishedAt: timestamp('published_at'),
   series:    text('series'),
   embedding: vector('embedding', { dimensions: 1536 }),
+  semanticIndexStatus: text('semantic_index_status').default('pending').notNull(),
+  semanticIndexError: text('semantic_index_error'),
+  semanticIndexedAt: timestamp('semantic_indexed_at'),
+  semanticIndexSourceUpdatedAt: timestamp('semantic_index_source_updated_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -356,9 +361,12 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Always regenerate the embedding when the note `body` changes.
 - Embedding generation must not block the HTTP response — fire it synchronously as part of the save transaction, or enqueue it if latency is a concern.
 - Chunk ingestion uses deterministic section/paragraph chunk ordering and a canonical payload template: note metadata (`title`, `category`, `tags`, `series`) plus chunk text.
-- Note-level embeddings must only be overwritten after a fresh embedding is generated successfully. On embedding failure, log the failure and preserve the previous vector.
-- Chunk rows must be replaced as one set via `replaceNoteChunks` only after all chunk embeddings are ready; on embedding failure, log and skip replacement (fail-soft, no partial chunk churn).
-- Admin note surfaces should expose stale-index state when saved content is newer than the last successful semantic index.
+- Admin save flows must call `reindexNoteAfterSave()` so note-level and chunk-level vectors share one fail-soft contract.
+- Note-level embeddings must only be overwritten after a fresh note embedding and every fresh chunk embedding are generated successfully. On any embedding failure, log the failure and preserve the previous vector.
+- Chunk rows must be replaced as one set via `replaceNoteChunks` only after all chunk embeddings are ready; on embedding failure, record `semantic_index_status = 'failed'` and skip replacement (fail-soft, no partial chunk churn).
+- Successful indexing must record `semantic_index_status = 'current'`, clear `semantic_index_error`, set `semantic_indexed_at`, and store the saved note's `updated_at` in `semantic_index_source_updated_at`.
+- Semantic status-only updates must preserve the saved note's `updated_at`; otherwise current indexes can look stale immediately after refresh.
+- Admin note surfaces should expose stale-index state when saved content is newer than the last successful semantic index or when `semantic_index_status = 'failed'`.
 - Current implementation stores both note-level embeddings (`notes.embedding`) and section-aware chunk embeddings (`note_chunks.embedding`). Chat orchestration uses section-aware chunk retrieval plus lexical/topic retrieval for prompt assembly.
 
 ---

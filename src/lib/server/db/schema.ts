@@ -63,6 +63,14 @@ export const notes = glassAtlas.table('notes', {
   // 1536 dimensions matches OpenAI text-embedding-3-small / ada-002.
   // Regenerated on every body save (see src/lib/server/embeddings.ts).
   embedding: vector('embedding', { dimensions: 1536 }),
+  semanticIndexStatus: text('semantic_index_status', {
+    enum: ['pending', 'current', 'failed'],
+  })
+    .default('pending')
+    .notNull(),
+  semanticIndexError: text('semantic_index_error'),
+  semanticIndexedAt: timestamp('semantic_indexed_at', { withTimezone: true }),
+  semanticIndexSourceUpdatedAt: timestamp('semantic_index_source_updated_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });

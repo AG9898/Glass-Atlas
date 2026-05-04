@@ -1,4 +1,5 @@
 import { env } from '$env/dynamic/private';
+import { replaceNoteChunks, updateNote } from './db/notes';
 
 const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_EMBEDDING_MODEL = 'text-embedding-3-small';
@@ -27,6 +28,14 @@ export type ChunkEmbeddingMetadata = {
 export type EmbeddedChunk = ChunkDraft & {
   embedding: number[];
 };
+
+export type ReindexNoteMetadata = ChunkEmbeddingMetadata & {
+  contentUpdatedAt: Date;
+};
+
+export type ReindexNoteResult =
+  | { status: 'current'; indexedAt: Date }
+  | { status: 'failed'; errorMessage: string };
 
 export async function embedText(text: string): Promise<number[]> {
   const apiKey = env.OPENROUTER_API_KEY;
@@ -125,8 +134,54 @@ export async function embedNoteBodyChunks(
   return embeddedChunks;
 }
 
+export async function reindexNoteAfterSave(
+  slug: string,
+  body: string,
+  metadata: ReindexNoteMetadata,
+): Promise<ReindexNoteResult> {
+  try {
+    const embedding = await embedText(body);
+    const chunkEmbeddings = await embedNoteBodyChunks(body, metadata);
+    const indexedAt = new Date();
+
+    await replaceNoteChunks(slug, chunkEmbeddings);
+    await updateNote(slug, {
+      embedding,
+      semanticIndexStatus: 'current',
+      semanticIndexError: null,
+      semanticIndexedAt: indexedAt,
+      semanticIndexSourceUpdatedAt: metadata.contentUpdatedAt,
+      updatedAt: metadata.contentUpdatedAt,
+    });
+
+    return { status: 'current', indexedAt };
+  } catch (error) {
+    const errorMessage = toErrorMessage(error);
+    console.error(`Failed to refresh semantic index for note "${slug}".`, error);
+
+    try {
+      await updateNote(slug, {
+        semanticIndexStatus: 'failed',
+        semanticIndexError: errorMessage,
+        semanticIndexSourceUpdatedAt: metadata.contentUpdatedAt,
+        updatedAt: metadata.contentUpdatedAt,
+      });
+    } catch (statusError) {
+      console.error(`Failed to record semantic index failure for note "${slug}".`, statusError);
+    }
+
+    return { status: 'failed', errorMessage };
+  }
+}
+
 function isNumberArray(value: unknown): value is number[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'number' && Number.isFinite(item));
+}
+
+function toErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message.trim() !== '') return error.message;
+  if (typeof error === 'string' && error.trim() !== '') return error;
+  return 'Semantic index refresh failed.';
 }
 
 function splitSections(body: string): Array<{ heading: string | null; contentLines: string[] }> {

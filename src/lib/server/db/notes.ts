@@ -23,6 +23,10 @@ export type Note = {
   series: string | null;
   status: 'draft' | 'published';
   embedding: number[] | null;
+  semanticIndexStatus: 'pending' | 'current' | 'failed';
+  semanticIndexError: string | null;
+  semanticIndexedAt: Date | null;
+  semanticIndexSourceUpdatedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -40,6 +44,10 @@ export type CreateNoteInput = {
   series?: string | null;
   status?: 'draft' | 'published';
   embedding?: number[] | null;
+  semanticIndexStatus?: 'pending' | 'current' | 'failed';
+  semanticIndexError?: string | null;
+  semanticIndexedAt?: Date | null;
+  semanticIndexSourceUpdatedAt?: Date | null;
 };
 
 export type ReplaceNoteChunkInput = {
@@ -89,6 +97,10 @@ export type UpdateNoteInput = {
   series?: string | null;
   status?: 'draft' | 'published';
   embedding?: number[] | null;
+  semanticIndexStatus?: 'pending' | 'current' | 'failed';
+  semanticIndexError?: string | null;
+  semanticIndexedAt?: Date | null;
+  semanticIndexSourceUpdatedAt?: Date | null;
   updatedAt?: Date;
 };
 
@@ -167,6 +179,10 @@ export async function createNote(data: CreateNoteInput): Promise<Note> {
       series: data.series ?? null,
       status: data.status ?? 'draft',
       embedding: data.embedding ?? null,
+      semanticIndexStatus: data.semanticIndexStatus ?? 'pending',
+      semanticIndexError: data.semanticIndexError ?? null,
+      semanticIndexedAt: data.semanticIndexedAt ?? null,
+      semanticIndexSourceUpdatedAt: data.semanticIndexSourceUpdatedAt ?? null,
     })
     .returning();
   if (row) await syncNoteLinks(row.slug, row.body);
@@ -498,6 +514,10 @@ function toNote(row: typeof notes.$inferSelect): Note {
     series: row.series,
     status: row.status as 'draft' | 'published',
     embedding: row.embedding,
+    semanticIndexStatus: row.semanticIndexStatus as 'pending' | 'current' | 'failed',
+    semanticIndexError: row.semanticIndexError,
+    semanticIndexedAt: row.semanticIndexedAt,
+    semanticIndexSourceUpdatedAt: row.semanticIndexSourceUpdatedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };

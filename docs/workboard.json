@@ -1470,7 +1470,7 @@
       "group_id": "ADMIN",
       "title": "Preserve embeddings on failed note reindex",
       "description": "Update the admin note save reindex contract so existing note-level and chunk-level embeddings are preserved when fresh embedding generation fails. Add the minimum schema/helper support needed to track last successful indexing state and detect when saved note content is newer than the semantic index. Keep note save/publish fail-soft and avoid partial chunk replacement.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "CHAT-04H"

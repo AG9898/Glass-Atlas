@@ -6,15 +6,23 @@ const envMock = vi.hoisted(() => ({
   EMBEDDING_MODEL: 'test-embedding-model',
 }));
 
+const dbNotesMock = vi.hoisted(() => ({
+  replaceNoteChunks: vi.fn(),
+  updateNote: vi.fn(),
+}));
+
 vi.mock('$env/dynamic/private', () => ({
   env: envMock,
 }));
+
+vi.mock('./db/notes', () => dbNotesMock);
 
 import {
   buildChunkEmbeddingPayload,
   chunkBodyBySectionAndParagraph,
   embedNoteBodyChunks,
   embedText,
+  reindexNoteAfterSave,
 } from './embeddings';
 
 describe('embedText', () => {
@@ -22,6 +30,8 @@ describe('embedText', () => {
     envMock.OPENROUTER_API_KEY = 'test-key';
     envMock.OPENROUTER_BASE_URL = 'https://openrouter.test/api/v1/';
     envMock.EMBEDDING_MODEL = 'test-embedding-model';
+    dbNotesMock.replaceNoteChunks.mockReset();
+    dbNotesMock.updateNote.mockReset();
     vi.unstubAllGlobals();
   });
 
@@ -144,6 +154,15 @@ describe('buildChunkEmbeddingPayload', () => {
 });
 
 describe('embedNoteBodyChunks', () => {
+  beforeEach(() => {
+    envMock.OPENROUTER_API_KEY = 'test-key';
+    envMock.OPENROUTER_BASE_URL = 'https://openrouter.test/api/v1/';
+    envMock.EMBEDDING_MODEL = 'test-embedding-model';
+    dbNotesMock.replaceNoteChunks.mockReset();
+    dbNotesMock.updateNote.mockReset();
+    vi.unstubAllGlobals();
+  });
+
   it('embeds each chunk using metadata-enriched payloads', async () => {
     const fetchMock = vi
       .fn()
@@ -189,5 +208,97 @@ describe('embedNoteBodyChunks', () => {
     expect(firstPayload.input).toContain('Chunk: One.');
     expect(secondPayload.input).toContain('Section: Topic');
     expect(secondPayload.input).toContain('Chunk: Two.');
+  });
+});
+
+describe('reindexNoteAfterSave', () => {
+  const contentUpdatedAt = new Date('2026-05-04T12:00:00.000Z');
+  const metadata = {
+    title: 'Chunked Note',
+    category: 'search',
+    tags: ['rag'],
+    series: null,
+    contentUpdatedAt,
+  };
+
+  beforeEach(() => {
+    envMock.OPENROUTER_API_KEY = 'test-key';
+    envMock.OPENROUTER_BASE_URL = 'https://openrouter.test/api/v1/';
+    envMock.EMBEDDING_MODEL = 'test-embedding-model';
+    dbNotesMock.replaceNoteChunks.mockReset().mockResolvedValue(undefined);
+    dbNotesMock.updateNote.mockReset().mockResolvedValue({ slug: 'chunked-note' });
+    vi.unstubAllGlobals();
+  });
+
+  it('stores note and chunk vectors only after a full successful refresh', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ data: [{ embedding: [0.9, 0.8, 0.7] }] }), { status: 200 }),
+        )
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }] }), { status: 200 }),
+        ),
+    );
+
+    const result = await reindexNoteAfterSave('chunked-note', 'Body.', metadata);
+
+    expect(result.status).toBe('current');
+    expect(dbNotesMock.replaceNoteChunks).toHaveBeenCalledWith('chunked-note', [
+      expect.objectContaining({
+        chunkText: 'Body.',
+        embedding: [0.1, 0.2, 0.3],
+      }),
+    ]);
+    expect(dbNotesMock.updateNote).toHaveBeenCalledWith(
+      'chunked-note',
+      expect.objectContaining({
+        embedding: [0.9, 0.8, 0.7],
+        semanticIndexStatus: 'current',
+        semanticIndexError: null,
+        semanticIndexSourceUpdatedAt: contentUpdatedAt,
+        updatedAt: contentUpdatedAt,
+      }),
+    );
+  });
+
+  it('preserves existing vectors and records failure when note-level embedding fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('quota exceeded', { status: 429 })));
+
+    const result = await reindexNoteAfterSave('chunked-note', 'Body.', metadata);
+
+    expect(result.status).toBe('failed');
+    expect(dbNotesMock.replaceNoteChunks).not.toHaveBeenCalled();
+    expect(dbNotesMock.updateNote).toHaveBeenCalledWith('chunked-note', {
+      semanticIndexStatus: 'failed',
+      semanticIndexError: 'OpenRouter embeddings request failed with 429: quota exceeded',
+      semanticIndexSourceUpdatedAt: contentUpdatedAt,
+      updatedAt: contentUpdatedAt,
+    });
+  });
+
+  it('preserves existing vectors and chunks when a chunk embedding fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(JSON.stringify({ data: [{ embedding: [0.9, 0.8, 0.7] }] }), { status: 200 }),
+        )
+        .mockResolvedValueOnce(new Response('chunk quota exceeded', { status: 429 })),
+    );
+
+    const result = await reindexNoteAfterSave('chunked-note', 'Body.', metadata);
+
+    expect(result.status).toBe('failed');
+    expect(dbNotesMock.replaceNoteChunks).not.toHaveBeenCalled();
+    expect(dbNotesMock.updateNote).toHaveBeenCalledWith('chunked-note', {
+      semanticIndexStatus: 'failed',
+      semanticIndexError: 'OpenRouter embeddings request failed with 429: chunk quota exceeded',
+      semanticIndexSourceUpdatedAt: contentUpdatedAt,
+      updatedAt: contentUpdatedAt,
+    });
   });
 });

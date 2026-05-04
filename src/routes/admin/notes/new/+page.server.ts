@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { embedNoteBodyChunks, embedText } from '$lib/server/embeddings';
-import { createNote, getNoteBySlug, listNotes, replaceNoteChunks, updateNote } from '$lib/server/db/notes';
+import { reindexNoteAfterSave } from '$lib/server/embeddings';
+import { createNote, getNoteBySlug, listNotes } from '$lib/server/db/notes';
 import { slugify } from '$lib/utils/slugify';
 
 type NoteStatus = 'draft' | 'published';
@@ -73,28 +73,10 @@ async function updateEmbeddingAfterSave(
     category: string | null;
     tags: string[] | null;
     series: string | null;
+    contentUpdatedAt: Date;
   },
 ): Promise<void> {
-  let embedding: number[] | null = null;
-
-  try {
-    embedding = await embedText(body);
-  } catch (error) {
-    console.error(`Failed to generate embedding for note "${slug}".`, error);
-  }
-
-  try {
-    await updateNote(slug, { embedding });
-  } catch (error) {
-    console.error(`Failed to store embedding for note "${slug}".`, error);
-  }
-
-  try {
-    const chunkEmbeddings = await embedNoteBodyChunks(body, metadata);
-    await replaceNoteChunks(slug, chunkEmbeddings);
-  } catch (error) {
-    console.error(`Failed to regenerate chunk embeddings for note "${slug}".`, error);
-  }
+  await reindexNoteAfterSave(slug, body, metadata);
 }
 
 export const load: PageServerLoad = async () => {
@@ -143,6 +125,7 @@ export const actions: Actions = {
       category: note.category,
       tags: note.tags,
       series: note.series,
+      contentUpdatedAt: note.updatedAt,
     });
 
     throw redirect(303, `/admin/notes/${note.slug}/edit`);

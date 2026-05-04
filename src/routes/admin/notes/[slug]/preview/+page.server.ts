@@ -1,18 +1,16 @@
 import { error } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
 import { getNoteBySlug, listNotes } from '$lib/server/db/notes';
 import { renderMarkdown } from '$lib/server/markdown';
 import { deriveRelatedNotes } from '$lib/server/related-notes';
-import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params }) => {
-  const { slug } = params;
-
   const [note, allPublished] = await Promise.all([
-    getNoteBySlug(slug),
+    getNoteBySlug(params.slug),
     listNotes({ status: 'published' }),
   ]);
 
-  if (!note || note.status !== 'published') {
+  if (!note) {
     error(404, 'Note not found');
   }
 

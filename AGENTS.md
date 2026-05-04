@@ -352,3 +352,6 @@ With `@auth/sveltekit`, the hook intercepts `/auth/*` as Auth.js action routes. 
 
 ### 2026-05-04 — Admin review should use the OpenRouter free-model router
 The old hardcoded `google/gemini-2.0-flash-exp:free` review model can return `404 No endpoints found` when OpenRouter has no active provider for that experimental variant. Keep admin critique on `openrouter/free` by default and use `OPENROUTER_REVIEW_MODEL` only for a currently available free model/router unless a new decision changes the cost policy.
+
+### 2026-05-04 — Legacy `rehype-shiki` theme names are limited
+`rehype-shiki@0.0.9` uses the old `shiki-themes` package and does not include newer theme names like `github-dark`; using one causes note rendering to 500 with `Unable to load theme`. Use bundled legacy names such as `dark_plus`, `nord`, or `monokai` unless the markdown renderer dependency is upgraded.

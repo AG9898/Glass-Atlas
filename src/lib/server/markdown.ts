@@ -33,7 +33,7 @@ async function buildProcessor() {
     .use(remarkGfm)
     .use(remarkInlineMediaEmbeds)
     .use(remarkRehype, { allowDangerousHtml: false })
-    .use(rehypeShiki, { theme: 'github-dark' })
+    .use(rehypeShiki, { theme: 'dark_plus' })
     .use(rehypeStringify);
 }
 
@@ -46,7 +46,7 @@ async function getProcessor() {
 
 /**
  * Renders a Markdown string to an HTML string.
- * Code blocks are syntax-highlighted via Shiki (github-dark theme).
+ * Code blocks are syntax-highlighted via Shiki (dark_plus theme).
  */
 export async function renderMarkdown(markdown: string): Promise<string> {
   const processor = await getProcessor();

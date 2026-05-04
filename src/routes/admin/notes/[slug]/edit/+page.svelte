@@ -292,7 +292,7 @@
       </div>
 
       <div class="top-actions">
-        <a class="ga-btn ga-btn-ghost ga-btn-lg" href={`/notes/${data.note.slug}`}>Preview</a>
+        <a class="ga-btn ga-btn-ghost ga-btn-lg" href={`/admin/notes/${data.note.slug}/preview`}>Preview</a>
         <button class="ga-btn ga-btn-ghost ga-btn-lg" type="submit" formaction="?/update">Save Draft</button>
         <button class="ga-btn ga-btn-primary ga-btn-lg" type="submit" formaction="?/publish">Publish</button>
       </div>

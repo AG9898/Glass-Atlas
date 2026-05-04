@@ -303,7 +303,7 @@
 
       try {
         const payload = await uploadMedia(pending.file);
-        nextBody = nextBody.replaceAll(pending.blobUrl, payload.imageUrl);
+        nextBody = nextBody.split(pending.blobUrl).join(payload.imageUrl);
         releaseObjectUrl(pending.blobUrl);
         removePendingInlineUploadByBlobUrl(pending.blobUrl);
       } catch {

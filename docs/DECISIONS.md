@@ -12,6 +12,24 @@ No open decisions right now.
 
 ## Resolved Decisions
 
+### RESOLVED-22 — Fail-Soft Reindexing Preserves Previous Embeddings
+
+**Resolved:** 2026-05-04
+**Decision:** Admin note saves should preserve the previous note-level and chunk-level embeddings when a fresh embedding run fails. New vectors replace old vectors only after generation succeeds. The admin experience should expose stale-index state so the author can see when saved note content is newer than the semantic index.
+**Why:** The author workflow should not lose edits because an embedding provider is temporarily unavailable, but silent stale vectors make chat behavior hard to reason about. Keeping old vectors preserves the last known good retrieval state, while admin-visible status makes the mismatch actionable.
+**Alternatives rejected:** Wiping the note-level embedding to `null` on failure was rejected because it removes a useful previous index. Blocking save/publish on embedding failure was rejected because it makes writing depend too tightly on external AI availability. Server-only logs were rejected as insufficient for a single-author admin workflow.
+**Affects:** docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/TESTING.md, admin embedding workflow tasks
+**Implementation status (2026-05-04):** Planned. Current note-level failure can write `embedding: null`; chunk failure already avoids partial replacement.
+
+### RESOLVED-21 — Chat Confidence Tiers and Playful Grounded Voice
+
+**Resolved:** 2026-05-04
+**Decision:** Chat retrieval should use numeric confidence tiers derived primarily from semantic chunk cosine distance, with lexical matches as supporting evidence. High-confidence retrieval proceeds to the normal LLM answer path. Borderline retrieval still calls the LLM, but with explicit limited-coverage instructions so the assistant can discuss related note material without pretending the exact answer is documented. Low-confidence retrieval skips the LLM and returns the deterministic insufficient-coverage SSE fallback. The assistant voice should remain first-person and grounded, but lean more relaxed, informal, friendly, and lightly playful than the current rigid knowledge-base tone.
+**Why:** The embedding model separates relevant and irrelevant chunks well enough to support a cutoff, but with a small corpus the nearest neighbor for an unrelated question is still a published chunk. Tiered gating preserves trust while letting borderline evidence produce a more natural human response than a canned fallback. The voice change better matches the site's personal editorial premise without weakening the grounding boundary.
+**Alternatives rejected:** Treating any non-empty retrieval as sufficient was rejected because unrelated questions can reach the LLM. A hard cutoff for all borderline cases was rejected because it can feel too brittle and wastes useful adjacent note context. General-purpose personality role-play was rejected because the assistant must stay a guide to published notes, not an unconstrained character.
+**Affects:** docs/PRD.md, docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/TESTING.md, chat confidence/personality implementation tasks
+**Implementation status (2026-05-04):** Planned. Current code still treats non-empty retrieval as sufficient coverage.
+
 ### RESOLVED-20 — Production Auth Routing Failure (`UnknownAction`) Root Cause and Fix
 
 **Resolved:** 2026-05-01

@@ -1,7 +1,7 @@
 {
   "$schema": "./workboard.schema.json",
   "schema_version": "1.0.0",
-  "last_updated": "2026-04-30",
+  "last_updated": "2026-05-04",
   "tasks": [
     {
       "id": "SCAFFOLD-01",
@@ -1387,6 +1387,150 @@
         "src/lib/components/Chat.svelte",
         "src/lib/utils/chat-format.ts",
         "src/lib/utils/chat-format.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "CHAT-04G",
+      "group_id": "CHAT",
+      "title": "Numeric confidence tiers for chat retrieval",
+      "description": "Replace the current non-empty-context confidence check with explicit semantic-distance tiers for chat retrieval. High-confidence chunks should allow the normal grounded answer path, borderline chunks should be flagged for limited-coverage handling, and low-confidence retrieval should skip the LLM and return the deterministic insufficient-coverage SSE fallback. Keep lexical/topic matches as supporting evidence and preserve published-note-only retrieval scope.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "CHAT-04F"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Chat context assembly exposes enough confidence metadata for the route to distinguish high, borderline, and low-confidence retrieval",
+        "Clearly irrelevant semantic matches above the low-confidence distance cutoff do not reach the LLM",
+        "High-confidence retrieval continues to stream normal grounded answers",
+        "Confidence thresholds are centralized and documented in code comments or named constants",
+        "Unit and route tests cover high, borderline, low, and empty retrieval cases",
+        "npm run test:run and npm run lint pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md",
+        "docs/DECISIONS.md"
+      ],
+      "files": [
+        "src/lib/server/chat.ts",
+        "src/routes/api/chat/+server.ts",
+        "src/lib/server/chat.test.ts",
+        "src/routes/api/chat/chat.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "CHAT-04H",
+      "group_id": "CHAT",
+      "title": "Limited-coverage prompt path and playful grounded voice",
+      "description": "Tune the chat prompt contract so borderline-confidence retrieval still streams through the LLM with explicit limited-coverage instructions, while the main personality becomes more relaxed, informal, friendly, and lightly playful without weakening note grounding. Keep social-intent replies non-factual and ensure related-note footers remain deterministic from retrieved slugs.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "CHAT-04G"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Borderline-confidence requests call the LLM with a limited-coverage instruction distinct from the normal answer path",
+        "The system prompt uses a relaxed and lightly playful first-person author voice while preserving strict grounding rules",
+        "Low-confidence requests still skip the LLM entirely",
+        "Social-intent replies remain templated and do not become factual question-answering",
+        "Tests assert the prompt shape for normal, borderline, low-confidence, and social paths",
+        "npm run test:run and npm run lint pass"
+      ],
+      "docs": [
+        "docs/PRD.md",
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/personality.ts",
+        "src/lib/server/personality.test.ts",
+        "src/routes/api/chat/+server.ts",
+        "src/routes/api/chat/chat.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "ADMIN-11A",
+      "group_id": "ADMIN",
+      "title": "Preserve embeddings on failed note reindex",
+      "description": "Update the admin note save reindex contract so existing note-level and chunk-level embeddings are preserved when fresh embedding generation fails. Add the minimum schema/helper support needed to track last successful indexing state and detect when saved note content is newer than the semantic index. Keep note save/publish fail-soft and avoid partial chunk replacement.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "CHAT-04H"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Failed note-level embedding generation no longer writes null over an existing embedding",
+        "Chunk rows are replaced only after all fresh chunk embeddings are generated successfully",
+        "Successful indexing records enough metadata to identify current versus stale semantic indexes",
+        "Failed indexing preserves the saved note content and previous vectors while recording stale/error state",
+        "Tests cover successful refresh, note-level embedding failure, and chunk embedding failure",
+        "npm run test:run and npm run lint pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md",
+        "docs/DECISIONS.md"
+      ],
+      "files": [
+        "src/lib/server/db/schema.ts",
+        "src/lib/server/db/notes.ts",
+        "src/routes/admin/notes/new/+page.server.ts",
+        "src/routes/admin/notes/[slug]/edit/+page.server.ts",
+        "src/lib/server/embeddings.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "ADMIN-11B",
+      "group_id": "ADMIN",
+      "title": "Show stale semantic index state in admin editors",
+      "description": "Surface stale or failed semantic indexing state in the admin note editing experience after the preservation contract lands. The warning should be visible enough for the author to understand that chat retrieval may still use the last good vectors, while keeping save and publish actions available.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [
+        "ADMIN-11A"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Admin edit and relevant note list surfaces can show when a note's semantic index is stale or failed",
+        "The UI explains that the note content saved but chat retrieval may use the previous index",
+        "Healthy/current index state does not add noisy warnings",
+        "Save and publish actions remain available when stale-index warnings are shown",
+        "Tests cover stale/current display data or the server data shaping that drives the UI",
+        "npm run test:run and npm run lint pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/routes/admin/+page.server.ts",
+        "src/routes/admin/+page.svelte",
+        "src/routes/admin/notes/[slug]/edit/+page.server.ts",
+        "src/routes/admin/notes/[slug]/edit/+page.svelte"
       ],
       "commands": [
         "npm run test:run",

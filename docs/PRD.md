@@ -39,7 +39,7 @@ Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note ed
 `/notes` — browsable, filterable, and text-searchable note index (title and tag ILIKE search via `?q=` param). `/notes/[slug]` — individual note detail page. `NoteCard` component. Nav search icon links to `/notes?focus=search`. Cover media renders conditionally when a URL is set: JPEG/PNG/SVG/GIF via `<img>`, MP4 via `<video controls>` (no autoplay).
 
 ### Phase 4 — Chat
-`/api/chat` RAG endpoint with anonymous browser-session rate limiting (10 messages/hour per session ID, 429 on the 11th). Session identity is stored in an opaque cookie and enforced server-side. Semantic search against pgvector embeddings. Streaming SSE responses. `Chat.svelte` component. `personality.ts` system prompt that enforces grounding.
+`/api/chat` RAG endpoint with anonymous browser-session rate limiting (10 messages/hour per session ID, 429 on the 11th). Session identity is stored in an opaque cookie and enforced server-side. Hybrid semantic/lexical retrieval uses pgvector chunk embeddings and confidence tiers: high-confidence evidence gets a direct streamed answer, borderline evidence gets a streamed limited-coverage answer, and low-confidence retrieval skips the LLM with a deterministic no-coverage fallback. `Chat.svelte` component. `personality.ts` system prompt enforces grounding while using a relaxed, friendly, lightly playful first-person author voice.
 
 ### Phase 5 — Landing + Polish
 `/` landing page with chat front-and-center and note preview cards. SEO includes site-level Open Graph metadata, per-note `<title>` + first-sentence descriptions on `/notes/[slug]`, and `sitemap.xml` entries for `/`, `/notes`, and each published note slug. The canonical visual target for all pages is `docs/styleguide.md` (Section 10) and the reference mockups in `reference/UI/design_handoff_glass_atlas/`.
@@ -62,7 +62,7 @@ Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note ed
 | # | Criterion | How to verify |
 |---|---|---|
 | 1 | Chat cites actual notes with working links | Manually ask a covered topic; response includes slug links that resolve |
-| 2 | Chat handles insufficient coverage safely | Ask about a topic with no direct note; response clearly states limited coverage and offers related-topic note links (or says "I don't have a note on that" when nothing relevant exists) |
+| 2 | Chat handles insufficient coverage safely | Ask covered, borderline, and unrelated topics; covered topics answer from notes, borderline topics clearly frame related-but-limited coverage, and unrelated topics skip speculation |
 | 3 | Admin publish flow works end-to-end | Create a note in `/admin`, publish it, confirm it appears on `/notes` immediately |
 | 4 | Embedding is stored on save | Inspect the Neon console; embedding column is non-null after save |
 | 5 | Rate limit enforces 10 msg/hour per anonymous browser session | Send 11 chat messages from one browser session; 11th returns HTTP 429 |

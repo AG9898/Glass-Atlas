@@ -354,8 +354,10 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Always regenerate the embedding when the note `body` changes.
 - Embedding generation must not block the HTTP response — fire it synchronously as part of the save transaction, or enqueue it if latency is a concern.
 - Chunk ingestion uses deterministic section/paragraph chunk ordering and a canonical payload template: note metadata (`title`, `category`, `tags`, `series`) plus chunk text.
+- Note-level embeddings must only be overwritten after a fresh embedding is generated successfully. On embedding failure, log the failure and preserve the previous vector.
 - Chunk rows must be replaced as one set via `replaceNoteChunks` only after all chunk embeddings are ready; on embedding failure, log and skip replacement (fail-soft, no partial chunk churn).
-- Current implementation stores both note-level embeddings (`notes.embedding`) and section-aware chunk embeddings (`note_chunks.embedding`). Chat orchestration still reads note-level retrieval in production; chunk retrieval wiring is tracked in remaining CHAT tasks under `RESOLVED-16`.
+- Admin note surfaces should expose stale-index state when saved content is newer than the last successful semantic index.
+- Current implementation stores both note-level embeddings (`notes.embedding`) and section-aware chunk embeddings (`note_chunks.embedding`). Chat orchestration uses section-aware chunk retrieval plus lexical/topic retrieval for prompt assembly.
 
 ---
 
@@ -366,14 +368,15 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - The personality block (system prompt preamble) is defined in `src/lib/server/personality.ts`.
 - `chat.ts` imports and uses it. Never inline the personality string in `chat.ts` or any other file.
 - Chat answers use first-person author voice ("I", "my"), not third-person narration.
+- The default voice is relaxed, informal, friendly, and lightly playful. This style can be more conversational than terse KB prose, but it must never weaken grounding or cite unsupported facts.
 - Chat responses end with an italicized related-notes footer using wiki-link syntax (for example: `*Related notes: [[slug|Title]]*`) when relevant notes were used.
 
 ### Prompt Assembly (`src/lib/server/chat.ts`)
 
 - Use always-on light hybrid retrieval: run semantic similarity and topic/lexical retrieval in parallel, then fuse/rerank a bounded candidate set before prompt assembly.
-- Include only compact evidence in LLM context (current: takeaway + first paragraph; target: note summary + top chunk excerpt(s)). Never send full note bodies.
+- Include only compact evidence in LLM context: semantic note chunks with section headings, plus lexical-only title/takeaway snippets. Never send full note bodies.
 - Assemble the final prompt from: personality block + condensed evidence context + user message.
-- Apply confidence gating before answer generation. If confidence is low, return a limited-coverage fallback with related-topic note links instead of speculative direct answers.
+- Apply confidence gating before answer generation. High confidence uses the normal grounded LLM answer path; borderline confidence uses a stricter limited-coverage LLM instruction; low confidence skips the LLM and returns the deterministic no-coverage fallback with related-topic note links when available.
 - Keep related-note links deterministic from retrieved note slugs; do not rely on model-invented slugs or URLs.
 - Fallback responses use `buildFallbackResponse(citedNotes)` from `src/lib/server/chat.ts`, which appends an italicised related-notes footer (`*Related notes: [[slug|Title]]*`) for any retrieved notes and drops notes whose slugs fail `isSafeNoteSlug` validation. Never pass model-invented slugs to this function.
 - `isSafeNoteSlug` is exported from `src/lib/utils/chat-format.ts` and is the canonical slug-safety predicate for both the fallback builder and the chat HTML renderer. Import it from that module in both client and server contexts.
@@ -427,7 +430,7 @@ See `docs/TESTING.md` for the full testing guide. Rules that affect code structu
 - Never import anything from `src/lib/server/` in a client-side Svelte component or `+page.svelte` script block.
 - Never call OpenRouter or Neon directly from client-side code.
 - Never hardcode the personality block anywhere except `src/lib/server/personality.ts`.
-- Never include full note bodies in the LLM prompt — use `takeaway` + first paragraph only.
+- Never include full note bodies in the LLM prompt — use bounded chunk excerpts and lexical-only summaries.
 - Never return raw Drizzle ORM result objects from API endpoints — serialize to a typed plain object first.
 - Never bypass the `hooks.server.ts` auth guard on `/admin` or `/api/admin` routes.
 - Never use legacy Svelte reactive declarations (`$:`) or `export let` for props in new components.

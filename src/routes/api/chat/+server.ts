@@ -229,7 +229,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
   const assembledCtx = await assembleContext(message);
   const { context, citedSlugs, citedNotes } = assembledCtx;
 
-  // --- 6. Confidence gate: short-circuit to fallback when no notes were retrieved ---
+  // --- 6. Confidence gate: short-circuit to fallback when retrieval is low-confidence or empty ---
   if (!hasSufficientCoverage(assembledCtx)) {
     const fallbackText = buildFallbackResponse(citedNotes, message);
     return new Response(makeFallbackStream(fallbackText), {

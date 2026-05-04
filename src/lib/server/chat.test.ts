@@ -13,7 +13,13 @@ vi.mock('./db/notes', () => ({
 
 import { embedText } from './embeddings';
 import { searchChunksBySimilarity, searchNotesByLexical } from './db/notes';
-import { assembleContext, hasSufficientCoverage, buildFallbackResponse, INSUFFICIENT_COVERAGE_RESPONSE } from './chat';
+import {
+  assembleContext,
+  hasSufficientCoverage,
+  buildFallbackResponse,
+  INSUFFICIENT_COVERAGE_RESPONSE,
+  SEMANTIC_CONFIDENCE_THRESHOLDS,
+} from './chat';
 
 const mockEmbedText = vi.mocked(embedText);
 const mockSearchChunks = vi.mocked(searchChunksBySimilarity);
@@ -86,6 +92,11 @@ describe('assembleContext', () => {
     expect(result.citedSlugs).toEqual(['vector-search', 'rag-pipeline']);
     expect(result.context).toContain('vector-search');
     expect(result.context).toContain('rag-pipeline');
+    expect(result.confidence).toMatchObject({
+      tier: 'high',
+      bestSemanticDistance: 0.05,
+      lexicalMatchCount: 0,
+    });
   });
 
   it('embeds the query before searching chunks and calls lexical search in parallel', async () => {
@@ -184,6 +195,11 @@ describe('assembleContext', () => {
 
     expect(result.context).toBe('');
     expect(result.citedSlugs).toEqual([]);
+    expect(result.confidence).toEqual({
+      tier: 'low',
+      bestSemanticDistance: null,
+      lexicalMatchCount: 0,
+    });
   });
 
   it('includes note slug and title in context block', async () => {
@@ -266,6 +282,11 @@ describe('assembleContext', () => {
 
     expect(result.context).not.toBe('');
     expect(result.citedSlugs).toEqual(['llm-basics']);
+    expect(result.confidence).toEqual({
+      tier: 'borderline',
+      bestSemanticDistance: null,
+      lexicalMatchCount: 1,
+    });
   });
 
   it('semantic notes appear before lexical-only notes in the context', async () => {
@@ -335,26 +356,119 @@ describe('assembleContext', () => {
   });
 });
 
+describe('assembleContext — confidence tiers', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockEmbedText.mockResolvedValue([0.1, 0.2, 0.3]);
+    mockSearchLexical.mockResolvedValue([]);
+  });
+
+  it('classifies chunks at or below the high cutoff as high confidence', async () => {
+    mockSearchChunks.mockResolvedValue([
+      { ...chunkA1, distance: SEMANTIC_CONFIDENCE_THRESHOLDS.highMaxDistance },
+    ]);
+
+    const result = await assembleContext('high confidence topic');
+
+    expect(result.confidence.tier).toBe('high');
+    expect(result.confidence.bestSemanticDistance).toBe(
+      SEMANTIC_CONFIDENCE_THRESHOLDS.highMaxDistance,
+    );
+  });
+
+  it('classifies chunks between high and low cutoffs as borderline confidence', async () => {
+    const borderlineDistance = SEMANTIC_CONFIDENCE_THRESHOLDS.highMaxDistance + 0.01;
+    mockSearchChunks.mockResolvedValue([{ ...chunkA1, distance: borderlineDistance }]);
+
+    const result = await assembleContext('adjacent topic');
+
+    expect(result.confidence.tier).toBe('borderline');
+    expect(result.confidence.bestSemanticDistance).toBe(borderlineDistance);
+  });
+
+  it('classifies clearly distant semantic matches above the low cutoff as low confidence', async () => {
+    const lowConfidenceDistance = SEMANTIC_CONFIDENCE_THRESHOLDS.borderlineMaxDistance + 0.01;
+    mockSearchChunks.mockResolvedValue([{ ...chunkA1, distance: lowConfidenceDistance }]);
+    mockSearchLexical.mockResolvedValue([lexicalNoteC]);
+
+    const result = await assembleContext('irrelevant nearest neighbor');
+
+    expect(result.context).toContain('vector-search');
+    expect(result.confidence).toMatchObject({
+      tier: 'low',
+      bestSemanticDistance: lowConfidenceDistance,
+      lexicalMatchCount: 1,
+    });
+  });
+
+  it('keeps lexical-only retrieval in the borderline tier as supporting evidence', async () => {
+    mockSearchChunks.mockResolvedValue([]);
+    mockSearchLexical.mockResolvedValue([lexicalNoteC]);
+
+    const result = await assembleContext('llm basics');
+
+    expect(result.confidence).toEqual({
+      tier: 'borderline',
+      bestSemanticDistance: null,
+      lexicalMatchCount: 1,
+    });
+  });
+});
+
 describe('hasSufficientCoverage', () => {
   it('returns true when context is non-empty and citedSlugs is non-empty', () => {
-    expect(hasSufficientCoverage({ context: 'Retrieved notes:\n\nSlug: foo', citedSlugs: ['foo'], citedNotes: [{ slug: 'foo', title: 'Foo' }] })).toBe(true);
+    expect(hasSufficientCoverage({
+      context: 'Retrieved notes:\n\nSlug: foo',
+      citedSlugs: ['foo'],
+      citedNotes: [{ slug: 'foo', title: 'Foo' }],
+      confidence: { tier: 'high', bestSemanticDistance: 0.1, lexicalMatchCount: 0 },
+    })).toBe(true);
   });
 
   it('returns false when context is empty string', () => {
-    expect(hasSufficientCoverage({ context: '', citedSlugs: [], citedNotes: [] })).toBe(false);
+    expect(hasSufficientCoverage({
+      context: '',
+      citedSlugs: [],
+      citedNotes: [],
+      confidence: { tier: 'low', bestSemanticDistance: null, lexicalMatchCount: 0 },
+    })).toBe(false);
   });
 
   it('returns false when context is empty but citedSlugs has entries (degenerate state)', () => {
     // Should never happen in practice, but gate is conservative.
-    expect(hasSufficientCoverage({ context: '', citedSlugs: ['foo'], citedNotes: [{ slug: 'foo', title: 'Foo' }] })).toBe(false);
+    expect(hasSufficientCoverage({
+      context: '',
+      citedSlugs: ['foo'],
+      citedNotes: [{ slug: 'foo', title: 'Foo' }],
+      confidence: { tier: 'high', bestSemanticDistance: 0.1, lexicalMatchCount: 0 },
+    })).toBe(false);
   });
 
   it('returns false when context is non-empty but citedSlugs is empty (degenerate state)', () => {
-    expect(hasSufficientCoverage({ context: 'some context', citedSlugs: [], citedNotes: [] })).toBe(false);
+    expect(hasSufficientCoverage({
+      context: 'some context',
+      citedSlugs: [],
+      citedNotes: [],
+      confidence: { tier: 'high', bestSemanticDistance: 0.1, lexicalMatchCount: 0 },
+    })).toBe(false);
   });
 
   it('returns true for minimal valid context with a single slug', () => {
-    expect(hasSufficientCoverage({ context: 'x', citedSlugs: ['any-slug'], citedNotes: [{ slug: 'any-slug', title: 'Any Slug' }] })).toBe(true);
+    expect(hasSufficientCoverage({
+      context: 'x',
+      citedSlugs: ['any-slug'],
+      citedNotes: [{ slug: 'any-slug', title: 'Any Slug' }],
+      confidence: { tier: 'borderline', bestSemanticDistance: 0.4, lexicalMatchCount: 0 },
+    })).toBe(true);
+  });
+
+  it('returns false for low confidence even when snippets and citations exist', () => {
+    expect(hasSufficientCoverage({
+      context: 'Retrieved notes:\n\nSlug: maybe-related',
+      citedSlugs: ['maybe-related'],
+      citedNotes: [{ slug: 'maybe-related', title: 'Maybe Related' }],
+      confidence: { tier: 'low', bestSemanticDistance: 0.9, lexicalMatchCount: 0 },
+    })).toBe(false);
   });
 });
 
@@ -471,5 +585,6 @@ describe('assembleContext — citedNotes', () => {
     const result = await assembleContext('unknown topic');
 
     expect(result.citedNotes).toEqual([]);
+    expect(result.confidence.tier).toBe('low');
   });
 });

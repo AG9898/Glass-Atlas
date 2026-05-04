@@ -92,11 +92,14 @@ The sequence below describes the retrieval orchestration as shipped through CHAT
    b. Lexical/topic: title/tags/category ILIKE search via `searchNotesByLexical` (top 10 candidates)
    c. Candidate fusion: semantic results fill slots first (ranked by cosine distance); lexical-only notes
       (not already in the semantic set) append in publication-date order; combined slate capped at 5 notes
-7. API route applies confidence gating (hasSufficientCoverage):
-   - insufficient coverage (empty context): returns a natural no-coverage SSE response with a steer
+7. API route applies confidence gating from semantic cosine-distance tiers:
+   - high confidence: continues to the normal grounded LLM answer path
+   - borderline confidence: continues to the LLM path for now, with explicit limited-coverage prompting planned next
+   - low confidence or empty retrieval: returns a natural no-coverage SSE response with a steer
      toward note-grounded follow-up prompts —
      no LLM call is made; fabrication is impossible on this path
-   - sufficient coverage: continues to step 8
+   Lexical/topic matches support candidate selection and can make lexical-only retrieval borderline, but semantic distance remains the primary cutoff for blocking irrelevant nearest-neighbor chunks.
+   Non-fallback requests continue to step 8.
 8. API route builds the LLM prompt:
      [personality block from personality.ts]
      + [retrieved note excerpts — chunks with section headings, lexical-only notes with takeaway]
@@ -110,7 +113,7 @@ The sequence below describes the retrieval orchestration as shipped through CHAT
 
 **Latency strategy:** Streaming is the primary UX fix for perceived latency. Gemini Flash targets ~400–600 ms TTFT. Semantic and lexical/topic retrieval execute in parallel via `Promise.all`, so hybrid fusion adds no serial latency. Retrieval limits remain small (20 semantic chunks, 10 lexical notes, 5 fused notes) and deterministic for bounded latency control. Prompt size stays compact (note summary + bounded evidence excerpts), not full bodies.
 
-**Current retrieval (CHAT-04D + CHAT-04E shipped + planned confidence-tier refinement):** `POST /api/chat` now has a short social-intent lane before retrieval for lightweight conversational turns. Non-social requests continue through `assembleContext()`, which runs semantic chunk retrieval and lexical/topic note retrieval in parallel. Semantic chunks are grouped by note (≤2 chunks per note) and ranked by cosine distance. Lexical-only notes not already in the semantic set are appended in publication-date order. The combined slate is capped at 5 distinct notes. Semantic notes contribute title, section headings, and chunk excerpts; lexical-only notes contribute title and takeaway only. Full note bodies are never sent to the LLM. Confidence gating should use semantic distance tiers rather than a non-empty context check: high-confidence evidence proceeds to the normal LLM answer path, borderline evidence proceeds to a stricter limited-coverage LLM prompt, and low-confidence retrieval returns the deterministic no-coverage SSE fallback without an LLM call.
+**Current retrieval (CHAT-04D through CHAT-04G shipped + CHAT-04H planned):** `POST /api/chat` now has a short social-intent lane before retrieval for lightweight conversational turns. Non-social requests continue through `assembleContext()`, which runs semantic chunk retrieval and lexical/topic note retrieval in parallel. Semantic chunks are grouped by note (≤2 chunks per note) and ranked by cosine distance. Lexical-only notes not already in the semantic set are appended in publication-date order. The combined slate is capped at 5 distinct notes. Semantic notes contribute title, section headings, and chunk excerpts; lexical-only notes contribute title and takeaway only. Full note bodies are never sent to the LLM. Confidence gating uses semantic distance tiers exposed on assembled context metadata: high-confidence evidence proceeds to the normal LLM answer path, borderline evidence remains distinguishable for the planned limited-coverage prompt path, and low-confidence retrieval returns the deterministic no-coverage SSE fallback without an LLM call. Lexical/topic matches are supporting evidence; they do not override a clearly irrelevant semantic distance.
 
 ### Note save flow (admin)
 

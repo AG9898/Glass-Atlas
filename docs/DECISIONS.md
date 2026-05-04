@@ -28,7 +28,7 @@ No open decisions right now.
 **Why:** The embedding model separates relevant and irrelevant chunks well enough to support a cutoff, but with a small corpus the nearest neighbor for an unrelated question is still a published chunk. Tiered gating preserves trust while letting borderline evidence produce a more natural human response than a canned fallback. The voice change better matches the site's personal editorial premise without weakening the grounding boundary.
 **Alternatives rejected:** Treating any non-empty retrieval as sufficient was rejected because unrelated questions can reach the LLM. A hard cutoff for all borderline cases was rejected because it can feel too brittle and wastes useful adjacent note context. General-purpose personality role-play was rejected because the assistant must stay a guide to published notes, not an unconstrained character.
 **Affects:** docs/PRD.md, docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/TESTING.md, chat confidence/personality implementation tasks
-**Implementation status (2026-05-04):** Planned. Current code still treats non-empty retrieval as sufficient coverage.
+**Implementation status (2026-05-04):** Partially implemented. `CHAT-04G` ships centralized semantic-distance confidence tiers and exposes high/borderline/low metadata from `assembleContext()`. High and borderline evidence can still reach the LLM, while low-confidence or empty retrieval returns the deterministic fallback without an LLM call. The stricter limited-coverage prompt path and more playful grounded voice remain planned for `CHAT-04H`.
 
 ### RESOLVED-20 — Production Auth Routing Failure (`UnknownAction`) Root Cause and Fix
 

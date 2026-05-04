@@ -140,6 +140,8 @@ export const POST: RequestHandler = async ({ request }) => {
 For `POST /api/chat`, keep the request flow ordered as:
 1) quota check, 2) allowlisted social-intent handling (templated/non-factual only), 3) retrieval + confidence gate, 4) LLM stream. Do not route factual questions through the social-intent path.
 
+**Chat retrieval confidence** — `assembleContext()` must expose confidence metadata with a high/borderline/low tier. Base the tier primarily on the best semantic chunk cosine distance using centralized named thresholds in `src/lib/server/chat.ts`; lexical/topic matches are supporting evidence and must not make a clearly distant semantic match high confidence. Low-confidence and empty retrieval must return the deterministic fallback SSE stream without calling the LLM. Borderline retrieval is reserved for limited-coverage handling and must remain distinguishable from high confidence in route logic and tests.
+
 **Client-side streaming** — consume SSE in a Svelte component using `fetch` + `ReadableStream`, not `EventSource` (POST body required):
 
 ```svelte

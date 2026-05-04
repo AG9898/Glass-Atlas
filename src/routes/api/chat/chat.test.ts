@@ -97,6 +97,7 @@ beforeEach(() => {
     context: 'some context',
     citedSlugs: ['note-a'],
     citedNotes: [{ slug: 'note-a', title: 'Note A' }],
+    confidence: { tier: 'high', bestSemanticDistance: 0.1, lexicalMatchCount: 0 },
   });
   // Default: sufficient coverage — normal LLM path
   mockHasSufficientCoverage.mockReturnValue(true);
@@ -261,7 +262,12 @@ describe('POST /api/chat', () => {
   });
 
   it('does NOT call recordCitations when citedSlugs is empty', async () => {
-    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [], citedNotes: [] });
+    mockAssembleContext.mockResolvedValueOnce({
+      context: '',
+      citedSlugs: [],
+      citedNotes: [],
+      confidence: { tier: 'low', bestSemanticDistance: null, lexicalMatchCount: 0 },
+    });
 
     await callPost(makeEvent({ message: 'unknown topic' }));
     await Promise.resolve();
@@ -316,7 +322,12 @@ describe('POST /api/chat', () => {
   // ----- Confidence-gate / insufficient-coverage fallback -----
 
   it('returns a 200 SSE stream on low-confidence retrieval without calling the LLM', async () => {
-    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [], citedNotes: [] });
+    mockAssembleContext.mockResolvedValueOnce({
+      context: '',
+      citedSlugs: [],
+      citedNotes: [],
+      confidence: { tier: 'low', bestSemanticDistance: null, lexicalMatchCount: 0 },
+    });
     mockHasSufficientCoverage.mockReturnValueOnce(false);
 
     const res = await callPost(makeEvent({ message: 'unknown topic' }));
@@ -327,8 +338,29 @@ describe('POST /api/chat', () => {
     expect(mockStreamChatCompletion).not.toHaveBeenCalled();
   });
 
+  it('passes low-confidence metadata into the confidence gate', async () => {
+    const lowConfidenceContext = {
+      context: 'Retrieved notes:\n\nSlug: distant-note',
+      citedSlugs: ['distant-note'],
+      citedNotes: [{ slug: 'distant-note', title: 'Distant Note' }],
+      confidence: { tier: 'low' as const, bestSemanticDistance: 0.8, lexicalMatchCount: 0 },
+    };
+    mockAssembleContext.mockResolvedValueOnce(lowConfidenceContext);
+    mockHasSufficientCoverage.mockReturnValueOnce(false);
+
+    await callPost(makeEvent({ message: 'unrelated query' }));
+
+    expect(mockHasSufficientCoverage).toHaveBeenCalledWith(lowConfidenceContext);
+    expect(mockStreamChatCompletion).not.toHaveBeenCalled();
+  });
+
   it('fallback SSE stream contains the canned insufficient-coverage message', async () => {
-    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [], citedNotes: [] });
+    mockAssembleContext.mockResolvedValueOnce({
+      context: '',
+      citedSlugs: [],
+      citedNotes: [],
+      confidence: { tier: 'low', bestSemanticDistance: null, lexicalMatchCount: 0 },
+    });
     mockHasSufficientCoverage.mockReturnValueOnce(false);
 
     const res = await callPost(makeEvent({ message: 'unknown topic' }));
@@ -340,7 +372,12 @@ describe('POST /api/chat', () => {
 
   it('fallback path passes citedNotes to buildFallbackResponse', async () => {
     const relatedNotes = [{ slug: 'rag-pipeline', title: 'RAG Pipeline' }];
-    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [], citedNotes: relatedNotes });
+    mockAssembleContext.mockResolvedValueOnce({
+      context: '',
+      citedSlugs: [],
+      citedNotes: relatedNotes,
+      confidence: { tier: 'low', bestSemanticDistance: null, lexicalMatchCount: 0 },
+    });
     mockHasSufficientCoverage.mockReturnValueOnce(false);
 
     await callPost(makeEvent({ message: 'unknown topic' }));
@@ -349,7 +386,12 @@ describe('POST /api/chat', () => {
   });
 
   it('fallback path does not call recordCitations', async () => {
-    mockAssembleContext.mockResolvedValueOnce({ context: '', citedSlugs: [], citedNotes: [] });
+    mockAssembleContext.mockResolvedValueOnce({
+      context: '',
+      citedSlugs: [],
+      citedNotes: [],
+      confidence: { tier: 'low', bestSemanticDistance: null, lexicalMatchCount: 0 },
+    });
     mockHasSufficientCoverage.mockReturnValueOnce(false);
 
     await callPost(makeEvent({ message: 'unknown topic' }));
@@ -365,11 +407,28 @@ describe('POST /api/chat', () => {
     expect(mockStreamChatCompletion).toHaveBeenCalledTimes(1);
   });
 
+  it('borderline-confidence path remains distinguishable and still calls the LLM', async () => {
+    const borderlineContext = {
+      context: 'Retrieved notes:\n\nSlug: adjacent-note',
+      citedSlugs: ['adjacent-note'],
+      citedNotes: [{ slug: 'adjacent-note', title: 'Adjacent Note' }],
+      confidence: { tier: 'borderline' as const, bestSemanticDistance: 0.38, lexicalMatchCount: 1 },
+    };
+    mockAssembleContext.mockResolvedValueOnce(borderlineContext);
+    mockHasSufficientCoverage.mockReturnValueOnce(true);
+
+    await callPost(makeEvent({ message: 'adjacent question' }));
+
+    expect(mockHasSufficientCoverage).toHaveBeenCalledWith(borderlineContext);
+    expect(mockStreamChatCompletion).toHaveBeenCalledTimes(1);
+  });
+
   it('high-confidence path includes context in the LLM user message', async () => {
     mockAssembleContext.mockResolvedValueOnce({
       context: 'Retrieved notes:\n\nSlug: rag-basics',
       citedSlugs: ['rag-basics'],
       citedNotes: [{ slug: 'rag-basics', title: 'RAG Basics' }],
+      confidence: { tier: 'high', bestSemanticDistance: 0.12, lexicalMatchCount: 0 },
     });
     mockHasSufficientCoverage.mockReturnValueOnce(true);
 

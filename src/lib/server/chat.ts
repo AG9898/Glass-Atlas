@@ -15,11 +15,37 @@ const MAX_CHUNKS_PER_NOTE = 2;
 /** Maximum number of distinct notes to include in the context. */
 const MAX_NOTES_IN_CONTEXT = 5;
 
+/**
+ * Semantic cosine-distance tiers for retrieval confidence.
+ *
+ * pgvector's `<=>` returns smaller values for closer matches. These cutoffs
+ * keep obviously irrelevant nearest-neighbor chunks away from the LLM while
+ * preserving a middle band for limited-coverage handling.
+ */
+export const SEMANTIC_CONFIDENCE_THRESHOLDS = {
+  highMaxDistance: 0.3,
+  borderlineMaxDistance: 0.45,
+} as const;
+
 export type CitedNote = {
   /** URL-safe slug identifying the note. */
   slug: string;
   /** Human-readable note title. */
   title: string;
+};
+
+export type CoverageTier = 'high' | 'borderline' | 'low';
+
+export type RetrievalConfidence = {
+  /**
+   * Retrieval confidence tier used by the API route to choose normal answer,
+   * limited-coverage, or deterministic fallback behavior.
+   */
+  tier: CoverageTier;
+  /** Best semantic chunk cosine distance, when semantic retrieval returned chunks. */
+  bestSemanticDistance: number | null;
+  /** Number of lexical/topic note matches considered during fusion. */
+  lexicalMatchCount: number;
 };
 
 export type AssembledContext = {
@@ -32,19 +58,20 @@ export type AssembledContext = {
   citedSlugs: string[];
   /** Notes (slug + title) whose excerpts were included in the context. */
   citedNotes: CitedNote[];
+  /** Confidence metadata derived from semantic distance plus lexical support. */
+  confidence: RetrievalConfidence;
 };
 
 /**
- * Returns `true` when `ctx` contains at least one retrieved note excerpt —
- * i.e., when the LLM has enough grounding material to give a direct answer.
+ * Returns `true` when retrieval confidence is high or borderline enough for an
+ * LLM path. Low-confidence and empty retrieval short-circuit to fallback.
  *
- * Returns `false` when both the semantic and lexical retrieval paths came up
- * empty, signalling that the confidence gate should short-circuit to the
- * insufficient-coverage fallback instead of forwarding an empty context to
- * the LLM.
+ * This intentionally does more than check for non-empty context: irrelevant
+ * nearest-neighbor chunks can still produce snippets, so semantic distance is
+ * the primary gate and lexical matches are supporting evidence only.
  */
 export function hasSufficientCoverage(ctx: AssembledContext): boolean {
-  return ctx.context.length > 0 && ctx.citedSlugs.length > 0;
+  return ctx.context.length > 0 && ctx.citedSlugs.length > 0 && ctx.confidence.tier !== 'low';
 }
 
 /**
@@ -108,7 +135,16 @@ export async function assembleContext(query: string): Promise<AssembledContext> 
   ]);
 
   if (chunks.length === 0 && lexicalNotes.length === 0) {
-    return { context: '', citedSlugs: [], citedNotes: [] };
+    return {
+      context: '',
+      citedSlugs: [],
+      citedNotes: [],
+      confidence: {
+        tier: 'low',
+        bestSemanticDistance: null,
+        lexicalMatchCount: 0,
+      },
+    };
   }
 
   // ----- Semantic candidate set -----
@@ -154,7 +190,37 @@ export async function assembleContext(query: string): Promise<AssembledContext> 
 
   const context = `Retrieved notes:\n\n${snippets.join('\n\n---\n\n')}`;
   const citedSlugs = citedNotes.map((n) => n.slug);
-  return { context, citedSlugs, citedNotes };
+  return {
+    context,
+    citedSlugs,
+    citedNotes,
+    confidence: classifyRetrievalConfidence(chunks, lexicalNotes.length),
+  };
+}
+
+function classifyRetrievalConfidence(
+  chunks: RetrievedNoteChunk[],
+  lexicalMatchCount: number,
+): RetrievalConfidence {
+  const bestSemanticDistance = chunks[0]?.distance ?? null;
+
+  if (bestSemanticDistance === null) {
+    return {
+      tier: lexicalMatchCount > 0 ? 'borderline' : 'low',
+      bestSemanticDistance,
+      lexicalMatchCount,
+    };
+  }
+
+  if (bestSemanticDistance <= SEMANTIC_CONFIDENCE_THRESHOLDS.highMaxDistance) {
+    return { tier: 'high', bestSemanticDistance, lexicalMatchCount };
+  }
+
+  if (bestSemanticDistance <= SEMANTIC_CONFIDENCE_THRESHOLDS.borderlineMaxDistance) {
+    return { tier: 'borderline', bestSemanticDistance, lexicalMatchCount };
+  }
+
+  return { tier: 'low', bestSemanticDistance, lexicalMatchCount };
 }
 
 /**

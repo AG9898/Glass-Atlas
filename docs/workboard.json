@@ -1398,7 +1398,7 @@
       "group_id": "CHAT",
       "title": "Numeric confidence tiers for chat retrieval",
       "description": "Replace the current non-empty-context confidence check with explicit semantic-distance tiers for chat retrieval. High-confidence chunks should allow the normal grounded answer path, borderline chunks should be flagged for limited-coverage handling, and low-confidence retrieval should skip the LLM and return the deterministic insufficient-coverage SSE fallback. Keep lexical/topic matches as supporting evidence and preserve published-note-only retrieval scope.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "CHAT-04F"

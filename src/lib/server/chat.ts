@@ -23,8 +23,8 @@ const MAX_NOTES_IN_CONTEXT = 5;
  * preserving a middle band for limited-coverage handling.
  */
 export const SEMANTIC_CONFIDENCE_THRESHOLDS = {
-  highMaxDistance: 0.3,
-  borderlineMaxDistance: 0.45,
+  highMaxDistance: 0.5,
+  borderlineMaxDistance: 0.68,
 } as const;
 
 export type CitedNote = {
@@ -126,7 +126,8 @@ export function buildFallbackResponse(citedNotes: CitedNote[], query = ''): stri
  * only notes contribute only their title and takeaway line.
  */
 export async function assembleContext(query: string): Promise<AssembledContext> {
-  const queryEmbedding = await embedText(query);
+  const semanticQuery = buildSemanticSearchQuery(query);
+  const queryEmbedding = await embedText(semanticQuery);
 
   // Run both retrieval branches in parallel for latency efficiency.
   const [chunks, lexicalNotes] = await Promise.all([
@@ -196,6 +197,24 @@ export async function assembleContext(query: string): Promise<AssembledContext> 
     citedNotes,
     confidence: classifyRetrievalConfidence(chunks, lexicalNotes.length),
   };
+}
+
+/**
+ * Expands site-specific aliases before semantic embedding.
+ *
+ * The note chunks are embedded with metadata terms such as the site name,
+ * technical vocabulary, and author framing. User questions often use shorter
+ * aliases ("creator", "RAG", "LLMs"), so this adds those local synonyms to
+ * improve recall without changing the original lexical query or prompt.
+ */
+export function buildSemanticSearchQuery(query: string): string {
+  return query
+    .replace(/\bAden\b/g, 'Aden author')
+    .replace(/\bcreator\b/gi, 'creator author Aden Glass Atlas')
+    .replace(/\bthis site\b/gi, 'this site Glass Atlas personal website')
+    .replace(/\bRAG\b/gi, 'RAG retrieval augmented generation semantic search embeddings')
+    .replace(/\bLLM'?s\b/gi, 'LLMs large language models AI chatbot')
+    .replace(/\bemploy\b/gi, 'use employ');
 }
 
 function classifyRetrievalConfidence(

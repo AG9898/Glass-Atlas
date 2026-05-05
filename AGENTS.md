@@ -355,3 +355,6 @@ The old hardcoded `google/gemini-2.0-flash-exp:free` review model can return `40
 
 ### 2026-05-04 — Legacy `rehype-shiki` theme names are limited
 `rehype-shiki@0.0.9` uses the old `shiki-themes` package and does not include newer theme names like `github-dark`; using one causes note rendering to 500 with `Unable to load theme`. Use bundled legacy names such as `dark_plus`, `nord`, or `monokai` unless the markdown renderer dependency is upgraded.
+
+### 2026-05-05 — Chat confidence thresholds must be calibrated against real chunk embeddings
+Raw user queries can score around `0.5–0.65` cosine distance even when they clearly match the only relevant note because chunks are embedded with metadata scaffolding. Keep semantic query alias expansion narrow and local (`creator`, `Aden`, `RAG`, `LLM`) and validate threshold changes against both known in-corpus prompts and unrelated prompts before tightening the fallback gate.

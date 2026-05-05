@@ -17,6 +17,7 @@ import {
   assembleContext,
   hasSufficientCoverage,
   buildFallbackResponse,
+  buildSemanticSearchQuery,
   INSUFFICIENT_COVERAGE_RESPONSE,
   SEMANTIC_CONFIDENCE_THRESHOLDS,
 } from './chat';
@@ -108,6 +109,17 @@ describe('assembleContext', () => {
     expect(mockSearchChunks).toHaveBeenCalledWith([0.1, 0.2, 0.3], 20);
     // Lexical query called with the original string
     expect(mockSearchLexical).toHaveBeenCalledWith('query text', 10);
+  });
+
+  it('expands local aliases for semantic search while preserving lexical query text', async () => {
+    mockSearchChunks.mockResolvedValue([chunkA1]);
+
+    await assembleContext("How does the creator employ LLM's?");
+
+    expect(mockEmbedText).toHaveBeenCalledWith(
+      "How does the creator author Aden Glass Atlas use employ LLMs large language models AI chatbot?",
+    );
+    expect(mockSearchLexical).toHaveBeenCalledWith("How does the creator employ LLM's?", 10);
   });
 
   it('includes chunk text in context', async () => {
@@ -412,6 +424,23 @@ describe('assembleContext — confidence tiers', () => {
       bestSemanticDistance: null,
       lexicalMatchCount: 1,
     });
+  });
+});
+
+describe('buildSemanticSearchQuery', () => {
+  it('adds site-specific aliases for common creator and AI phrasing', () => {
+    const result = buildSemanticSearchQuery("How does Aden use RAG and LLM's on this site?");
+
+    expect(result).toContain('Aden author');
+    expect(result).toContain('RAG retrieval augmented generation semantic search embeddings');
+    expect(result).toContain('LLMs large language models AI chatbot');
+    expect(result).toContain('this site Glass Atlas personal website');
+  });
+
+  it('leaves unrelated wording unchanged', () => {
+    expect(buildSemanticSearchQuery('what is the capital of France')).toBe(
+      'what is the capital of France',
+    );
   });
 });
 

@@ -26,6 +26,7 @@ The server is a persistent Bun process. In-memory state survives between request
 
 ### SvelteKit route handlers (`src/routes/`)
 
+- Serve static protocol files: `GET /robots.txt` (allows public routes, disallows `/admin` and `/api/`, links to sitemap), `GET /sitemap.xml` (published notes index).
 - Render public pages: landing (`/`), notes list (`/notes`), note detail (`/notes/[slug]`). The landing `+page.server.ts` loads live homepage metrics (published note count, distinct topic count, average words per published note, total citations served) and the 3 most recent published notes via `db/notes.ts` helpers.
 - Render admin pages: dashboard (`/admin`), new note form, edit/delete note forms, and authenticated draft preview. The `/admin` dashboard loads all notes with `listNotes()` and deletes rows through a named SvelteKit form action that calls `deleteNote(slug)`. The new note form posts to a named `create` action, generates the slug from the title with `slugify.ts`, calls `createNote()`, attempts to generate/store an embedding, and redirects to `/admin/notes/[slug]/edit`. The edit form loads the existing note with `getNoteBySlug(slug)`, saves field patches through `updateNote(slug, data)`, regenerates the embedding after Save Draft/Publish, preserves status on Save Draft, and sets `status: 'published'` only through the Publish action. `/admin/notes/[slug]/preview` renders the same `NoteDetail` component as the public note page but does not require `status: 'published'`; it remains protected by the `/admin` route guard and marks itself `noindex`.
 - Own the request/response boundary; delegate all business logic to server-side lib modules
@@ -35,6 +36,7 @@ The server is a persistent Bun process. In-memory state survives between request
 ### Server-side lib (`src/lib/server/`)
 
 - `db/index.ts` — Drizzle ORM client wired to the Neon HTTP driver; all SQL goes through here
+- `db/keepalive.ts` — side-effect module imported once at server startup; runs a `SELECT 1` ping every 4 minutes to prevent Neon from dropping idle connections (no-op when `DATABASE_URL` is unset)
 - `db/schema.ts` — Drizzle table definitions: `notes`, `note_chunks`, `note_links`, `citation_events`, Auth.js tables. `notes` stores semantic index metadata (`semantic_index_status`, `semantic_index_error`, `semantic_indexed_at`, `semantic_index_source_updated_at`) alongside the note-level vector.
 - `db/notes.ts` — note CRUD helpers: `listNotes(filter?)`, `getNoteBySlug`, `createNote`, `updateNote`, `deleteNote`, `getBacklinks`, `getOutlinks`; RAG helpers: `searchNotesBySimilarity` (published notes ordered by pgvector cosine distance), `replaceNoteChunks`, `searchChunksBySimilarity` (chunk-level cosine similarity), `searchNotesByLexical` (title/tags/category ILIKE, published notes only), `recordCitations`, `getTotalCitations`; chat quota helper: `consumeChatRateLimit` (atomic window-reset + increment keyed by `chat_rate_limits.session_hash`). Exports plain-object types `Note`, `CreateNoteInput`, `UpdateNoteInput`, `RetrievedLexicalNote`, including note metadata (`image`, `mediaType`, `publishedAt`, `series`) and semantic index state.
 - `chat.ts` — `assembleContext()` runs semantic and lexical/topic retrieval in parallel, fuses candidates (semantic-first, lexical fill, capped at 5 notes), and assembles a compact context block per note; never injects full note bodies. Streaming completion calls and session chat history are not yet wired here — those land in a later CHAT task.
@@ -58,6 +60,8 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 - Runs before every `/admin` route and `/api/admin/**` handler
 - Verifies the Auth.js session and rejects unauthenticated requests with a redirect to the OAuth flow
 - All other routes pass through without auth checks
+- Applies security response headers to every response via the `securityHeaders` handle: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, and `Strict-Transport-Security` (production only, max-age 1 year)
+- Imports `$lib/server/db/keepalive` as a side-effect on startup, which runs a `SELECT 1` ping every 4 minutes to keep the Neon connection pool warm
 
 ### Client components (`src/lib/components/`)
 

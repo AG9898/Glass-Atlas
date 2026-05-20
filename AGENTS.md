@@ -358,3 +358,6 @@ The old hardcoded `google/gemini-2.0-flash-exp:free` review model can return `40
 
 ### 2026-05-05 — Chat confidence thresholds must be calibrated against real chunk embeddings
 Raw user queries can score around `0.5–0.65` cosine distance even when they clearly match the only relevant note because chunks are embedded with metadata scaffolding. Keep semantic query alias expansion narrow and local (`creator`, `Aden`, `RAG`, `LLM`) and validate threshold changes against both known in-corpus prompts and unrelated prompts before tightening the fallback gate.
+
+### 2026-05-20 — Security headers live in `securityHeaders` handle; keepalive is a startup side-effect
+All HTTP security response headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `Strict-Transport-Security`) are applied centrally via a `securityHeaders` handle appended to the `sequence(...)` in `hooks.server.ts` — never per-route. The Neon keep-alive ping (`SELECT 1` every 4 minutes) lives in `src/lib/server/db/keepalive.ts` and is imported once as a side-effect at the top of `hooks.server.ts`; do not add DB ping logic elsewhere.

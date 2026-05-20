@@ -4,6 +4,7 @@ import type { Handle } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
 import type { Session } from '@auth/core/types';
 import { env } from '$env/dynamic/private';
+import '$lib/server/db/keepalive';
 
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
 
@@ -54,4 +55,19 @@ const adminGuard: Handle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
-export const handle = sequence(authHandle, localAuthBypass, adminGuard);
+const securityHeaders: Handle = async ({ event, resolve }) => {
+	const response = await resolve(event);
+
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('X-Frame-Options', 'DENY');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+	if (env.NODE_ENV !== 'development') {
+		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+	}
+
+	return response;
+};
+
+export const handle = sequence(authHandle, localAuthBypass, adminGuard, securityHeaders);

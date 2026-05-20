@@ -419,6 +419,8 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - The `chat_session` cookie must be opaque/random and set with secure defaults (`httpOnly`, `sameSite: 'lax'`, `path: '/'`, `secure` in production). Never trust client-submitted session IDs in JSON bodies for quota enforcement.
 - Cookie-clearing reset behavior is accepted for anonymous public chat. Do not add visitor accounts just to make chat quota non-resettable.
 - Never expose internal error messages or stack traces in API responses. Return generic error strings to the client.
+- Security response headers are applied to every response by the `securityHeaders` handle at the end of the `sequence(...)` in `hooks.server.ts`. Never duplicate these headers in individual route handlers. The set includes: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, and `Strict-Transport-Security` (production only). If new security headers are needed, add them to `securityHeaders` — not to individual routes.
+- The Neon connection pool is kept warm by `src/lib/server/db/keepalive.ts`, which is imported as a side-effect in `hooks.server.ts`. Do not add additional DB ping logic elsewhere.
 
 ---
 

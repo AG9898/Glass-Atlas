@@ -48,7 +48,7 @@ The server is a persistent Bun process. In-memory state survives between request
 
 ### API routes
 
-- `POST /api/chat` — public; accepts `{ message }`; reads/sets an anonymous `chat_session` cookie, enforces 10 messages per hour per anonymous browser session, serves an allowlisted social-intent reply for lightweight small-talk turns (greeting/thanks/capability/identity prompts), otherwise embeds query, runs hybrid retrieval, and streams either fallback or LLM output via SSE
+- `POST /api/chat` — public; accepts `{ message }` (max 2 000 characters, rejected with 400 otherwise); reads/sets an anonymous `chat_session` cookie, enforces 10 messages per hour per anonymous browser session, serves an allowlisted social-intent reply for lightweight small-talk turns (greeting/thanks/capability/identity prompts), otherwise embeds query, runs hybrid retrieval, and streams either fallback or LLM output via SSE
 - `POST /api/admin/media/upload-url` — admin-only; accepts `{ filename, contentType }`; validates MIME allowlist (`image/jpeg`, `image/png`, `image/svg+xml`, `image/gif`, `video/mp4`) and returns a short-lived presigned `PUT` URL for direct browser upload to Railway Buckets
 - `GET /api/admin/media/access-url?key=...` — public redirect endpoint; converts a stored object key into a short-lived presigned `GET` URL so bucket objects remain private while note media stays embeddable from stable app URLs
 - `POST /api/admin/notes/review` — admin-only; accepts `{ title, takeaway, body }` from current editor state (new or edit page); calls `ai/review.ts`; streams critique via SSE; does not read from or write to the database; free-tier OpenRouter model; returns `429` or `503` transparently when the model is unavailable
@@ -61,6 +61,7 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 - Verifies the Auth.js session and rejects unauthenticated requests with a redirect to the OAuth flow
 - All other routes pass through without auth checks
 - Applies security response headers to every response via the `securityHeaders` handle: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, and `Strict-Transport-Security` (production only, max-age 1 year)
+- `adminGuard` covers both `/admin/**` (redirect to sign-in) and `/api/admin/**` (401 JSON) as a catch-all, with an explicit public exception for `GET /api/admin/media/access-url` which must remain accessible to anonymous visitors for note media rendering
 - Imports `$lib/server/db/keepalive` as a side-effect on startup, which runs a `SELECT 1` ping every 4 minutes to keep the Neon connection pool warm
 
 ### Client components (`src/lib/components/`)

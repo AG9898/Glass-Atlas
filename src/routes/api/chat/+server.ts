@@ -12,6 +12,8 @@ const CHAT_SESSION_COOKIE_TTL_SECONDS = 60 * 60 * 24 * 365;
 const LIMITED_COVERAGE_INSTRUCTION =
   'Limited coverage: the retrieved notes are adjacent or partial evidence, not a direct hit. Say that plainly, answer only what the notes support, avoid filling gaps, and steer toward the closest documented angle.';
 
+const MAX_MESSAGE_LENGTH = 2000;
+
 const RATE_LIMIT_MAX = parsePositiveInt(env.CHAT_RATE_LIMIT_MAX, RATE_LIMIT_MAX_DEFAULT);
 const RATE_LIMIT_WINDOW_MINUTES = parsePositiveInt(
   env.CHAT_RATE_LIMIT_WINDOW_MINUTES,
@@ -178,6 +180,13 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
     message = (body as Record<string, unknown>).message as string;
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  if (message.length > MAX_MESSAGE_LENGTH) {
+    return new Response(JSON.stringify({ error: 'Message too long' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
     });

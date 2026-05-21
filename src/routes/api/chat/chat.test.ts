@@ -141,6 +141,14 @@ describe('POST /api/chat', () => {
     expect(res.status).toBe(400);
   });
 
+  it('returns 400 when message exceeds 2000 characters', async () => {
+    const res = await callPost(makeEvent({ message: 'a'.repeat(2001) }));
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toMatch(/too long/i);
+  });
+
   it('issues a new anonymous cookie on first request when missing', async () => {
     const cookies = createCookies();
     const res = await callPost(makeEvent({ message: 'First request' }, cookies));

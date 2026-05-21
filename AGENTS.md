@@ -361,3 +361,6 @@ Raw user queries can score around `0.5–0.65` cosine distance even when they cl
 
 ### 2026-05-20 — Security headers live in `securityHeaders` handle; keepalive is a startup side-effect
 All HTTP security response headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `Strict-Transport-Security`) are applied centrally via a `securityHeaders` handle appended to the `sequence(...)` in `hooks.server.ts` — never per-route. The Neon keep-alive ping (`SELECT 1` every 4 minutes) lives in `src/lib/server/db/keepalive.ts` and is imported once as a side-effect at the top of `hooks.server.ts`; do not add DB ping logic elsewhere.
+
+### 2026-05-20 — `adminGuard` hook covers `/api/admin/**` with 401 JSON, not redirect
+`adminGuard` now catches both `/admin/**` (redirect to sign-in) and `/api/admin/**` (401 JSON) so a future route that forgets its own auth check is still blocked. `GET /api/admin/media/access-url` is listed in `PUBLIC_API_PATHS` as the sole intentional public exception — it must remain open so bucket-hosted note media renders on public pages. Never extend the exception set without a deliberate decision. `POST /api/chat` enforces a 2 000-character message cap (checked before quota) to prevent cost-amplification attacks via oversized inputs.

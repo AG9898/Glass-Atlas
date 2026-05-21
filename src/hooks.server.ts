@@ -45,13 +45,28 @@ const localAuthBypass: Handle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
+// /api/admin/media/access-url is intentionally public — it serves presigned GET
+// URLs so bucket-hosted note media renders on public note pages without auth.
+const PUBLIC_API_PATHS = new Set(['/api/admin/media/access-url']);
+
 const adminGuard: Handle = async ({ event, resolve }) => {
-  if (event.url.pathname.startsWith('/admin')) {
+  const { pathname } = event.url;
+
+  if (pathname.startsWith('/api/admin') && !PUBLIC_API_PATHS.has(pathname)) {
     const session = await event.locals.auth();
     if (!session?.user) {
-      redirect(303, buildSigninRedirectUrl(event.url.pathname, event.url.search));
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+  } else if (pathname.startsWith('/admin')) {
+    const session = await event.locals.auth();
+    if (!session?.user) {
+      redirect(303, buildSigninRedirectUrl(pathname, event.url.search));
     }
   }
+
   return resolve(event);
 };
 

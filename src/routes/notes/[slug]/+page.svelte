@@ -4,7 +4,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  const { note, bodyHtml, allPublished, relatedNotes } = $derived(data);
+  const { note, bodyHtml, allPublished, relatedNotes, graph } = $derived(data);
 
   function firstSentence(text: string): string {
     const normalized = text.replace(/\s+/g, ' ').trim();
@@ -21,4 +21,4 @@
   <meta name="description" content={metaDescription} />
 </svelte:head>
 
-<NoteDetail {note} {bodyHtml} {allPublished} {relatedNotes} />
+<NoteDetail {note} {bodyHtml} {allPublished} {relatedNotes} {graph} />

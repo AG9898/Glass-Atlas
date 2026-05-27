@@ -169,6 +169,8 @@ For `POST /api/chat`, keep the request flow ordered as:
 
 **Slugs** — always generate via `src/lib/utils/slugify.ts`. Never construct slugs by hand.
 
+**D3 in Svelte components** — never import D3 at the module level (`import * as d3 from 'd3'`). Always use a dynamic `import('d3')` call inside a `$effect` body. D3 reads `window`/`document` and will crash SSR if imported statically. The D3 simulation should be stopped in the `$effect` cleanup function returned before the async import resolves.
+
 **CodeMirror 6 wiring** — initialize the CodeMirror `EditorView` inside `onMount` and tear it down with `onDestroy` or the returned mount cleanup. Svelte holds only the serialized markdown string; sync it from CodeMirror via an `updateListener` extension on every document change. `MarkdownEditor.svelte` exposes a bindable `value` prop, optional `placeholder`, and optional `onChange(value)` callback for non-binding consumers. Never wrap the `EditorView` instance in a Svelte store or reactive variable — it is not serializable.
 
 ```svelte

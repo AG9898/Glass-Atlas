@@ -1,4 +1,6 @@
 <script lang="ts">
+  import NoteGraph from '$lib/components/NoteGraph.svelte';
+
   type NoteDetailNote = {
     slug: string;
     title: string;
@@ -12,14 +14,20 @@
     series: string | null;
   };
 
+  type NoteGraphData = {
+    nodes: { slug: string; title: string; isCurrent: boolean }[];
+    edges: { source: string; target: string }[];
+  };
+
   type Props = {
     note: NoteDetailNote;
     bodyHtml: string;
     allPublished: NoteDetailNote[];
     relatedNotes: NoteDetailNote[];
+    graph: NoteGraphData;
   };
 
-  let { note, bodyHtml, allPublished, relatedNotes }: Props = $props();
+  let { note, bodyHtml, allPublished, relatedNotes, graph }: Props = $props();
 
   const dateFormatter = new Intl.DateTimeFormat('en', {
     year: 'numeric',
@@ -71,6 +79,11 @@
         {/each}
       </ul>
     </nav>
+
+    <div class="sidebar-left__graph">
+      <p class="sidebar-left__catalog-label">CONNECTIONS</p>
+      <NoteGraph {graph} />
+    </div>
   </aside>
 
   <main class="note-main" aria-labelledby="note-title">
@@ -223,6 +236,11 @@
   .sidebar-left__catalog {
     padding: 1rem 0;
     flex: 1;
+  }
+
+  .sidebar-left__graph {
+    border-top: var(--line-thin) solid var(--color-line-1);
+    padding: 1rem 0 1.25rem;
   }
 
   .sidebar-left__catalog-label {

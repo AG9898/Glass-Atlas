@@ -99,6 +99,7 @@ docs/
 scripts/
   migrate.js            — HTTP-driver migration runner
   create-note.js        — /write-post draft writer (createNote + reindex; draft-only)
+  review-draft.js       — /write-post voice + AI-tell scorer CLI (JSON output)
 ```
 
 Docs navigation: [`docs/INDEX.md`](docs/INDEX.md)

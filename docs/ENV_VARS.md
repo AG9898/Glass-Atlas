@@ -113,6 +113,8 @@ With `ADMIN-07` implemented, admin uploads use `POST /api/admin/media/upload-url
 
 `npm run create-note -- --file draft.json` is a local-only authoring utility. It loads `.env` values through Vite before importing SvelteKit server helpers, and it requires both `DATABASE_URL` and `OPENROUTER_API_KEY` so draft creation and semantic reindexing use the same database and OpenRouter boundaries as admin saves. The script always writes `status: draft`; no environment variable changes that.
 
+`npm run review-draft -- --file draft.json` uses the same Vite/env loading pattern to invoke `src/lib/server/ai/draft-review.ts` and print the score object as JSON. It requires `OPENROUTER_API_KEY` for a live score, uses `OPENROUTER_DRAFT_REVIEW_MODEL` when set, and returns a marked failure score instead of writing anything or blocking draft persistence when scoring is unavailable.
+
 ### Railway Bucket CORS (required for browser uploads)
 
 Railway Buckets are S3-compatible; CORS is configured on the bucket itself via S3 API calls (not via app-service env vars). In current Railway UX, this is managed via API/CLI rather than an in-dashboard CORS form.
@@ -198,4 +200,4 @@ Set via Railway dashboard under Project > Service > Variables. Railway encrypts 
 
 Use separate GitHub OAuth apps for local and production so callback URLs stay distinct and credentials can be rotated independently.
 
-Optional variables (`CHAT_RATE_LIMIT_MAX`, `CHAT_RATE_LIMIT_WINDOW_MINUTES`, `CHAT_SESSION_COOKIE_NAME`, `OPENROUTER_MODEL`, `EMBEDDING_MODEL`, `OPENROUTER_BASE_URL`) only need to be set in Railway if you want to override the defaults in production. Bucket variables are required only when the first-party media upload path is enabled.
+Optional variables (`CHAT_RATE_LIMIT_MAX`, `CHAT_RATE_LIMIT_WINDOW_MINUTES`, `CHAT_SESSION_COOKIE_NAME`, `OPENROUTER_MODEL`, `OPENROUTER_REVIEW_MODEL`, `OPENROUTER_DRAFT_REVIEW_MODEL`, `EMBEDDING_MODEL`, `OPENROUTER_BASE_URL`) only need to be set in Railway if you want to override the defaults in production. Bucket variables are required only when the first-party media upload path is enabled.

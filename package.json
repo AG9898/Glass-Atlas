@@ -12,6 +12,7 @@
     "test:run": "vitest run",
     "lint": "tsc --noEmit && eslint .",
     "create-note": "node scripts/create-note.js",
+    "review-draft": "node scripts/review-draft.js",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:http": "node scripts/migrate.js",

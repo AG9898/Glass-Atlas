@@ -1578,7 +1578,7 @@
       "group_id": "AUTHOR",
       "title": "Add draft-review voice/AI-tell scorer (ai/draft-review.ts)",
       "description": "Create a scorer module, separate from the in-editor critique in ai/review.ts, that rates a draft against the canonical voice guide. draft-review.ts builds a prompt from the draft (title, takeaway, body) plus the rubric loaded from docs/VOICE.md (single source of truth — do not inline a copy of the voice spec), calls a free OpenRouter model selected via OPENROUTER_DRAFT_REVIEW_MODEL (default openrouter/free), and returns a structured, non-streaming result: an overall 0-100 score, a per-dimension breakdown (voice fit, AI-tell cleanliness, structure, grounding hygiene), and concrete flagged lines. The result is recorded/shown only and must NOT gate saving or publishing (see DECISIONS.md OPEN-01). Provide a thin CLI wrapper (scripts/review-draft.js) that prints the score object as JSON so the /write-post skill can invoke scoring and parse the result; the CLI imports the server module using the same alias/env approach established in AUTHOR-01.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "AUTHOR-01"

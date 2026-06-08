@@ -1616,7 +1616,7 @@
       "group_id": "AUTHOR",
       "title": "Add /write-post authoring skill (interview -> draft -> score -> write)",
       "description": "Create the .claude/skills/write-post/SKILL.md skill that orchestrates the agent-authoring flow inline (no background subagent). On invocation with a topic, it loads docs/VOICE.md, the category list from src/lib/utils/note-taxonomy.ts, and the current note slugs (link targets). It then runs an EXTENSIVE interview using AskUserQuestion batches plus free-form follow-ups to pin the angle/thesis, scope, audience, factual spine (claims/anecdotes/code in the author's words), category/tags/series, the takeaway one-liner, length, which existing notes to link, and explicitly where outside knowledge is welcome vs off-limits. It drafts the full note in the canonical voice grounded in the interview answers; emits [[slug]] only for slugs that already exist and collects any author-named targets that do not; and marks every passage drawing on outside (non-author) knowledge for the terminal report only (never written into the body). It invokes the AUTHOR-02 scorer and shows the non-blocking score, then writes the note via the AUTHOR-01 draft writer. Finally it reports: slug, the /admin/notes/<slug>/edit URL, the review score, a 'verify before publish' checklist of flagged passages, any [[links]] whose targets do not exist yet, and suggested spots to add media manually.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "AUTHOR-01",

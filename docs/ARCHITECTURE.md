@@ -51,7 +51,7 @@ The server is a persistent Bun process. In-memory state survives between request
 
 A separate authoring lane lets the author direct an agent to write a full note in the canonical blog voice and persist it as a draft, without using the admin browser UI. It is a **local developer/CLI path**, not a deployed runtime surface.
 
-- `.claude/skills/write-post/SKILL.md` — the `/write-post` skill. Runs inline in the agent session: loads `docs/VOICE.md` + the category list (`note-taxonomy.ts`) + existing note slugs, runs an extensive interview (structured `AskUserQuestion` batches + free-form follow-ups), drafts the note in voice, runs the `draft-review.ts` scorer, then invokes the write script. Emits `[[slug]]` links only for slugs that already exist and reports any named targets that do not. Flags every passage drawing on outside (non-author) knowledge in the **terminal report only** — flags are never written into the note body.
+- `.claude/skills/write-post/SKILL.md` — the `/write-post` skill. Runs inline in the agent session: loads `docs/VOICE.md` + the category list (`note-taxonomy.ts`) + existing note slugs from `listNotes()` through the same Vite SSR pattern used by local scripts, then runs an extensive interview (structured `AskUserQuestion` batches + free-form follow-ups), drafts the note in voice, runs the `draft-review.ts` scorer, and invokes the write script. Emits `[[slug]]` links only for slugs that already exist and reports any named targets that do not. If the current note list cannot be loaded, the skill stops before drafting rather than guessing link targets. Flags every passage drawing on outside (non-author) knowledge in the **terminal report only** — flags are never written into the note body.
 - `scripts/review-draft.js` — Node script that reads a draft payload (title, body, takeaway), loads `ai/draft-review.ts` through Vite SSR, and prints the structured score object as JSON for skill consumption. It never reads from or writes to the database.
 - `scripts/create-note.js` — Node script that reads a draft payload (title, body, takeaway, category, tags, series), generates the slug via `slugify`, and persists through `createNote()` + `reindexNoteAfterSave()`. **Status is hard-forced to `draft`** — this path cannot publish. Because it goes through those helpers, the note's wiki-link graph (`note_links`), note-level embedding, and section/paragraph chunks are populated identically to a hand-authored note.
 
@@ -191,7 +191,7 @@ The review UI is shared between both admin editors via `src/lib/components/admin
 
 ```
 1. Author runs /write-post with a topic ("Let's do a post on X") and any targeting notes
-2. Skill loads docs/VOICE.md, the category list, and existing note slugs (link targets)
+2. Skill loads docs/VOICE.md, the category list, and existing note slugs (link targets) through `listNotes()`; if slugs cannot be loaded, it stops before drafting
 3. Skill runs an extensive interview:
    - structured AskUserQuestion batches (angle, scope, audience, category/tags/series,
      length, which existing notes to link, where outside knowledge is welcome vs off-limits)
@@ -205,10 +205,12 @@ The review UI is shared between both admin editors via `src/lib/components/admin
    - slug generated via slugify; status HARD-FORCED to 'draft'
    - createNote() inserts the row and syncs [[...]] links into note_links
    - reindexNoteAfterSave() generates the note-level embedding and section/paragraph chunks
-7. Skill reports to the terminal: slug, /admin/notes/<slug>/edit URL, review score,
-   a "verify before publish" checklist of flagged outside-knowledge passages,
-   any [[links]] whose targets don't exist yet, and suggested spots to add media manually
-8. Author opens the draft in the admin editor to review, add images/media, and publish
+7. Skill verifies the saved draft via the app query layer: draft status, note-level embedding,
+   semantic index status, chunk count, and outlink count
+8. Skill reports to the terminal: slug, /admin/notes/<slug>/edit URL, review score,
+   semantic index state, a "verify before publish" checklist of flagged outside-knowledge
+   passages, any [[links]] whose targets don't exist yet, and suggested spots to add media manually
+9. Author opens the draft in the admin editor to review, add images/media, and publish
 ```
 
 This lane reuses the exact note-save pipeline (`createNote` + `reindexNoteAfterSave`), so an agent-authored draft is indistinguishable from a hand-authored one once saved — same wiki-link graph, same embeddings, same chunks. The only difference is the authoring surface. Nothing on this path publishes; publishing remains a deliberate human action in `/admin`.

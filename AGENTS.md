@@ -100,6 +100,9 @@ scripts/
   migrate.js            — HTTP-driver migration runner
   create-note.js        — /write-post draft writer (createNote + reindex; draft-only)
   review-draft.js       — /write-post voice + AI-tell scorer CLI (JSON output)
+.claude/
+  skills/
+    write-post/SKILL.md — inline interview -> draft -> score -> draft-save workflow
 ```
 
 Docs navigation: [`docs/INDEX.md`](docs/INDEX.md)
@@ -380,3 +383,6 @@ The `/write-post` skill (group `AUTHOR`) writes notes through `scripts/create-no
 
 ### 2026-06-08 — Plain Node scripts can import SvelteKit helpers through Vite SSR
 `scripts/create-note.js` uses Vite's SSR middleware loader to import `createNote()`, `reindexNoteAfterSave()`, and `slugify()` because those modules depend on `$lib` and `$env/dynamic/private`. Keep this loader pattern for local scripts that must reuse app helpers; do not replace it with duplicated SQL or custom embedding/link logic. Load `.env` into `process.env` before creating the Vite server so dynamic private env reads match local app behavior.
+
+### 2026-06-08 — `/write-post` must load slugs before drafting
+The `/write-post` skill reads existing note slugs through `listNotes()` via the same Vite SSR pattern before it drafts. If the note list cannot load, stop before writing prose; guessing or forward-linking `[[slug]]` targets breaks the wiki-link contract. After saving, verify/report draft status, embedding presence, semantic index state, chunk count, and outlink count so the author knows whether the local pipeline completed cleanly.

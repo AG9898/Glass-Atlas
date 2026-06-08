@@ -175,3 +175,9 @@ The score is **recorded and shown, never enforced** — a low score does not blo
 saving a draft. The threshold and any future gating are an open decision
 (DECISIONS.md OPEN-01). Treat the number as a mirror, not a gate, until that
 decision resolves.
+
+The `/write-post` skill must self-check the draft against the top AI-tell bans
+before it invokes the scorer, then include meaningful scorer flags in the final
+terminal report. Outside-knowledge flags still stay terminal-only; do not write
+verification labels, comments, or caveats into the note body itself unless the
+author explicitly wants that prose in the post.

@@ -1542,7 +1542,7 @@
       "group_id": "AUTHOR",
       "title": "Add draft-only note writer script (scripts/create-note.js)",
       "description": "Create a local Node script that persists an agent-authored note as a draft by reusing the existing save pipeline, so the /write-post skill never hand-rolls DB/embedding/link logic. The script reads a draft payload (title, body, takeaway, category, tags, series) from a file or stdin, generates the slug via src/lib/utils/slugify.ts, and calls createNote() followed by reindexNoteAfterSave() so note_links, the note-level embedding, and section/paragraph chunks are populated identically to a hand-authored note. status must be HARD-FORCED to 'draft' with no flag/arg/env able to publish. Because the server helpers import SvelteKit aliases ($lib/*) and $env/dynamic/private (which scripts/migrate.js avoids by talking to Neon directly), resolve how the script imports those helpers without duplicating their logic — for example a small alias/env shim that maps $env/dynamic/private to process.env and $lib to src/lib, loading DATABASE_URL and OPENROUTER_API_KEY from the local env. Add an npm script entry to run it.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [],
       "blocked_by": [],

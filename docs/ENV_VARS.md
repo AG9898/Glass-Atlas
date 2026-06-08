@@ -109,6 +109,10 @@ SECRET_ACCESS_KEY=your_bucket_secret
 
 With `ADMIN-07` implemented, admin uploads use `POST /api/admin/media/upload-url` and direct browser `PUT` requests to the returned presigned URL. Ensure bucket CORS allows `PUT` from your app origin and allows the `Content-Type` request header.
 
+### Agent Draft Writer
+
+`npm run create-note -- --file draft.json` is a local-only authoring utility. It loads `.env` values through Vite before importing SvelteKit server helpers, and it requires both `DATABASE_URL` and `OPENROUTER_API_KEY` so draft creation and semantic reindexing use the same database and OpenRouter boundaries as admin saves. The script always writes `status: draft`; no environment variable changes that.
+
 ### Railway Bucket CORS (required for browser uploads)
 
 Railway Buckets are S3-compatible; CORS is configured on the bucket itself via S3 API calls (not via app-service env vars). In current Railway UX, this is managed via API/CLI rather than an in-dashboard CORS form.

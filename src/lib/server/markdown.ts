@@ -3,6 +3,8 @@
  *
  * Uses unified → remark-parse → remark-gfm → remark-rehype → rehype-shiki
  * → rehype-stringify to produce HTML with syntax-highlighted code blocks.
+ * Mermaid and plain-text fences are rendered as unhighlighted code blocks
+ * because the current legacy Shiki stack cannot tokenize those languages.
  *
  * This module is server-only — never import from client components.
  */
@@ -14,6 +16,7 @@ import remarkRehype from 'remark-rehype';
 import rehypeStringify from 'rehype-stringify';
 import { createRequire } from 'module';
 import type { Plugin } from 'unified';
+import type { Node } from 'unist';
 import { remarkInlineMediaEmbeds } from '$lib/utils/inline-media';
 
 // rehype-shiki@0.0.9 is a legacy CJS package; use createRequire to import it.
@@ -33,7 +36,9 @@ async function buildProcessor() {
     .use(remarkGfm)
     .use(remarkInlineMediaEmbeds)
     .use(remarkRehype, { allowDangerousHtml: false })
+    .use(rehypeUnsupportedCodeAsPlainText)
     .use(rehypeShiki, { theme: 'dark_plus' })
+    .use(rehypeRemoveUndefinedStyles)
     .use(rehypeStringify);
 }
 
@@ -52,4 +57,81 @@ export async function renderMarkdown(markdown: string): Promise<string> {
   const processor = await getProcessor();
   const file = await processor.process(markdown);
   return String(file);
+}
+
+type HastNode = Node & {
+  tagName?: string;
+  properties?: {
+    className?: unknown;
+    [key: string]: unknown;
+  };
+  children?: HastNode[];
+};
+
+const UNHIGHLIGHTED_CODE_LANGUAGES = new Set(['mermaid', 'plaintext', 'text', 'txt']);
+
+const rehypeUnsupportedCodeAsPlainText: Plugin<[], Node> = () => {
+  return (tree) => {
+    visitElements(tree as HastNode, (node) => {
+      if (node.tagName !== 'code') return;
+
+      const className = node.properties?.className;
+      if (!Array.isArray(className)) return;
+
+      const classes = className.filter((item): item is string => typeof item === 'string');
+      const languageClass = classes.find((item) => item.startsWith('language-'));
+      const language = languageClass?.slice('language-'.length);
+      if (!language || !UNHIGHLIGHTED_CODE_LANGUAGES.has(language)) return;
+
+      node.properties = {
+        ...node.properties,
+        className: classes.filter((item) => item !== languageClass).concat('unhighlighted-code-source'),
+        'data-language': language,
+      };
+    });
+  };
+};
+
+const rehypeRemoveUndefinedStyles: Plugin<[], Node> = () => {
+  return (tree) => {
+    visitElements(tree as HastNode, (node) => {
+      const style = node.properties?.style;
+      if (typeof style === 'string') {
+        if (style.includes('undefined')) {
+          setCleanStyle(node, stripUndefinedStyles([style]));
+        }
+        return;
+      }
+
+      if (Array.isArray(style)) {
+        setCleanStyle(node, stripUndefinedStyles(style));
+      }
+    });
+  };
+};
+
+function setCleanStyle(node: HastNode, styles: string[]): void {
+  const properties = { ...node.properties };
+  if (styles.length > 0) {
+    properties.style = styles;
+  } else {
+    delete properties.style;
+  }
+  node.properties = properties;
+}
+
+function stripUndefinedStyles(styles: unknown[]): string[] {
+  return styles.filter((style): style is string => {
+    return typeof style === 'string' && !style.includes('undefined');
+  });
+}
+
+function visitElements(node: HastNode, visitor: (node: HastNode) => void): void {
+  if (node.type === 'element') {
+    visitor(node);
+  }
+
+  for (const child of node.children ?? []) {
+    visitElements(child, visitor);
+  }
 }

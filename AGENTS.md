@@ -386,3 +386,9 @@ The `/write-post` skill (group `AUTHOR`) writes notes through `scripts/create-no
 
 ### 2026-06-08 — `/write-post` must load slugs before drafting
 The `/write-post` skill reads existing note slugs through `listNotes()` via the same Vite SSR pattern before it drafts. If the note list cannot load, stop before writing prose; guessing or forward-linking `[[slug]]` targets breaks the wiki-link contract. After saving, verify/report draft status, embedding presence, semantic index state, chunk count, and outlink count so the author knows whether the local pipeline completed cleanly.
+
+### 2026-06-08 — Mermaid fences need a renderer fallback with legacy Shiki
+`rehype-shiki@0.0.9` does not register `mermaid` as a highlightable language and cannot tokenize `text`/`plaintext` fences, so those blocks can 500 public/admin preview pages. Keep the `rehypeUnsupportedCodeAsPlainText` fallback in `src/lib/server/markdown.ts` unless a real Mermaid renderer or newer highlighter is added; Mermaid blocks currently render as styled unhighlighted code, not diagrams.
+
+### 2026-06-08 — `/write-post` drafts need a Markdown polish gate
+Agent-written note bodies must not be plain prose dumps or accidentally copied patch text. Before review/save and again after save, check for standalone `+` lines, `+##` heading prefixes, plus-prefixed code fences, `+|` table rows, and similar diff artifacts, then make sure the draft uses intentional Markdown structure such as headings, blockquotes, emphasis, lists/tables, and fenced examples where useful.

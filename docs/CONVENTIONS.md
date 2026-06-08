@@ -462,6 +462,8 @@ See `docs/TESTING.md` for the full testing guide. Rules that affect code structu
 - Never let `/write-post` draft with an unavailable note-slug list; missing link context is a blocker, not a reason to invent slugs.
 - Never let the agent-authoring path publish a note — `scripts/create-note.js` is draft-only and must hard-force `status: 'draft'`.
 - Never write agent-generated "outside knowledge" flags into a note body, and never fabricate personal anecdotes/quotes/benchmarks — flags are terminal-only and the factual spine is author-sourced.
+- Never leave `/write-post` drafts as unstyled prose dumps or with patch artifacts. Draft bodies need a Markdown polish pass (headings, blockquotes/emphasis/lists/tables/fences where useful) and must contain no standalone `+` lines, `+##` heading prefixes, plus-prefixed code fences, or similar diff artifacts.
+- Mermaid and plain-text fenced blocks are accepted in notes, but the current public renderer treats them as unhighlighted code blocks before `rehype-shiki` runs. Do not promise rendered Mermaid diagrams unless a dedicated Mermaid renderer is added.
 - Never include full note bodies in the LLM prompt — use bounded chunk excerpts and lexical-only summaries.
 - Never return raw Drizzle ORM result objects from API endpoints — serialize to a typed plain object first.
 - Never bypass the `hooks.server.ts` auth guard on `/admin` or `/api/admin` routes.

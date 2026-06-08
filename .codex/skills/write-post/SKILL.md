@@ -16,6 +16,8 @@ This is an inline authoring flow. Do not launch a background subagent, do not pu
 - The factual spine comes from the author interview plus existing notes. Never fabricate personal anecdotes, quotes, benchmarks, dates, or project details.
 - Outside knowledge is allowed only where the author explicitly permits it. Every passage that uses outside, non-author knowledge must be listed in the terminal report as "verify before publish" and must not be marked inside the note body.
 - Emit `[[slug]]` links only for slugs that exist in the current note list. If the author names a target that does not exist, record it as a missing target and do not invent a slug.
+- The saved body must be polished Markdown, not plain prose dumped into a field: use headings, paragraph breaks, blockquotes, bold/italic emphasis, lists, tables, and fenced examples where they improve rhythm or scanability.
+- Never write patch/diff artifacts into the note body. Standalone `+` lines, `+##` heading prefixes, plus-prefixed code fences, `+text` lines, and similar artifacts are a blocker; strip them before review/save.
 - Persist with `scripts/create-note.js` only. It hard-forces `status: "draft"` and calls `createNote()` plus `reindexNoteAfterSave()`.
 - Run `scripts/review-draft.js` before saving. The score is non-blocking: show it, but do not let a low score prevent the draft write.
 
@@ -122,10 +124,24 @@ Then draft the note body:
 
 - Follow `docs/VOICE.md`: first-person, smart-casual, opinionated, prose-first, no hollow intro or listicle padding.
 - Do not write outside-knowledge labels, comments, or verification markers into the body.
-- Use markdown suitable for the admin editor.
+- Use polished Markdown suitable for the admin editor and public note renderer:
+  - Use `##` sections with short, voiceful labels.
+  - Use blockquotes for the central claim, sharp takeaway, or author stance.
+  - Use **bold** for the few phrases that should carry the argument, and *italics* for quoted commands, asides, or emphasis.
+  - Use bullets or tables when they make routing, comparisons, or examples easier to scan.
+  - Use fenced code blocks for concrete snippets, routing trees, docs excerpts, or command examples.
+  - Prefer `text`, `md`, `bash`, and other renderer-safe fences for examples. Mermaid fences currently render as code, not diagrams, unless the renderer changes.
 - Use `[[slug]]` or `[[slug|label]]` only for existing slugs from the loaded note list.
 - Do not emit forward links for missing targets.
 - Keep the title slug-friendly, but do not manually construct the final slug. `scripts/create-note.js` will call `slugify()`.
+
+Before scoring, run a Markdown polish and artifact pass:
+
+- Remove every diff/patch artifact from the body: no standalone `+` lines and no content lines beginning with a stray `+` prefix.
+- Confirm fenced code blocks have clean opening/closing fences and are not accidentally prefixed by `+`.
+- Confirm the post is not one long prose slab. Every major section should have at least one useful formatting beat: a blockquote, emphasized sentence, list, table, or fenced example.
+- Confirm formatting serves the voice and argument. Do not decorate every sentence; use Markdown to create rhythm, routing examples, and emphasis.
+- Confirm the body renders as valid Markdown in the admin preview/public renderer. If a special fence language may not render as intended, use a safer text/tree/code fallback.
 
 Self-check the draft against the top AI-tell bans in `docs/VOICE.md` before scoring:
 
@@ -224,6 +240,12 @@ NODE
 
 The expected result is a draft note with `hasEmbedding: true`, `semanticIndexStatus: "current"`, chunk count greater than zero, and outlinks matching any emitted `[[slug]]` links. If embeddings fail, the note may still save with `semanticIndexStatus: "failed"`; report that clearly and tell the author to re-save after fixing the upstream issue.
 
+Also verify formatting hygiene after save:
+
+- Re-load the saved note body and confirm no line is exactly `+` and no line starts with a stray patch prefix such as `+##`, a plus-prefixed code fence, `+|`, or `+text`.
+- Render or preview-check the saved body when possible and confirm there are no raw fence artifacts, unresolved emitted wiki links, or obvious formatting breakage.
+- If formatting hygiene fails, update the note through `updateNote()`/`reindexNoteAfterSave()` using the app query layer. Do not leave a malformed draft for the author to clean manually.
+
 ## Final Report
 
 Finish with a concise terminal report:
@@ -233,6 +255,7 @@ Finish with a concise terminal report:
 - `status`: always `draft`.
 - `review_score`: numeric score and short breakdown, or unavailable with reason.
 - `semantic_index`: current/failed plus any error.
+- `formatting_check`: confirm no diff artifacts and that the Markdown rendered cleanly, or describe the remaining issue.
 - `verify_before_publish`: every outside-knowledge passage to verify, plus any scorer flagged lines that matter.
 - `missing_link_targets`: author-named targets that did not exist and were not emitted as `[[slug]]`.
 - `media_suggestions`: places to add screenshots, diagrams, GIFs, MP4 demos, or cover media manually in `/admin`.

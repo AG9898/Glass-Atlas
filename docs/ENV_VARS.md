@@ -17,7 +17,7 @@
 | `DATABASE_URL` | Yes | All | — | `$env/dynamic/private` | Neon PostgreSQL connection string. Must include `?sslmode=require`. Uses dynamic import so the dev server starts without a DB configured (queries will fail at runtime until set). |
 | `OPENROUTER_API_KEY` | Yes | All | — | `$env/dynamic/private` | API key for OpenRouter (LLM + embeddings). Never expose client-side. |
 | `OPENROUTER_BASE_URL` | No | All | `https://openrouter.ai/api/v1` | `$env/dynamic/private` | Override the OpenRouter base URL. Useful for test mocking. |
-| `OPENROUTER_MODEL` | No | All | `google/gemini-2.0-flash-001` | `$env/static/private` | Override the default LLM model used for chat. |
+| `OPENROUTER_MODEL` | No | All | `google/gemma-4-31b-it:free` | `$env/static/private` | Override the default LLM model used for chat. Default is a free model because the OpenRouter account has no credits; paid models return 402. |
 | `OPENROUTER_REVIEW_MODEL` | No | All | `openrouter/free` | `$env/dynamic/private` | Override the admin note critique model. Default uses OpenRouter's free-model router because individual free model endpoints can disappear. Keep this on a free model/router unless a decision explicitly changes the cost policy. |
 | `EMBEDDING_MODEL` | No | All | `text-embedding-3-small` | `$env/dynamic/private` | Override the default embedding model. |
 | `AUTH_SECRET` | Yes | All | — | `$env/dynamic/private` | Random secret for Auth.js session signing. Generate: `openssl rand -hex 32`. Loaded at runtime so secrets are not baked into build artifacts. |
@@ -85,7 +85,7 @@ Optional overrides (only set if you need to change defaults):
 
 ```dotenv
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-OPENROUTER_MODEL=google/gemini-2.0-flash-001
+OPENROUTER_MODEL=google/gemma-4-31b-it:free
 OPENROUTER_REVIEW_MODEL=openrouter/free
 EMBEDDING_MODEL=text-embedding-3-small
 CHAT_RATE_LIMIT_MAX=10

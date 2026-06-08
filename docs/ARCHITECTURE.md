@@ -109,7 +109,7 @@ The sequence below describes the retrieval orchestration as shipped through CHAT
 8. API route builds the LLM prompt:
      [personality block from personality.ts]
      + [retrieved note excerpts — chunks with section headings, lexical-only notes with takeaway]
-9. API route calls OpenRouter (google/gemini-2.0-flash-001) with `stream: true`
+9. API route calls OpenRouter (google/gemma-4-31b-it:free) with `stream: true`
 10. OpenRouter streams tokens → API route pipes them as SSE to the frontend
 11. Frontend renders tokens as they arrive
 12. Before starting the stream, API route calls `recordCitations(citedSlugs)` to insert
@@ -211,7 +211,7 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 |---|---|---|---|
 | Neon PostgreSQL | Primary database (notes, conversations, messages, auth tables) | Yes | Accessed via Neon serverless HTTP driver; pgvector extension required for embedding storage and cosine similarity search |
 | Railway Storage Buckets | First-party note media object storage | Yes | Private-only buckets; media served via presigned URLs by default; browser upload requires bucket CORS configuration for app origins |
-| OpenRouter API | LLM completions (streaming) + embedding generation | Yes | Default model: `google/gemini-2.0-flash-001`; embedding model: `text-embedding-3-small` (vector dimension: 1536) |
+| OpenRouter API | LLM completions (streaming) + embedding generation | Yes | Default model: `google/gemma-4-31b-it:free`; embedding model: `text-embedding-3-small` (vector dimension: 1536) |
 | GitHub OAuth | Admin authentication provider | Yes | Only the author's GitHub account is permitted; OAuth app credentials stored as environment variables |
 | Railway | Hosting, persistent Bun HTTP server | Yes | Auto-deploys on push to `main` via GitHub integration; Hobby plan (~$5/mo) |
 

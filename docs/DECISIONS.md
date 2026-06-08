@@ -164,11 +164,12 @@ No open decisions right now.
 
 ### RESOLVED-01 — LLM Model Choice
 
-**Resolved:** 2026-04-25
-**Decision:** Use `google/gemini-2.0-flash-001` via OpenRouter as the default chat model.
-**Why:** Delivers ~400–600 ms time-to-first-token, streams reliably, and follows system-prompt personality injection well. Cost is appropriate for personal blog scale.
-**Alternatives rejected:** GPT-4o and Claude Sonnet were rejected for 2–5x slower TTFT. Llama 3.1 8B was rejected for weaker instruction-following with personality-injected prompts.
-**Affects:** ARCHITECTURE.md, ENV_VARS.md (OPENROUTER_API_KEY)
+**Resolved:** 2026-04-25 · **Superseded:** 2026-06-07 (see note below)
+**Decision:** Use `google/gemma-4-31b-it:free` via OpenRouter as the default chat model.
+**Why:** As of 2026-06-07, `google/gemini-2.0-flash-001` returns `404 No endpoints found` (the original default was retired from OpenRouter), and paid successors like `google/gemini-2.5-flash` return `402 Payment Required` because the OpenRouter account holds no credits. `google/gemma-4-31b-it:free` is the closest free drop-in: same vendor/tone, 262k context, streams clean `content`-only deltas (no reasoning leakage), and obeyed the grounding system prompt in testing.
+**Alternatives rejected:** `openai/gpt-oss-120b:free` works but interleaves `reasoning` tokens that stall visible output; several free Llama/Qwen/Kimi endpoints returned `429`. Adding account credits to keep a paid Gemini was deferred — free model is adequate at blog scale.
+**Original (2026-04-25) decision:** Use `google/gemini-2.0-flash-001` for ~400–600 ms TTFT and reliable personality injection. Retired upstream; preserved here for history.
+**Affects:** ARCHITECTURE.md, ENV_VARS.md, src/lib/server/ai/openrouter.ts
 
 ---
 

@@ -1,7 +1,7 @@
 import { env } from '$env/dynamic/private';
 
 const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
-const DEFAULT_OPENROUTER_MODEL = 'google/gemini-2.0-flash-001';
+const DEFAULT_OPENROUTER_MODEL = 'google/gemma-4-31b-it:free';
 
 export type ChatMessage = {
   role: 'system' | 'user' | 'assistant';

@@ -1,7 +1,7 @@
 {
   "$schema": "./workboard.schema.json",
   "schema_version": "1.0.0",
-  "last_updated": "2026-05-04",
+  "last_updated": "2026-06-08",
   "tasks": [
     {
       "id": "SCAFFOLD-01",
@@ -1531,6 +1531,115 @@
         "src/routes/admin/+page.svelte",
         "src/routes/admin/notes/[slug]/edit/+page.server.ts",
         "src/routes/admin/notes/[slug]/edit/+page.svelte"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "AUTHOR-01",
+      "group_id": "AUTHOR",
+      "title": "Add draft-only note writer script (scripts/create-note.js)",
+      "description": "Create a local Node script that persists an agent-authored note as a draft by reusing the existing save pipeline, so the /write-post skill never hand-rolls DB/embedding/link logic. The script reads a draft payload (title, body, takeaway, category, tags, series) from a file or stdin, generates the slug via src/lib/utils/slugify.ts, and calls createNote() followed by reindexNoteAfterSave() so note_links, the note-level embedding, and section/paragraph chunks are populated identically to a hand-authored note. status must be HARD-FORCED to 'draft' with no flag/arg/env able to publish. Because the server helpers import SvelteKit aliases ($lib/*) and $env/dynamic/private (which scripts/migrate.js avoids by talking to Neon directly), resolve how the script imports those helpers without duplicating their logic — for example a small alias/env shim that maps $env/dynamic/private to process.env and $lib to src/lib, loading DATABASE_URL and OPENROUTER_API_KEY from the local env. Add an npm script entry to run it.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "scripts/create-note.js persists a note via createNote() + reindexNoteAfterSave() (not bespoke SQL)",
+        "Persisted note status is always 'draft' regardless of input; no code path can publish",
+        "Slug is generated with src/lib/utils/slugify.ts and a duplicate-slug collision is reported, not silently overwritten",
+        "note_links, note-level embedding, and note_chunks are populated for the new draft (verified via the helper calls / mocked DB assertions)",
+        "An npm script runs the writer; DATABASE_URL and OPENROUTER_API_KEY are read from the local environment",
+        "Unit tests cover draft-status forcing, slug generation, and helper invocation with the DB/OpenRouter boundaries mocked",
+        "npm run test:run and npm run lint pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md",
+        "docs/ENV_VARS.md"
+      ],
+      "files": [
+        "scripts/create-note.js",
+        "src/lib/server/db/notes.ts",
+        "src/lib/server/embeddings.ts",
+        "src/lib/utils/slugify.ts",
+        "package.json"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "AUTHOR-02",
+      "group_id": "AUTHOR",
+      "title": "Add draft-review voice/AI-tell scorer (ai/draft-review.ts)",
+      "description": "Create a scorer module, separate from the in-editor critique in ai/review.ts, that rates a draft against the canonical voice guide. draft-review.ts builds a prompt from the draft (title, takeaway, body) plus the rubric loaded from docs/VOICE.md (single source of truth — do not inline a copy of the voice spec), calls a free OpenRouter model selected via OPENROUTER_DRAFT_REVIEW_MODEL (default openrouter/free), and returns a structured, non-streaming result: an overall 0-100 score, a per-dimension breakdown (voice fit, AI-tell cleanliness, structure, grounding hygiene), and concrete flagged lines. The result is recorded/shown only and must NOT gate saving or publishing (see DECISIONS.md OPEN-01). Provide a thin CLI wrapper (scripts/review-draft.js) that prints the score object as JSON so the /write-post skill can invoke scoring and parse the result; the CLI imports the server module using the same alias/env approach established in AUTHOR-01.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "AUTHOR-01"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "src/lib/server/ai/draft-review.ts returns a well-formed score object (0-100 overall + per-dimension breakdown + flagged lines)",
+        "The prompt loads the rubric from docs/VOICE.md rather than an inlined voice copy",
+        "The model id is read from OPENROUTER_DRAFT_REVIEW_MODEL with a free-model/router default",
+        "Malformed or non-conforming model output is handled gracefully (no throw; a safe default/clearly-marked failure result)",
+        "scripts/review-draft.js prints the score object as JSON for skill consumption",
+        "The scorer never reads from or writes to the database, and its result is not used to block any save/publish path",
+        "Unit tests cover prompt rubric inclusion, score-shape validation, env model selection, and malformed-output handling with OpenRouter mocked",
+        "npm run test:run and npm run lint pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md",
+        "docs/ENV_VARS.md",
+        "docs/VOICE.md"
+      ],
+      "files": [
+        "src/lib/server/ai/draft-review.ts",
+        "scripts/review-draft.js",
+        "docs/VOICE.md"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "AUTHOR-03",
+      "group_id": "AUTHOR",
+      "title": "Add /write-post authoring skill (interview -> draft -> score -> write)",
+      "description": "Create the .claude/skills/write-post/SKILL.md skill that orchestrates the agent-authoring flow inline (no background subagent). On invocation with a topic, it loads docs/VOICE.md, the category list from src/lib/utils/note-taxonomy.ts, and the current note slugs (link targets). It then runs an EXTENSIVE interview using AskUserQuestion batches plus free-form follow-ups to pin the angle/thesis, scope, audience, factual spine (claims/anecdotes/code in the author's words), category/tags/series, the takeaway one-liner, length, which existing notes to link, and explicitly where outside knowledge is welcome vs off-limits. It drafts the full note in the canonical voice grounded in the interview answers; emits [[slug]] only for slugs that already exist and collects any author-named targets that do not; and marks every passage drawing on outside (non-author) knowledge for the terminal report only (never written into the body). It invokes the AUTHOR-02 scorer and shows the non-blocking score, then writes the note via the AUTHOR-01 draft writer. Finally it reports: slug, the /admin/notes/<slug>/edit URL, the review score, a 'verify before publish' checklist of flagged passages, any [[links]] whose targets do not exist yet, and suggested spots to add media manually.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "AUTHOR-01",
+        "AUTHOR-02"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "/write-post loads docs/VOICE.md, the category list, and existing note slugs before drafting",
+        "It runs an extensive interview (AskUserQuestion batches + free-form) covering angle, scope, factual spine, taxonomy, links, length, and the outside-knowledge boundary",
+        "The draft is written in the canonical voice and grounded in the interview answers; outside-knowledge passages are flagged in the terminal report only and never written into the note body",
+        "[[slug]] links are emitted only for existing slugs; author-named missing targets are reported, not invented",
+        "The non-blocking draft-review score is shown to the author and never blocks writing",
+        "The note is persisted as a draft via the AUTHOR-01 writer (createNote + reindexNoteAfterSave); nothing in the skill publishes",
+        "The final report includes slug, edit URL, score, flagged-passage checklist, missing link targets, and media suggestions",
+        "A manual dry-run produces a draft visible in /admin with populated embedding, chunks, and wiki-links"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/VOICE.md"
+      ],
+      "files": [
+        ".claude/skills/write-post/SKILL.md"
       ],
       "commands": [
         "npm run test:run",

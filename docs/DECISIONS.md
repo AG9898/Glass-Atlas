@@ -6,11 +6,28 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 
 ## Open Decisions
 
-No open decisions right now.
+### OPEN-01 — Should the draft-review score ever gate publishing, and at what threshold?
+
+**Raised:** 2026-06-08
+**Question:** The `/write-post` draft-review scorer (`src/lib/server/ai/draft-review.ts`) produces a 0–100 voice/AI-tell score. Today it is **recorded and shown but never enforced** — no draft is blocked by a low score. Should a minimum score ever become a soft gate (warn-and-confirm) or hard gate (block save) once the scoring is calibrated against real published posts? If so, what threshold, and on which dimension(s)?
+**Why deferred:** The scorer is new and uncalibrated. Thresholds set before we have a corpus of human-approved posts would be guesswork and would risk blocking good writing or rubber-stamping bad writing. We need real score distributions across genuinely-good and genuinely-AI-leaning drafts first.
+**Resolution criteria:** Revisit after enough posts have gone through the flow to plot score distributions. Decide gate type (none / soft / hard), threshold value(s), and which dimensions count.
+**Affects:** `src/lib/server/ai/draft-review.ts`, `.claude/skills/write-post/SKILL.md`, docs/CONVENTIONS.md, docs/VOICE.md
 
 ---
 
 ## Resolved Decisions
+
+### RESOLVED-23 — Agent-Assisted Note Authoring (`/write-post`, Draft-Only, Interview-Grounded, Non-Blocking Score)
+
+**Resolved:** 2026-06-08
+**Decision:** Add an inline `/write-post` skill that lets the author direct an agent to write a full note in the canonical blog voice and persist it. The flow is: load `docs/VOICE.md` + category list + existing note slugs, run an **extensive interview** (structured `AskUserQuestion` batches + free-form follow-ups), draft the post in voice, run a **non-blocking** voice/AI-tell review score, then write the note via a local node script (`scripts/create-note.js`) that calls `createNote()` + `reindexNoteAfterSave()`. Persisted notes are **always `status: 'draft'`** — the script hard-forces it; nothing in this path can publish. The author reviews and publishes in the existing `/admin` editor. Grounding rule: the factual spine comes from the interview (plus existing notes); the agent **may** add outside knowledge but must **flag every such passage in the terminal report** for verification — flags are terminal-only and are never written into the note body. Relational links are author-directed: the agent emits `[[slug]]` only for slugs that already exist (auto-synced into `note_links` by `createNote`), and reports any named targets that don't yet exist. Embedding + chunking happen for free via the existing `reindexNoteAfterSave()` pipeline. A new draft-review module (`src/lib/server/ai/draft-review.ts`), **separate** from the in-editor critique (`ai/review.ts`), produces a calibratable 0–100 score that is recorded/shown but enforced by nothing for now (see OPEN-01).
+**Why:** The author wants to maximize output without losing their voice or the grounding guarantees the rest of the system depends on. Draft-only keeps publishing a deliberate human act and makes the whole authoring lane non-destructive. Interview-grounding with flagged outside knowledge is the strongest practical defense against AI-slop and fabricated personal anecdotes while still letting the agent fill in real technical context. Reusing `createNote`/`reindexNoteAfterSave` means embeddings, chunks, and the wiki-link graph stay identical to hand-authored notes with zero new pipeline. A dedicated voice spec and scorer keep "the voice" in one auditable place rather than buried in a prompt.
+**Alternatives rejected:** Writing through the admin HTTP form/action was rejected because it needs an authenticated browser session and adds no value over a local script for a single author. Letting the agent publish directly was rejected as too easy to misfire on an irreversible, outward-facing action. Letting the agent research freely / weave outside knowledge silently was rejected as the highest fabrication-risk option. Extending the existing `ai/review.ts` critique was rejected in favor of a separate `draft-review.ts` so the authoring scorer can be tuned and (eventually) gated independently of the editor critique. Enforcing a score threshold now was deferred to OPEN-01 because the scorer is uncalibrated. Keeping the voice spec only in code or only in the skill prompt was rejected in favor of `docs/VOICE.md` as a human-editable single source.
+**Affects:** docs/VOICE.md (new), docs/INDEX.md, docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/ENV_VARS.md, docs/PRD.md, docs/TESTING.md, CLAUDE.md, `.claude/skills/write-post/SKILL.md` (new), `src/lib/server/ai/draft-review.ts` (new), `scripts/create-note.js` (new)
+**Implementation status (2026-06-08):** Decision accepted and documented; implementation queued as the `AUTHOR` workboard group. No code shipped yet.
+
+---
 
 ### RESOLVED-22 — Fail-Soft Reindexing Preserves Previous Embeddings
 

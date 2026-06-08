@@ -44,6 +44,9 @@ Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note ed
 ### Phase 5 — Landing + Polish
 `/` landing page with chat front-and-center and note preview cards. SEO includes site-level Open Graph metadata, per-note `<title>` + first-sentence descriptions on `/notes/[slug]`, and `sitemap.xml` entries for `/`, `/notes`, and each published note slug. The canonical visual target for all pages is `docs/styleguide.md` (Section 10) and the reference mockups in `reference/UI/design_handoff_glass_atlas/`.
 
+### Phase 6 — Agent-Assisted Authoring
+A local `/write-post` skill lets the author direct an agent to draft a full note in the canonical blog voice (`docs/VOICE.md`) and persist it as a **draft** for review in `/admin`. The flow runs an extensive interview to nail the angle and factual spine, drafts in voice, scores the draft for voice fit / AI-tells (non-blocking — see DECISIONS.md OPEN-01), and writes via a local script through the existing `createNote()` + `reindexNoteAfterSave()` pipeline (so embeddings, chunks, and `[[wiki-link]]` graph are populated identically to hand-authored notes). The factual spine comes from the author's interview answers plus existing notes; any agent-added outside knowledge is flagged in the terminal for verification. This path is **draft-only** and never publishes (see DECISIONS.md RESOLVED-23).
+
 ---
 
 ## Out of Scope
@@ -52,7 +55,7 @@ Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note ed
 - Public user accounts or any visitor login flow
 - Native mobile app
 - Personal project showcase (handled by a separate portfolio site)
-- Obsidian import pipeline — the admin editor is the sole authoring tool
+- Obsidian import pipeline — authoring happens through the admin editor or the local `/write-post` agent flow (Phase 6), not bulk import
 - Note graph view / wikilinks rendering (deferred, approach TBD)
 
 ---

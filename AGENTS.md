@@ -60,6 +60,8 @@ src/
         notes.ts         — query layer (CRUD + similarity search)
       ai/
         openrouter.ts    — OpenRouter adapter (OpenAI-compatible)
+        review.ts        — in-editor note critique (streaming)
+        draft-review.ts  — /write-post voice + AI-tell scorer (non-blocking)
       embeddings.ts      — embed note body on create/update
       chat.ts            — embedding search + prompt assembly
       personality.ts     — personality block (edit here, never inline in chat.ts)
@@ -90,9 +92,13 @@ docs/
   DECISIONS.md          — architectural decision log
   ENV_VARS.md           — environment variable matrix
   TESTING.md            — test strategy and inventory
+  VOICE.md              — canonical blog writing voice + AI-tell ban list
   workboard.json        — canonical task queue
   workboard.schema.json — JSON Schema for task queue
   workboard.md          — workboard field definitions and usage rules
+scripts/
+  migrate.js            — HTTP-driver migration runner
+  create-note.js        — /write-post draft writer (createNote + reindex; draft-only)
 ```
 
 Docs navigation: [`docs/INDEX.md`](docs/INDEX.md)
@@ -184,7 +190,7 @@ Targeted edit rules:
 - Roll back `in_progress → todo` if blocked mid-task and unresolved.
 - Use `/edit-workboard` for all structural changes (new tasks, field edits, splits, blocking) — never hand-edit the JSON directly.
 
-Task group IDs for this project: `SCAFFOLD`, `ADMIN`, `PUBLIC`, `CHAT`, `POLISH`.
+Task group IDs for this project: `SCAFFOLD`, `ADMIN`, `PUBLIC`, `CHAT`, `POLISH`, `AUTHOR`.
 
 ---
 
@@ -367,3 +373,6 @@ All HTTP security response headers (`X-Content-Type-Options`, `X-Frame-Options`,
 
 ### 2026-06-07 — Chat default model `google/gemini-2.0-flash-001` was retired upstream (404)
 The public chat default in `openrouter.ts` returned `404 No endpoints found` because OpenRouter removed that model. Paid successors (`google/gemini-2.5-flash`) return `402` since the account has no credits, so the replacement must be a `:free` model. New default is `google/gemma-4-31b-it:free` — clean `content`-only streaming and good grounding adherence. Verify a candidate with a real `curl` to `/chat/completions` (expect `200` + clean stream, not just that the slug exists) before switching; many `:free` slugs now 404 or 429. Avoid `gpt-oss-*:free` here — it interleaves `reasoning` tokens that stall the visible answer (client reads only `delta.content`).
+
+### 2026-06-08 — Agent authoring is draft-only and reuses the existing save pipeline
+The `/write-post` skill (group `AUTHOR`) writes notes through `scripts/create-note.js`, which calls `createNote()` + `reindexNoteAfterSave()` — so wiki-link graph, note embedding, and chunks come for free; never hand-roll that persistence. Status is **hard-forced to `draft`**; nothing in this lane publishes. Blog voice lives in `docs/VOICE.md` (the long-form cousin of `personality.ts`), loaded by both the skill and the `ai/draft-review.ts` scorer — never inline it. The draft-review score is recorded/shown but non-blocking (DECISIONS.md OPEN-01). Factual spine is author-sourced (interview + existing notes); any agent-added outside knowledge is flagged in the terminal report only, never written into the note body.

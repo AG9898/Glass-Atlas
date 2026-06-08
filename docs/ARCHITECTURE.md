@@ -43,8 +43,20 @@ The server is a persistent Bun process. In-memory state survives between request
 - `embeddings.ts` — calls the OpenRouter-compatible `/embeddings` endpoint with `OPENROUTER_API_KEY` from `$env/dynamic/private`; provides note-level embeddings plus section-aware chunk generation/payload helpers for `note_chunks` indexing
 - `personality.ts` — exports the system prompt personality block as a string constant; never inlined elsewhere
 - `ai/review.ts` — builds the note critique prompt from `{ title, takeaway, body }`, calls a free-tier OpenRouter model, returns a `ReadableStream`; never reads from or writes to the database
+- `ai/draft-review.ts` — voice/AI-tell **scorer** for the agent-authoring flow; builds a prompt from the draft + the `docs/VOICE.md` rubric, calls a free-tier OpenRouter model, and returns a structured non-streaming score (0–100 plus per-dimension breakdown and flagged lines). Separate from `ai/review.ts` (the in-editor streaming critique) so the authoring scorer can be tuned/gated independently. Never reads from or writes to the database. The score is recorded/shown but enforced by nothing (see DECISIONS.md OPEN-01)
 
 **Does not:** run in the browser; none of these modules are imported by client components
+
+### Agent-assisted authoring (local, offline)
+
+A separate authoring lane lets the author direct an agent to write a full note in the canonical blog voice and persist it as a draft, without using the admin browser UI. It is a **local developer/CLI path**, not a deployed runtime surface.
+
+- `.claude/skills/write-post/SKILL.md` — the `/write-post` skill. Runs inline in the agent session: loads `docs/VOICE.md` + the category list (`note-taxonomy.ts`) + existing note slugs, runs an extensive interview (structured `AskUserQuestion` batches + free-form follow-ups), drafts the note in voice, runs the `draft-review.ts` scorer, then invokes the write script. Emits `[[slug]]` links only for slugs that already exist and reports any named targets that do not. Flags every passage drawing on outside (non-author) knowledge in the **terminal report only** — flags are never written into the note body.
+- `scripts/create-note.js` — Node script that reads a draft payload (title, body, takeaway, category, tags, series), generates the slug via `slugify`, and persists through `createNote()` + `reindexNoteAfterSave()`. **Status is hard-forced to `draft`** — this path cannot publish. Because it goes through those helpers, the note's wiki-link graph (`note_links`), note-level embedding, and section/paragraph chunks are populated identically to a hand-authored note.
+
+> **Implementation gotcha — SvelteKit aliases in a plain-Node script.** `createNote()`/`reindexNoteAfterSave()` and their imports use SvelteKit virtual modules and aliases (`$env/dynamic/private`, `$lib/*`) that plain `node` cannot resolve. This is why `scripts/migrate.js` does **not** reuse the server helpers — it talks to Neon directly. The authoring writer must instead make those helpers importable without duplicating their logic, e.g. a small loader/shim that maps `$env/dynamic/private` → `process.env` and `$lib` → `src/lib`, run via `tsx`/a custom loader, with `DATABASE_URL` and `OPENROUTER_API_KEY` loaded from the local env. Reusing the helpers (not re-implementing the insert/embedding/link logic) is the contract; the shim is how that contract is met. If the shim proves brittle, the fallback to weigh is a thin internal write endpoint rather than hand-rolled SQL. (Tracked in workboard task `AUTHOR-01`.)
+
+**Does not:** publish notes; run in production; bypass the embedding/chunk/link pipeline; write outside-knowledge flags into note content.
 
 ### API routes
 
@@ -173,6 +185,32 @@ The sequence below describes the retrieval orchestration as shipped through CHAT
 ```
 
 The review UI is shared between both admin editors via `src/lib/components/admin/NoteReviewPanel.svelte`. Streaming transport/parsing lives in the client-safe utility `src/lib/utils/note-review.ts`, which consumes SSE tokens and updates panel state without touching save/publish flows.
+
+### Agent authoring flow (`/write-post`, local, draft-only)
+
+```
+1. Author runs /write-post with a topic ("Let's do a post on X") and any targeting notes
+2. Skill loads docs/VOICE.md, the category list, and existing note slugs (link targets)
+3. Skill runs an extensive interview:
+   - structured AskUserQuestion batches (angle, scope, audience, category/tags/series,
+     length, which existing notes to link, where outside knowledge is welcome vs off-limits)
+   - free-form follow-ups to capture the factual spine (claims, anecdotes, code) in the author's words
+4. Skill drafts the full note in the canonical voice, grounded in the interview answers:
+   - emits [[slug]] only for slugs that already exist; collects any named-but-missing targets
+   - marks every passage drawing on outside (non-author) knowledge for the report
+5. Skill calls the draft-review scorer (ai/draft-review.ts) → 0–100 score + per-dimension
+   breakdown + flagged lines; the score is shown, never used to block (DECISIONS.md OPEN-01)
+6. Skill invokes scripts/create-note.js with the draft payload:
+   - slug generated via slugify; status HARD-FORCED to 'draft'
+   - createNote() inserts the row and syncs [[...]] links into note_links
+   - reindexNoteAfterSave() generates the note-level embedding and section/paragraph chunks
+7. Skill reports to the terminal: slug, /admin/notes/<slug>/edit URL, review score,
+   a "verify before publish" checklist of flagged outside-knowledge passages,
+   any [[links]] whose targets don't exist yet, and suggested spots to add media manually
+8. Author opens the draft in the admin editor to review, add images/media, and publish
+```
+
+This lane reuses the exact note-save pipeline (`createNote` + `reindexNoteAfterSave`), so an agent-authored draft is indistinguishable from a hand-authored one once saved — same wiki-link graph, same embeddings, same chunks. The only difference is the authoring surface. Nothing on this path publishes; publishing remains a deliberate human action in `/admin`.
 
 ### Wiki-link data model
 

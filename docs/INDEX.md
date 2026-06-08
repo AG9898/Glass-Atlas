@@ -12,6 +12,7 @@ Keep this file current: add, remove, or rename a row in the same commit as the d
 | [PRD.md](PRD.md) | Product requirements, feature scope, target users, and success criteria |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System topology, runtime boundaries, component responsibilities, and data flow |
 | [CONVENTIONS.md](CONVENTIONS.md) | Coding standards, naming rules, and idiomatic SvelteKit/Svelte 5 patterns |
+| [VOICE.md](VOICE.md) | Canonical blog writing voice/style guide and AI-tell ban list — source of truth for `/write-post` and the draft-review scorer |
 | [styleguide.md](styleguide.md) | Canonical visual system: design tokens, typography roles, layout rules, and component recipes |
 | [bits-ui.md](bits-ui.md) | Default component primitive policy and implementation rules for using Bits UI across product surfaces |
 | [GSAP.md](GSAP.md) | Planned animation architecture and constraints for GSAP adoption |

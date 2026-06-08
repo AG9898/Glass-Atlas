@@ -410,6 +410,15 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Use the shared admin UI component (`src/lib/components/admin/NoteReviewPanel.svelte`) in both new/edit note pages so trigger/error/output behavior stays consistent.
 - Keep review stream parsing in a client-safe utility (`src/lib/utils/note-review.ts`), not inline duplicated logic inside route components.
 
+### Agent-Assisted Authoring (`/write-post`)
+
+- The blog writing voice has a single source of truth: **`docs/VOICE.md`**. The `/write-post` skill and the `draft-review.ts` scorer both load it. Never inline a blog-voice spec into the skill prompt, the scorer prompt, or anywhere else. `docs/VOICE.md` is the long-form editorial counterpart to `src/lib/server/personality.ts` (the chat persona) — keep the two consistent but distinct; do not merge them.
+- Agent-authored notes are persisted **only as `status: 'draft'`**. `scripts/create-note.js` must hard-force `status: 'draft'` and expose no flag, argument, or env var that publishes. Publishing stays a deliberate human action in the `/admin` editor.
+- `scripts/create-note.js` must persist through `createNote()` + `reindexNoteAfterSave()` (Neon serverless HTTP driver, like `scripts/migrate.js`). Never write notes, links, embeddings, or chunks with bespoke SQL — reuse the existing helpers so the wiki-link graph and semantic index stay identical to hand-authored notes.
+- **Grounding:** the factual spine of a post comes from the author's interview answers plus existing published notes. The agent may add outside (non-author) knowledge to round out a point, but every such passage must be surfaced as a "verify before publish" item in the **terminal report only**. Never write outside-knowledge flags into the note body, and never fabricate personal anecdotes, benchmarks, dates, or quotes the author did not provide.
+- **Relational links:** emit `[[slug]]` only for slugs that already exist (the agent must check against the current note list). Report any author-named link targets that do not yet exist rather than inventing or forward-linking them silently.
+- The draft-review scorer (`src/lib/server/ai/draft-review.ts`) is **separate** from the in-editor critique (`ai/review.ts`) and uses `OPENROUTER_DRAFT_REVIEW_MODEL` (free model/router default). Its score is recorded and shown but **must not gate** saving or publishing until DECISIONS.md OPEN-01 is resolved.
+
 ---
 
 ## Auth & Security
@@ -446,6 +455,9 @@ See `docs/TESTING.md` for the full testing guide. Rules that affect code structu
 - Never import anything from `src/lib/server/` in a client-side Svelte component or `+page.svelte` script block.
 - Never call OpenRouter or Neon directly from client-side code.
 - Never hardcode the personality block anywhere except `src/lib/server/personality.ts`.
+- Never inline the blog writing voice anywhere except `docs/VOICE.md` (loaded by `/write-post` and `draft-review.ts`).
+- Never let the agent-authoring path publish a note — `scripts/create-note.js` is draft-only and must hard-force `status: 'draft'`.
+- Never write agent-generated "outside knowledge" flags into a note body, and never fabricate personal anecdotes/quotes/benchmarks — flags are terminal-only and the factual spine is author-sourced.
 - Never include full note bodies in the LLM prompt — use bounded chunk excerpts and lexical-only summaries.
 - Never return raw Drizzle ORM result objects from API endpoints — serialize to a typed plain object first.
 - Never bypass the `hooks.server.ts` auth guard on `/admin` or `/api/admin` routes.
@@ -463,6 +475,8 @@ See `docs/TESTING.md` for the full testing guide. Rules that affect code structu
 - Always generate slugs via `src/lib/utils/slugify.ts`.
 - Always check `event.locals.session` in server load functions and endpoints that require auth.
 - Always load the personality block from `src/lib/server/personality.ts`.
+- Always load the blog writing voice from `docs/VOICE.md` in the authoring skill and scorer.
+- Always persist agent-authored notes through `createNote()` + `reindexNoteAfterSave()` as drafts only.
 - Always run Vitest before marking a task done.
 - Always update `docs/` when behavior, interfaces, or invariants change.
 - Always keep DB query helpers in `src/lib/server/db/` — not inline in route files.

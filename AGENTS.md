@@ -392,3 +392,6 @@ The `/write-post` skill reads existing note slugs through `listNotes()` via the 
 
 ### 2026-06-08 — `/write-post` drafts need a Markdown polish gate
 Agent-written note bodies must not be plain prose dumps or accidentally copied patch text. Before review/save and again after save, check for standalone `+` lines, `+##` heading prefixes, plus-prefixed code fences, `+|` table rows, and similar diff artifacts, then make sure the draft uses intentional Markdown structure such as headings, blockquotes, emphasis, lists/tables, and fenced examples where useful.
+
+### 2026-06-08 — Legacy `dark_plus` Shiki emits black default text on its dark background
+`rehype-shiki@0.0.9` stamps every `<pre>` with a dark background (`#1E1E1E`) but emits its *default* token color as pure `#000000`, and un-tokenized blocks (plain ``` ``` ``` fences, the `unhighlighted-code-source` fallback) get no color at all and inherit the page body's dark text. Both render as near-black-on-near-black — unreadable. The `rehypeFixDarkThemeForeground` pass in `src/lib/server/markdown.ts` fixes this by adding `color: #D4D4D4` to the dark `<pre>` and rewriting inline `#000000` spans to `#D4D4D4`; keep it in the pipeline (after `rehypeShiki`) unless the highlighter is upgraded. Switching themes does not help — every bundled legacy theme has a dark background and a black default foreground.

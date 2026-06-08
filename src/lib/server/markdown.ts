@@ -38,6 +38,7 @@ async function buildProcessor() {
     .use(remarkRehype, { allowDangerousHtml: false })
     .use(rehypeUnsupportedCodeAsPlainText)
     .use(rehypeShiki, { theme: 'dark_plus' })
+    .use(rehypeFixDarkThemeForeground)
     .use(rehypeRemoveUndefinedStyles)
     .use(rehypeStringify);
 }
@@ -91,6 +92,50 @@ const rehypeUnsupportedCodeAsPlainText: Plugin<[], Node> = () => {
     });
   };
 };
+
+// The legacy `dark_plus` theme stamps every <pre> with a dark background but
+// emits its *default* token color as pure black (#000000) — and leaves
+// un-tokenized blocks (plain ``` fences, mermaid/plaintext fallbacks) with no
+// color at all, so they inherit the page's dark body text. Both render as
+// near-black text on the near-black code background. Give the <pre> a readable
+// light default foreground and rewrite the bogus #000000 spans to match.
+const DARK_THEME_FOREGROUND = '#D4D4D4';
+
+const rehypeFixDarkThemeForeground: Plugin<[], Node> = () => {
+  return (tree) => {
+    visitElements(tree as HastNode, (node) => {
+      const style = joinStyles(node.properties?.style);
+      if (!style) return;
+
+      if (node.tagName === 'pre') {
+        const hasBackground = style.includes('background');
+        const hasColor = /(^|;)\s*color\s*:/.test(style);
+        if (hasBackground && !hasColor) {
+          node.properties = { ...node.properties, style: `${style}; color: ${DARK_THEME_FOREGROUND}` };
+        }
+        return;
+      }
+
+      if (style.includes('#000000')) {
+        node.properties = {
+          ...node.properties,
+          style: style.replace(/#000000/g, DARK_THEME_FOREGROUND),
+        };
+      }
+    });
+  };
+};
+
+function joinStyles(style: unknown): string {
+  if (typeof style === 'string') return style.trim().replace(/;\s*$/, '');
+  if (Array.isArray(style)) {
+    return style
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim().replace(/;\s*$/, ''))
+      .join('; ');
+  }
+  return '';
+}
 
 const rehypeRemoveUndefinedStyles: Plugin<[], Node> = () => {
   return (tree) => {

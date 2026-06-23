@@ -37,6 +37,6 @@ export const load: PageServerLoad = async () => {
 
   return {
     stats,
-    latestNotes: publishedNotes.slice(0, 3),
+    latestNotes: publishedNotes.slice(0, 7),
   };
 };

@@ -43,7 +43,7 @@
       <a class="ga-btn ga-btn-primary ga-btn-lg hero-cta ga-focus-ring" href="/notes">Read The Latest</a>
     </div>
 
-    <aside class="hero-chat" aria-label="Grounded chat panel">
+    <aside id="chat" class="hero-chat" aria-label="Grounded chat panel">
       <Chat compact />
     </aside>
   </section>

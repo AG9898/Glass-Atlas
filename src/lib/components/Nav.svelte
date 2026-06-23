@@ -79,9 +79,7 @@
 
     <!-- Logo (centered) -->
     <a href="/" class="ga-nav__logo" aria-label="Glass Atlas home">
-      <img class="ga-nav__logo-image ga-nav__logo-image--light" src="/logo.png" alt="" />
-      <img class="ga-nav__logo-image ga-nav__logo-image--dark" src="/logo-dark.png" alt="" />
-      <span class="ga-nav__logo-text">Glass Atlas</span>
+      Glass&nbsp;Atlas
     </a>
 
     <!-- Right controls -->
@@ -213,50 +211,20 @@
 
   /* Logo */
   .ga-nav__logo {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
     text-align: center;
-    inline-size: 5.5rem;
-    block-size: 3.5rem;
+    font-size: 2.4rem;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    color: var(--color-text-strong);
     text-decoration: none;
-    transition: opacity 120ms ease;
+    white-space: nowrap;
+    font-family: 'Space Grotesk', 'Inter', 'Segoe UI', sans-serif;
+    transition: color 120ms ease;
   }
 
   .ga-nav__logo:hover {
-    opacity: 0.82;
-  }
-
-  .ga-nav__logo-image {
-    display: block;
-    inline-size: 100%;
-    block-size: 100%;
-    object-fit: contain;
-  }
-
-  .ga-nav__logo-image--light {
-    display: none;
-  }
-
-  .ga-nav__logo-image--dark {
-    display: block;
-  }
-
-  :global(:root.light) .ga-nav__logo-image--light {
-    display: block;
-  }
-
-  :global(:root.light) .ga-nav__logo-image--dark {
-    display: none;
-  }
-
-  .ga-nav__logo-text {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
+    color: var(--color-accent-700);
   }
 
   /* Right controls */
@@ -339,8 +307,7 @@
     }
 
     .ga-nav__logo {
-      inline-size: 4.5rem;
-      block-size: 2.875rem;
+      font-size: 1.6rem;
     }
 
     .ga-nav__links-left {
@@ -358,8 +325,7 @@
     }
 
     .ga-nav__logo {
-      inline-size: 4rem;
-      block-size: 2.5rem;
+      font-size: 1.3rem;
       order: -1;
     }
   }

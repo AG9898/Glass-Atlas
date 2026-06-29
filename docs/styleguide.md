@@ -37,6 +37,7 @@ Glass Atlas uses **Soft Editorial Brutalism**:
 - Hero modules may break grid symmetry; body modules must return to structural rhythm.
 - Default landing hero split is editorial copy (~40%) and compact chat (~60%) on desktop; collapse to single-column on narrow viewports.
 - The landing chat panel must use the standard neutral surface token in dark mode: `--color-surface-1` (`#232019`), not a custom olive override.
+- The homepage remains chat-first. Supporting note lists, stats, and prompts should be populated automatically from published notes unless a future curation decision changes that.
 
 ### Notes Index (`/notes`)
 
@@ -50,18 +51,30 @@ Glass Atlas uses **Soft Editorial Brutalism**:
 - Prioritize reading comfort and scanability.
 - Use the same type and spacing scales as the index, with fewer layout disruptions.
 - Emphasize section dividers, pull quotes, diagrams, and code/technical callouts.
+- Reader-path modules should distinguish semantic related notes from backlinks/outlinks. Keep them line-led, compact, and secondary to the article body.
+- The note graph remains a small supporting widget, but motion/interaction should feel fluid and exploratory rather than static.
 
 ### Chat (`/` and shared chat UI)
 
 - Structural but calm.
 - Keep strong typography and divider language.
 - Limit visual disruption so conversation scanning remains primary.
+- Source controls live inside or directly attached to assistant messages only when sources exist. Use a compact label/icon button and a popup/dialog with note titles plus brief snippets; the popup should feel like evidence inspection, not a separate browsing surface.
+- Public confidence/coverage language should be subtle. Avoid large badges or alarm styling for ordinary partial coverage.
 
 ### Admin (`/admin/**`)
 
 - Shared token system with public surfaces.
 - Lower asymmetry and lower visual drama.
 - Optimize for speed of editing and form clarity.
+- Editor-page quality warnings are cautionary, not blocking. Use warning semantics with explicit labels and keep them close to the note status/editor controls.
+
+### How It Works (`/how-it-works`)
+
+- Tone should work as both reader-friendly explanation and technical colophon.
+- Include the stack and architecture at a high level, but do not turn the page into a portfolio/project showcase.
+- Do not include chat privacy/rate-limit details unless a future product decision reopens that scope.
+- Composition should be editorial and scannable: short sections, structural rules, and restrained technical panels for architecture details.
 
 ---
 
@@ -250,12 +263,14 @@ Fonts are **self-hosted**.
 - Long-form text uses `Literata` body roles.
 - Section headers and inline callouts use `Space Grotesk`.
 - Diagrams/code blocks use blueprint panel recipe (below).
+- Related notes, backlinks, and outlinks use compact row/list treatments with visible rules. Do not put the article body inside a card.
 
 ### 5.4 Chat Surface
 
 - Message groups separated by thin lines and spacing rhythm.
 - User/assistant differentiation via subtle surface tone shifts, not rounded bubbles.
 - Citations and source links use label/meta type with clear line-bound containers.
+- Source popup triggers should use label/meta type and minimal borders. The popup content should favor scanability: source title, one brief snippet, and direct note link.
 
 ### 5.5 Admin Forms
 
@@ -266,6 +281,7 @@ Fonts are **self-hosted**.
 - The note create/edit form uses a two-column editor: main column for title, takeaway, category, tags, and Markdown body; right sidebar for status, published date, series, and cover media controls.
 - Cover media controls must place the `media_type` selector next to the cover media URL field in the same row on desktop (stack on mobile).
 - The edit form top bar must keep the breadcrumb, visible `DRAFT`/`PUBLISHED` status badge, `PREVIEW`, `SAVE DRAFT`, and `PUBLISH` controls on the same structural row on desktop; mobile may stack the controls but must preserve the order.
+- Quality warnings inside editor pages should stack as compact line-led notices, not cards. They should not visually compete with destructive or primary actions.
 
 ### 5.6 Admin Lists
 
@@ -280,6 +296,8 @@ Fonts are **self-hosted**.
 - Header strip with uppercase meta label and optional status marker.
 - Internal regions separated by `1px` rules.
 - No shadows, no glassmorphism, no rounded corners.
+- Code block header strips may include language labels, optional filename labels, copy controls, and wrapping controls.
+- Mermaid diagrams should render inside the same panel family, with a source/fallback state that remains readable if rendering fails.
 
 ### 5.8 Buttons, Inputs, Tags
 
@@ -357,11 +375,15 @@ Canonical visual mockups are in `reference/UI/design_handoff_glass_atlas/`. Thes
 - Stats row (4 stats) below the hero.
 - "The latest field notes." section with rule-separated NoteCard rows.
 - **Dark mode chat panel**: use `--color-surface-1` (`#232019`) from the handoff tokens. No additional panel token should be created.
+- Keep the first screen optimized for asking a question. Note previews and reading paths support the chat, not replace it.
 
 **Note View / Main Blog (`/notes/[slug]`):**
 - Three-column layout: left sidebar (notes catalog — all published notes listed by date, NEW CONVERSATION CTA at top), main column (note Markdown body), right sidebar (related notes + cite section).
 - Structural pattern aligns with the chat surface conventions (line-led rails, citations, and grounded response framing), but this route remains the canonical note-view/main-blog page.
+- Related notes should prioritize semantic relevance. Backlinks/outlinks should be labeled separately as explicit note connections.
+- The graph should stay small, but future polish should improve movement, hover/click feedback, and perceived continuity.
 
 **Admin Note Editor (`/admin/notes/[slug]/edit`):**
 - Two-column: left = title / takeaway / CodeMirror body / tags + categories; right sidebar = date, status, series, related notes.
 - Top bar: breadcrumb + DRAFT/PUBLISHED status badge + PREVIEW / SAVE DRAFT / PUBLISH buttons.
+- Quality warnings for stale embeddings, missing takeaway, no internal links, and weak title appear inside the editor page and never block save/publish controls.

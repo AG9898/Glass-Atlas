@@ -6,7 +6,7 @@
 > |---|---|
 > | Shipped | Nothing yet |
 > | In Progress | Nothing yet |
-> | Planned | Phase 1–5 (full build) |
+> | Planned | Phase 1–7 (full build + reader trust/navigation polish) |
 
 ---
 
@@ -47,6 +47,9 @@ Protected `/admin` routes (redirect to GitHub OAuth if unauthenticated). Note ed
 ### Phase 6 — Agent-Assisted Authoring
 A local `/write-post` skill lets the author direct an agent to draft a full note in the canonical blog voice (`docs/VOICE.md`) and persist it as a **draft** for review in `/admin`. The flow runs an extensive interview to nail the angle and factual spine, drafts in voice, scores the draft for voice fit / AI-tells (non-blocking — see DECISIONS.md OPEN-01), and writes via a local script through the existing `createNote()` + `reindexNoteAfterSave()` pipeline (so embeddings, chunks, and `[[wiki-link]]` graph are populated identically to hand-authored notes). The factual spine comes from the author's interview answers plus existing notes; any agent-added outside knowledge is flagged in the terminal for verification. This path is **draft-only** and never publishes (see DECISIONS.md RESOLVED-23).
 
+### Phase 7 — Reader Trust + Navigation Polish
+This phase keeps the site optimized for recruiters and developers evaluating the author's thinking. The landing page remains chat-first and automatically populated from published notes, but the surrounding reading experience becomes more connected and more transparent. Chat assistant messages with retrieved sources expose a subtle source button that opens a brief source popup: note titles and retrieved snippets are shown, and each source links to its note. Note detail pages emphasize semantic related notes plus backlinks/outlinks from the wiki-link table, while the existing small graph remains a supporting widget with planned interaction polish. Admin note editors show warning-only quality checks for stale semantic indexes, missing takeaways, no internal links, and weak titles. A public `/how-it-works` page explains the site in both reader-friendly and technical-colophon terms, including the stack and architecture without presenting the project as a portfolio page. Technical writing polish includes rendered Mermaid diagrams and richer code block controls (copy, language labels, optional filename labels, and wrapping controls) using the blueprint panel visual recipe.
+
 ---
 
 ## Out of Scope
@@ -56,7 +59,8 @@ A local `/write-post` skill lets the author direct an agent to draft a full note
 - Native mobile app
 - Personal project showcase (handled by a separate portfolio site)
 - Obsidian import pipeline — authoring happens through the admin editor or the local `/write-post` agent flow (Phase 6), not bulk import
-- Note graph view / wikilinks rendering (deferred, approach TBD)
+- Topic/series/tag landing pages — deferred until the published corpus is large enough to support curated or filtered entry points
+- Open Graph image generation — deferred for a separate planning pass
 
 ---
 
@@ -71,6 +75,10 @@ A local `/write-post` skill lets the author direct an agent to draft a full note
 | 5 | Rate limit enforces 10 msg/hour per anonymous browser session | Send 11 chat messages from one browser session; 11th returns HTTP 429 |
 | 6 | `/admin` requires authentication | Visit `/admin` without a GitHub session; confirm redirect to OAuth |
 | 7 | Public routes work without auth | Open `/notes` and chat in incognito; confirm full functionality |
+| 8 | Chat source transparency links to real notes | Ask a covered topic; source button opens retrieved note snippets and links resolve |
+| 9 | Note detail supports reader paths | Open a note with links/semantic neighbors; related notes and backlinks/outlinks are visible without disrupting reading |
+| 10 | Admin editor quality checks warn without blocking | Open an imperfect draft; warnings appear, but save and publish remain available |
+| 11 | Technical diagrams/code blocks are readable and usable | Open a note with Mermaid and code fences; diagram renders and code controls work |
 
 ---
 
@@ -83,6 +91,7 @@ A local `/write-post` skill lets the author direct an agent to draft a full note
 - **Auth scope** — GitHub OAuth is for the single author only. No OAuth flows for visitors.
 - **Stateless deployment** — hosted on Railway as a persistent Bun HTTP server. In-memory state may survive between requests on one instance, but chat quota correctness must not depend on process memory. State that must survive across deploys (including chat quota counters) lives in Neon PostgreSQL.
 - **Stack is fixed** — SvelteKit + Svelte 5 (runes), TypeScript, Tailwind CSS v4, Bits UI, GSAP (for advanced motion), Neon PostgreSQL + pgvector, Drizzle ORM, OpenRouter (Gemini Flash default), Auth.js, Vitest.
+- **Production migrations** — any task that introduces a database schema change must include generating the Drizzle migration and applying that migration to the production Neon database in the same task before it can be marked done.
 
 ---
 

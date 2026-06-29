@@ -395,3 +395,6 @@ Agent-written note bodies must not be plain prose dumps or accidentally copied p
 
 ### 2026-06-08 — Legacy `dark_plus` Shiki emits black default text on its dark background
 `rehype-shiki@0.0.9` stamps every `<pre>` with a dark background (`#1E1E1E`) but emits its *default* token color as pure `#000000`, and un-tokenized blocks (plain ``` ``` ``` fences, the `unhighlighted-code-source` fallback) get no color at all and inherit the page body's dark text. Both render as near-black-on-near-black — unreadable. The `rehypeFixDarkThemeForeground` pass in `src/lib/server/markdown.ts` fixes this by adding `color: #D4D4D4` to the dark `<pre>` and rewriting inline `#000000` spans to `#D4D4D4`; keep it in the pipeline (after `rehypeShiki`) unless the highlighter is upgraded. Switching themes does not help — every bundled legacy theme has a dark background and a black default foreground.
+
+### 2026-06-29 — DB migration tasks must include production application
+Any future workboard task that changes the database schema must include generating the Drizzle migration and applying it to the production Neon database before the task is marked done. Keep this requirement in that same task's acceptance criteria/commands instead of splitting production migration into a later follow-up.

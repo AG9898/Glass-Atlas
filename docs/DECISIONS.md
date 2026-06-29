@@ -18,6 +18,15 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 
 ## Resolved Decisions
 
+### RESOLVED-24 — Reader Trust and Navigation Polish Scope
+
+**Resolved:** 2026-06-29
+**Decision:** Add a reader trust/navigation polish phase focused on recruiter/developer evaluation. The homepage remains chat-first and automatically populated. Chat assistant messages with retrieved sources should expose a subtle source button that opens a popup with note titles and brief snippets from the retrieval context; source links navigate to the relevant note, and confidence/coverage language stays subtle. Note detail pages should prioritize semantic related notes plus explicit backlinks/outlinks, while keeping the graph small but more fluid/polished. Admin quality checks live inside editor pages and are warning-only for stale embeddings, missing takeaways, no internal links, and weak titles. Add a `/how-it-works` page that is both reader-friendly and technical-colophon style, includes stack/architecture, and does not include chat privacy/rate-limit details. Technical block polish should add Mermaid rendering plus richer code controls using the blueprint panel recipe.
+**Why:** The core blog/RAG/admin system exists; the next leverage point is making the author's thinking easier to inspect and trust. Source transparency and reader paths help visitors move from one answer or note into the underlying work. Warning-only admin checks improve publishing quality without turning the editor into a gatekeeper.
+**Alternatives rejected:** Topic/tag/series landing pages were rejected for now because the published corpus is not large enough to support curated entry points. Open Graph image generation was deferred because it needs a separate visual/product planning pass. Publish-blocking quality checks were rejected; warnings are enough for a single-author workflow.
+**Affects:** docs/PRD.md, docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/styleguide.md, docs/TESTING.md, future `CHAT`, `PUBLIC`, `ADMIN`, and `POLISH` workboard tasks
+**Implementation status (2026-06-29):** Decision accepted and documented; implementation tasks to be drafted.
+
 ### RESOLVED-23 — Agent-Assisted Note Authoring (`/write-post`, Draft-Only, Interview-Grounded, Non-Blocking Score)
 
 **Resolved:** 2026-06-08

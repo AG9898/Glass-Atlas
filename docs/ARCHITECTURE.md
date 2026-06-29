@@ -27,7 +27,7 @@ The server is a persistent Bun process. In-memory state survives between request
 ### SvelteKit route handlers (`src/routes/`)
 
 - Serve static protocol files: `GET /robots.txt` (allows public routes, disallows `/admin` and `/api/`, links to sitemap), `GET /sitemap.xml` (published notes index).
-- Render public pages: landing (`/`), notes list (`/notes`), note detail (`/notes/[slug]`). The `/chat` shortcut redirects to the landing chat anchor. The landing `+page.server.ts` loads live homepage metrics (published note count, distinct topic count, average words per published note, total citations served) and up to 7 most recent published notes via `db/notes.ts` helpers.
+- Render public pages: landing (`/`), notes list (`/notes`), note detail (`/notes/[slug]`), and how-it-works (`/how-it-works`). The `/chat` shortcut redirects to the landing chat anchor. The landing `+page.server.ts` loads live homepage metrics (published note count, distinct topic count, average words per published note, total citations served) and up to 7 most recent published notes via `db/notes.ts` helpers; it remains chat-first and uses automatic note-derived content.
 - Render admin pages: dashboard (`/admin`), new note form, edit/delete note forms, and authenticated draft preview. The `/admin` dashboard loads all notes with `listNotes()` and deletes rows through a named SvelteKit form action that calls `deleteNote(slug)`. The new note form posts to a named `create` action, generates the slug from the title with `slugify.ts`, calls `createNote()`, attempts to generate/store an embedding, and redirects to `/admin/notes/[slug]/edit`. The edit form loads the existing note with `getNoteBySlug(slug)`, saves field patches through `updateNote(slug, data)`, regenerates the embedding after Save Draft/Publish, preserves status on Save Draft, and sets `status: 'published'` only through the Publish action. `/admin/notes/[slug]/preview` renders the same `NoteDetail` component as the public note page but does not require `status: 'published'`; it remains protected by the `/admin` route guard and marks itself `noindex`.
 - Own the request/response boundary; delegate all business logic to server-side lib modules
 
@@ -39,7 +39,7 @@ The server is a persistent Bun process. In-memory state survives between request
 - `db/keepalive.ts` — side-effect module imported once at server startup; runs a `SELECT 1` ping every 4 minutes to prevent Neon from dropping idle connections (no-op when `DATABASE_URL` is unset)
 - `db/schema.ts` — Drizzle table definitions: `notes`, `note_chunks`, `note_links`, `citation_events`, Auth.js tables. `notes` stores semantic index metadata (`semantic_index_status`, `semantic_index_error`, `semantic_indexed_at`, `semantic_index_source_updated_at`) alongside the note-level vector.
 - `db/notes.ts` — note CRUD helpers: `listNotes(filter?)`, `getNoteBySlug`, `createNote`, `updateNote`, `deleteNote`, `getBacklinks`, `getOutlinks`; RAG helpers: `searchNotesBySimilarity` (published notes ordered by pgvector cosine distance), `replaceNoteChunks`, `searchChunksBySimilarity` (chunk-level cosine similarity), `searchNotesByLexical` (title/tags/category ILIKE, published notes only), `recordCitations`, `getTotalCitations`; chat quota helper: `consumeChatRateLimit` (atomic window-reset + increment keyed by `chat_rate_limits.session_hash`). Exports plain-object types `Note`, `CreateNoteInput`, `UpdateNoteInput`, `RetrievedLexicalNote`, including note metadata (`image`, `mediaType`, `publishedAt`, `series`) and semantic index state.
-- `chat.ts` — `assembleContext()` runs semantic and lexical/topic retrieval in parallel, fuses candidates (semantic-first, lexical fill, capped at 5 notes), and assembles a compact context block per note; never injects full note bodies. Streaming completion calls and session chat history are not yet wired here — those land in a later CHAT task.
+- `chat.ts` — `assembleContext()` runs semantic and lexical/topic retrieval in parallel, fuses candidates (semantic-first, lexical fill, capped at 5 notes), and assembles a compact context block per note; never injects full note bodies. The same retrieved-note metadata is the source of truth for public chat source transparency: titles, slugs, and brief retrieved snippets can be exposed to the client, but model-invented citations cannot.
 - `embeddings.ts` — calls the OpenRouter-compatible `/embeddings` endpoint with `OPENROUTER_API_KEY` from `$env/dynamic/private`; provides note-level embeddings plus section-aware chunk generation/payload helpers for `note_chunks` indexing
 - `personality.ts` — exports the system prompt personality block as a string constant; never inlined elsewhere
 - `ai/review.ts` — builds the note critique prompt from `{ title, takeaway, body }`, calls a free-tier OpenRouter model, returns a `ReadableStream`; never reads from or writes to the database
@@ -61,7 +61,7 @@ A separate authoring lane lets the author direct an agent to write a full note i
 
 ### API routes
 
-- `POST /api/chat` — public; accepts `{ message }` (max 2 000 characters, rejected with 400 otherwise); reads/sets an anonymous `chat_session` cookie, enforces 10 messages per hour per anonymous browser session, serves an allowlisted social-intent reply for lightweight small-talk turns (greeting/thanks/capability/identity prompts), otherwise embeds query, runs hybrid retrieval, and streams either fallback or LLM output via SSE
+- `POST /api/chat` — public; accepts `{ message }` (max 2 000 characters, rejected with 400 otherwise); reads/sets an anonymous `chat_session` cookie, enforces 10 messages per hour per anonymous browser session, serves an allowlisted social-intent reply for lightweight small-talk turns (greeting/thanks/capability/identity prompts), otherwise embeds query, runs hybrid retrieval, and streams either fallback or LLM output via SSE. When retrieval yields citable sources, the response contract may include source metadata derived from the retrieved notes so the client can show a source popup per assistant message.
 - `POST /api/admin/media/upload-url` — admin-only; accepts `{ filename, contentType }`; validates MIME allowlist (`image/jpeg`, `image/png`, `image/svg+xml`, `image/gif`, `video/mp4`) and returns a short-lived presigned `PUT` URL for direct browser upload to Railway Buckets
 - `GET /api/admin/media/access-url?key=...` — public redirect endpoint; converts a stored object key into a short-lived presigned `GET` URL so bucket objects remain private while note media stays embeddable from stable app URLs
 - `POST /api/admin/notes/review` — admin-only; accepts `{ title, takeaway, body }` from current editor state (new or edit page); calls `ai/review.ts`; streams critique via SSE; does not read from or write to the database; free-tier OpenRouter model; returns `429` or `503` transparently when the model is unavailable
@@ -81,11 +81,11 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 
 - Render UI only; send fetch/SSE requests to API routes
 - `Nav.svelte` — global navigation shell rendered in `+layout.svelte` on every page. Receives `session` prop from `+layout.server.ts` (loaded via `event.locals.auth()`). Dark mode toggle reads `localStorage('ga-theme')` on mount (falls back to `prefers-color-scheme`), persists the preference, and applies/removes a `.dark` class on `<html>`. Login routes to the custom sign-in page (`/signin`, configured via Auth.js `pages.signIn`) and logout uses Auth.js sign-out action (`/auth/signout`). Search icon links to `/notes?focus=search`, which opens the notes index and auto-focuses the search field.
-- Chat component manages optimistic UI state ("searching notes…"), token streaming, and citation link rendering
-- `NoteDetail.svelte` renders the canonical note-reading view shared by public note detail pages and admin draft preview, so draft preview stays visually aligned with the published page without weakening public status filtering.
-- `NoteGraph.svelte` — mini D3 force graph rendered in the left sidebar of `NoteDetail.svelte`. Receives pre-built `NoteGraphData` (nodes + edges) from the server load; D3 is loaded via a dynamic `import('d3')` inside `$effect` so the module never runs during SSR. Shows the current note's 1-hop wiki-link neighborhood (outlinks + backlinks, published notes only, no forward refs). No controls — nodes are click-navigable only.
+- Chat component manages optimistic UI state ("searching notes…"), token streaming, citation link rendering, and subtle source controls. A source button appears on assistant messages only when server-provided source metadata exists; activating it opens a popup with note titles and brief snippets, and each source title links to its note.
+- `NoteDetail.svelte` renders the canonical note-reading view shared by public note detail pages and admin draft preview, so draft preview stays visually aligned with the published page without weakening public status filtering. Public note detail pages should expose reader paths through semantic related notes plus backlinks/outlinks from the wiki-link table.
+- `NoteGraph.svelte` — mini D3 force graph rendered in the left sidebar of `NoteDetail.svelte`. Receives pre-built `NoteGraphData` (nodes + edges) from the server load; D3 is loaded via a dynamic `import('d3')` inside `$effect` so the module never runs during SSR. Shows the current note's 1-hop wiki-link neighborhood (outlinks + backlinks, published notes only, no forward refs). It stays a small supporting widget, but interaction polish should make it feel fluid and exploratory rather than static.
 - `MarkdownEditor.svelte` — CodeMirror 6 split-pane editor for admin note forms (`/admin/notes/new` and `/admin/notes/[slug]/edit`); left pane is the CodeMirror instance (initialized via `onMount`, torn down in cleanup), right pane is a live preview that updates while typing (`body` state -> wiki-link transform -> inline-media transform -> markdown-to-HTML render). No network calls are made on keystrokes. Note slug list for `[[` autocomplete/preview resolution is injected from `+page.server.ts` data loaded once per page request
-- Admin note editors expose a manual `Review` action that streams optional critique and never blocks save/publish actions
+- Admin note editors expose a manual `Review` action that streams optional critique and never blocks save/publish actions. They also expose warning-only quality checks for stale semantic indexes, missing takeaways, no internal links, and weak titles; these warnings never block save or publish.
 - No direct access to DB, LLM, or secrets
 
 ---
@@ -128,11 +128,14 @@ The sequence below describes the retrieval orchestration as shipped through CHAT
 12. Before starting the stream, API route calls `recordCitations(citedSlugs)` to insert
     citation_events rows for each retrieved note slug (fire-and-forget; does not block streaming)
 13. Frontend renders italicized related-note links in the assistant output
+14. If source metadata was returned for the assistant message, the frontend shows a subtle source button. The popup lists retrieved note titles and brief snippets from the evidence already assembled for the response; clicking a source title navigates to `/notes/[slug]`.
 ```
 
 **Latency strategy:** Streaming is the primary UX fix for perceived latency. Gemini Flash targets ~400–600 ms TTFT. Semantic and lexical/topic retrieval execute in parallel via `Promise.all`, so hybrid fusion adds no serial latency. Retrieval limits remain small (20 semantic chunks, 10 lexical notes, 5 fused notes) and deterministic for bounded latency control. Prompt size stays compact (note summary + bounded evidence excerpts), not full bodies.
 
 **Current retrieval (CHAT-04D through CHAT-04H shipped):** `POST /api/chat` now has a short social-intent lane before retrieval for lightweight conversational turns. Non-social requests continue through `assembleContext()`, which expands narrow local aliases for semantic embedding, then runs semantic chunk retrieval and lexical/topic note retrieval in parallel. Semantic chunks are grouped by note (≤2 chunks per note) and ranked by cosine distance. Lexical-only notes not already in the semantic set are appended in publication-date order. The combined slate is capped at 5 distinct notes. Semantic notes contribute title, section headings, and chunk excerpts; lexical-only notes contribute title and takeaway only. Full note bodies are never sent to the LLM. Confidence gating uses semantic distance tiers exposed on assembled context metadata: high-confidence evidence proceeds to the normal LLM answer path, borderline evidence proceeds to a stricter limited-coverage prompt that must identify the evidence as adjacent or partial, and low-confidence retrieval returns the deterministic no-coverage SSE fallback without an LLM call. Lexical/topic matches are supporting evidence; they do not override a clearly irrelevant semantic distance.
+
+**Source transparency target:** Public chat source UI is driven by retrieval metadata, not by LLM-generated prose. Source snippets should be brief excerpts from the chunks/takeaways already selected for prompt assembly. Coverage labels, if shown, stay subtle and should not distract from reading the answer.
 
 ### Note save flow (admin)
 
@@ -187,6 +190,17 @@ The sequence below describes the retrieval orchestration as shipped through CHAT
 
 The review UI is shared between both admin editors via `src/lib/components/admin/NoteReviewPanel.svelte`. Streaming transport/parsing lives in the client-safe utility `src/lib/utils/note-review.ts`, which consumes SSE tokens and updates panel state without touching save/publish flows.
 
+### Admin quality warning flow
+
+Editor-page quality checks are advisory only. The server load and/or client-safe helper should shape a small list of warnings from the current note state:
+
+- stale or failed semantic index state from `getSemanticIndexDisplay()`
+- missing or blank takeaway
+- no internal links in the note body
+- weak title heuristic (deterministic first; no required LLM call)
+
+Warnings appear inside `/admin/notes/new` and `/admin/notes/[slug]/edit` near the existing editor/status surfaces. Save Draft and Publish remain available when warnings are present.
+
 ### Agent authoring flow (`/write-post`, local, draft-only)
 
 ```
@@ -224,6 +238,15 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 - `link_text` — display text when different from slug (null otherwise)
 
 `getBacklinks(slug)` returns all notes that link to a given note. `getOutlinks(slug)` returns all links from a given note with their resolved `Note` objects (or null for unresolved). `renderWikiLinks(body, resolvedSlugs)` converts wiki-link syntax to markdown links (for resolved targets) or `<span class="wiki-link-missing">` (for forward references).
+
+### Reader path model
+
+Note detail pages combine two kinds of reader paths:
+
+- semantic related notes, generated from existing retrieval/indexing helpers and shown as relevance-based next reads
+- explicit graph paths, generated from `getBacklinks()` and `getOutlinks()` so visitors can see how the author's notes reference each other
+
+These paths are derived from published notes only on public pages. They should be explainable in UI labels without exposing implementation details such as vector distances.
 
 ---
 
@@ -277,5 +300,5 @@ Note bodies use Obsidian-style `[[slug]]` or `[[slug|display text]]` syntax to l
 - LLM responses must be strictly grounded in the notes retrieved by the vector search. The system prompt must include an explicit guardrail instructing the model not to answer from general knowledge when the retrieved notes do not support the answer. Borderline-confidence prompts may use the LLM for a natural limited-coverage response, but must frame adjacent evidence honestly instead of presenting it as an exact answer.
 - Lightweight social turns are handled by an allowlisted template path before retrieval/LLM invocation. This path must stay non-factual and must not be expanded into general-purpose question answering.
 - The server is a persistent process — in-memory state survives between requests on the same instance. Any state that must survive across deploys (conversation history, note data) is stored in Neon. Do not rely on in-memory state for correctness if horizontal scaling is ever introduced.
-- All database schema changes must be applied via Drizzle ORM migrations (`drizzle-kit`). Direct `ALTER TABLE` statements against the Neon database are not permitted. In WSL2 and non-interactive CI environments where `drizzle-kit migrate` hangs (websocket limitation), use `npm run db:migrate:http` (`scripts/migrate.js`) instead — it applies the same migrations via the Neon HTTP driver.
+- All database schema changes must be applied via Drizzle ORM migrations (`drizzle-kit`). Direct `ALTER TABLE` statements against the Neon database are not permitted. Any task that introduces a schema change must generate the migration and apply it to the production Neon database in the same task before being marked done. In WSL2 and non-interactive CI environments where `drizzle-kit migrate` hangs (websocket limitation), use `npm run db:migrate:http` (`scripts/migrate.js`) instead — it applies the same migrations via the Neon HTTP driver.
 - All secrets (Neon connection string, OpenRouter API key, GitHub OAuth client ID/secret, Auth.js secret) are read exclusively from environment variables. No secret value may appear in source code or be committed to version control.

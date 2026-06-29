@@ -41,13 +41,18 @@ There is no Playwright, Cypress, or any browser automation in this project. End-
 | DB query layer | `src/lib/server/db/notes.ts` | Unit tests with mocked Drizzle client (`vi.mock`) |
 | Embeddings module | `src/lib/server/embeddings.ts` | Mock OpenRouter HTTP calls; assert note/chunk embedding payload generation, endpoint usage, response-shape validation, and fail-soft reindex orchestration |
 | Chat module | `src/lib/server/chat.ts` | Mock semantic and lexical retrieval; assert semantic query alias expansion, parallel call dispatch, hybrid candidate fusion ordering, deduplication, 5-note cap, lexical-only note formatting, confidence tiers, and compact prompt assembly |
-| API route — chat | `src/routes/api/chat/+server.ts` | Import handler directly, call with mock `Request`; assert rate limiting, streaming response shape, low-confidence fallback (no LLM call), borderline limited-coverage LLM prompt, and high-confidence path (context included in normal LLM prompt) |
+| API route — chat | `src/routes/api/chat/+server.ts` | Import handler directly, call with mock `Request`; assert rate limiting, streaming response shape, low-confidence fallback (no LLM call), borderline limited-coverage LLM prompt, high-confidence path (context included in normal LLM prompt), and server-provided source metadata when retrieval yields citable notes |
+| Chat source UI helpers | Chat formatting/source popup utilities | Unit-test that server-provided source titles, slugs, and snippets are escaped, linked safely, and hidden when no sources exist |
+| Reader path helpers | Note related/backlink/outlink helpers | Mock DB/retrieval helpers; assert public note detail paths include published semantic related notes plus backlinks/outlinks without unresolved/private notes |
 | API route — admin note review | `src/routes/api/admin/notes/review/+server.ts` | Mock auth session and OpenRouter review adapter; assert payload validation, SSE response shape, and upstream 429/503 pass-through |
 | Draft-review scorer | `src/lib/server/ai/draft-review.ts` | Mock OpenRouter; assert the prompt embeds the `docs/VOICE.md` rubric, the returned score object is well-formed (0–100 + per-dimension breakdown + flagged lines), malformed model output is handled gracefully, and the model id comes from `OPENROUTER_DRAFT_REVIEW_MODEL` |
 | Agent note write script | `scripts/create-note.js` | Mock the DB helpers; assert `status` is hard-forced to `draft` regardless of input, slug is generated via `slugify`, and persistence routes through `createNote()` + `reindexNoteAfterSave()` (links + embedding + chunks) |
 | Admin review client behavior | Admin new/edit review UI logic | Assert manual Review trigger builds `{ title, takeaway, body }` payload, stream state updates, and visible error handling on stream failure |
 | Admin markdown live preview behavior | `MarkdownEditor` data-flow and markdown preview transform helpers | Unit-test typing-to-preview transform behavior (wiki-link resolution/missing refs, markdown structure output), and ensure preview transform failure does not block save/publish form actions |
 | Admin embedding refresh behavior | Admin note create/edit server actions, embedding helpers, and semantic index display mapper | Mock embedding calls; assert successful saves replace vectors, failed refreshes preserve previous embeddings/chunks, stale-index metadata is recorded, and server-shaped display state distinguishes current/pending/stale/failed admin warnings |
+| Admin editor quality warnings | Quality warning mapper/helper | Pure utility tests for stale semantic index, missing takeaway, no internal links, and weak-title heuristic; assert warnings are advisory and do not affect action payloads |
+| Public Markdown technical blocks | Server markdown renderer and client controls | Unit-test Mermaid render/fallback behavior, code block label metadata, and fail-soft behavior so unsupported diagrams never 500 a note page |
+| How-it-works route | `/how-it-works` page | Smoke-test route load/render boundaries if server data is added; otherwise rely on lint/check plus manual visual review |
 | Auth guard | SvelteKit hooks or route guards for `/admin` | Assert unauthenticated requests receive a redirect (302) or 401 response, including nested admin pages such as `/admin/notes/[slug]/preview` |
 | Rate limit logic | Chat quota utility (anonymous session cookie-based) | Pass mock session token/hash and mock store; test threshold, reset window, and cookie-missing behavior in isolation |
 
@@ -211,6 +216,26 @@ Given the no-browser-test baseline, keep live-preview verification at helper/mod
 - Assert preview-transform exceptions fail soft (preview error state) without mutating `body` state and without blocking form submits in route actions.
 
 Manual smoke verification is still required in local dev for typing latency and visual sync between editor and preview panes.
+
+### Testing chat source transparency
+
+- Keep source payload tests at the server/helper boundary. Assert source metadata is derived from retrieved note candidates, not from LLM output.
+- Assert unsafe slugs are dropped or escaped using the same slug-safety rules as chat links.
+- Assert assistant messages without source metadata do not render an empty source control.
+- Keep source snippets short in fixtures so tests verify truncation/escaping behavior without depending on full note bodies.
+
+### Testing reader paths and quality warnings
+
+- Test semantic related-note helpers with mocked retrieval/DB results and assert unpublished notes are excluded from public routes.
+- Test backlinks/outlinks through query helpers rather than route-local body scans.
+- Test editor quality warnings as pure mapping logic where possible: stale index display, blank takeaway, zero parsed wiki-links, and weak-title heuristic.
+- Verify warning presence does not change save/publish form action availability.
+
+### Testing Mermaid and code block controls
+
+- Mermaid rendering should have unit coverage for valid diagrams and invalid/failing diagrams. Failing diagrams must render readable fallback source instead of throwing.
+- Code block metadata parsing should cover language labels, optional filename labels, copy-button text/source extraction, and wrapping-control state where implemented.
+- Component-level browser automation remains out of scope; manual local smoke checks are required for copy interaction and diagram layout.
 
 ### Testing rate limiting
 

@@ -142,6 +142,8 @@ For `POST /api/chat`, keep the request flow ordered as:
 
 **Chat retrieval confidence** — `assembleContext()` must expose confidence metadata with a high/borderline/low tier. Base the tier primarily on the best semantic chunk cosine distance using centralized named thresholds in `src/lib/server/chat.ts`; lexical/topic matches are supporting evidence and must not make a clearly distant semantic match high confidence. Before embedding, semantic search may expand local aliases such as "creator", "Aden", "RAG", and "LLM" through `buildSemanticSearchQuery()`; keep that expansion narrow and site-specific so unrelated questions still fall through the low-confidence gate. Low-confidence and empty retrieval must return the deterministic fallback SSE stream without calling the LLM. Borderline retrieval must call the LLM with an explicit limited-coverage instruction, remain distinguishable from high confidence in route logic and tests, and never present adjacent evidence as a direct answer.
 
+**Chat source transparency** — source UI must be driven by retrieval metadata returned by the server, not by model-written citations. Assistant messages may show a subtle source button when sources exist. The popup content is limited to note title, slug link, and brief retrieved snippets from the chunks/takeaways already used for prompt assembly. Do not fetch or expose full note bodies just to populate chat source popups. Coverage/confidence labels, if displayed, should be subtle and mapped from server confidence metadata rather than inferred on the client.
+
 **Client-side streaming** — consume SSE in a Svelte component using `fetch` + `ReadableStream`, not `EventSource` (POST body required):
 
 ```svelte
@@ -170,6 +172,8 @@ For `POST /api/chat`, keep the request flow ordered as:
 **Slugs** — always generate via `src/lib/utils/slugify.ts`. Never construct slugs by hand.
 
 **D3 in Svelte components** — never import D3 at the module level (`import * as d3 from 'd3'`). Always use a dynamic `import('d3')` call inside a `$effect` body. D3 reads `window`/`document` and will crash SSR if imported statically. The D3 simulation should be stopped in the `$effect` cleanup function returned before the async import resolves.
+
+**Reader paths** — note detail pages should present semantic related notes plus explicit backlinks/outlinks as separate reader-path concepts. Semantic related notes may use existing embedding/retrieval helpers, but public pages must only link to published notes. Backlinks/outlinks must come from the `note_links` table through query helpers, not from scanning full note bodies in route components. Keep the D3 graph small and supporting; polish should improve fluidity and interaction clarity without turning it into the primary reading surface.
 
 **CodeMirror 6 wiring** — initialize the CodeMirror `EditorView` inside `onMount` and tear it down with `onDestroy` or the returned mount cleanup. Svelte holds only the serialized markdown string; sync it from CodeMirror via an `updateListener` extension on every document change. `MarkdownEditor.svelte` exposes a bindable `value` prop, optional `placeholder`, and optional `onChange(value)` callback for non-binding consumers. Never wrap the `EditorView` instance in a Svelte store or reactive variable — it is not serializable.
 
@@ -322,6 +326,7 @@ export const notes = pgTable('notes', {
 - Apply migrations with `drizzle-kit migrate` (or the project's `npm run db:migrate` script).
 - Migration files live in `drizzle/` at the project root.
 - Never apply schema changes directly against the production Neon database without a migration file.
+- Any task that includes a DB schema change must apply the generated migration to production in that same task before marking it done. If local/WSL migration tooling hangs, use the HTTP migration runner (`npm run db:migrate:http`) rather than direct SQL.
 
 ### Query Patterns
 
@@ -390,6 +395,7 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Assemble the final prompt from: personality block + condensed evidence context + user message.
 - Apply confidence gating before answer generation. High confidence uses the normal grounded LLM answer path; borderline confidence uses a stricter limited-coverage LLM instruction; low confidence skips the LLM and returns the deterministic no-coverage fallback with related-topic note links when available.
 - Keep related-note links deterministic from retrieved note slugs; do not rely on model-invented slugs or URLs.
+- Keep chat source-popup metadata deterministic from retrieved note slugs and excerpts; do not rely on model-invented snippets, slugs, URLs, or confidence labels.
 - Fallback responses use `buildFallbackResponse(citedNotes)` from `src/lib/server/chat.ts`, which appends an italicised related-notes footer (`*Related notes: [[slug|Title]]*`) for any retrieved notes and drops notes whose slugs fail `isSafeNoteSlug` validation. Never pass model-invented slugs to this function.
 - `isSafeNoteSlug` is exported from `src/lib/utils/chat-format.ts` and is the canonical slug-safety predicate for both the fallback builder and the chat HTML renderer. Import it from that module in both client and server contexts.
 
@@ -409,6 +415,19 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Critique is always optional. Never gate note save or publish on a successful review response.
 - Use the shared admin UI component (`src/lib/components/admin/NoteReviewPanel.svelte`) in both new/edit note pages so trigger/error/output behavior stays consistent.
 - Keep review stream parsing in a client-safe utility (`src/lib/utils/note-review.ts`), not inline duplicated logic inside route components.
+
+### Admin Quality Warnings
+
+- Editor-page quality checks are advisory only. Never block Save Draft or Publish because of stale embeddings, missing takeaway, no internal links, or weak title.
+- Reuse `getSemanticIndexDisplay()` for stale/failed semantic index messaging instead of duplicating timestamp logic in client code.
+- Missing takeaway and no-internal-link checks should be deterministic and local to note state. Weak-title checks should start as deterministic heuristics; do not add an LLM call unless a future decision explicitly accepts that cost/latency.
+- Show warnings inside the note editor surfaces, not only on the admin dashboard, so the author sees them while editing.
+
+### Public Markdown Technical Blocks
+
+- Code blocks and diagrams use the blueprint technical panel visual recipe. Code blocks should support copy, language labels, optional filename labels when metadata exists, and wrapping controls for long lines.
+- Mermaid fences are planned to render as diagrams. Until a dedicated renderer is implemented, keep the current safe fallback that renders unsupported fences as readable unhighlighted code instead of throwing.
+- Do not allow diagram rendering failures to 500 a note page; fail soft to readable code/source output.
 
 ### Agent-Assisted Authoring (`/write-post`)
 
@@ -463,7 +482,7 @@ See `docs/TESTING.md` for the full testing guide. Rules that affect code structu
 - Never let the agent-authoring path publish a note — `scripts/create-note.js` is draft-only and must hard-force `status: 'draft'`.
 - Never write agent-generated "outside knowledge" flags into a note body, and never fabricate personal anecdotes/quotes/benchmarks — flags are terminal-only and the factual spine is author-sourced.
 - Never leave `/write-post` drafts as unstyled prose dumps or with patch artifacts. Draft bodies need a Markdown polish pass (headings, blockquotes/emphasis/lists/tables/fences where useful) and must contain no standalone `+` lines, `+##` heading prefixes, plus-prefixed code fences, or similar diff artifacts.
-- Mermaid and plain-text fenced blocks are accepted in notes, but the current public renderer treats them as unhighlighted code blocks before `rehype-shiki` runs. Do not promise rendered Mermaid diagrams unless a dedicated Mermaid renderer is added.
+- Mermaid and plain-text fenced blocks are accepted in notes, but the current public renderer treats them as unhighlighted code blocks before `rehype-shiki` runs. Do not promise rendered Mermaid diagrams until a dedicated Mermaid renderer is implemented.
 - Never include full note bodies in the LLM prompt — use bounded chunk excerpts and lexical-only summaries.
 - Never return raw Drizzle ORM result objects from API endpoints — serialize to a typed plain object first.
 - Never bypass the `hooks.server.ts` auth guard on `/admin` or `/api/admin` routes.

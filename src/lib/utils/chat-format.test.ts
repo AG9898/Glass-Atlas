@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { renderChatMessageHtml, isSafeNoteSlug, buildSourceSnippet } from './chat-format';
+import {
+  renderChatMessageHtml,
+  isSafeNoteSlug,
+  buildSourceSnippet,
+  parseChatSourcesEvent,
+} from './chat-format';
 
 describe('renderChatMessageHtml', () => {
   it('renders single-asterisk italics', () => {
@@ -117,6 +122,75 @@ describe('buildSourceSnippet', () => {
     expect(buildSourceSnippet(`Tom & Jerry's "great" escape`)).toBe(
       'Tom &amp; Jerry&#39;s &quot;great&quot; escape',
     );
+  });
+});
+
+describe('parseChatSourcesEvent', () => {
+  it('returns the sources array for a valid sources event', () => {
+    const result = parseChatSourcesEvent({
+      sources: [{ slug: 'rag-pipeline', title: 'RAG Pipeline', snippet: 'A short excerpt.' }],
+    });
+
+    expect(result).toEqual([
+      { slug: 'rag-pipeline', title: 'RAG Pipeline', snippet: 'A short excerpt.' },
+    ]);
+  });
+
+  it('returns an empty array for a sources event with no entries', () => {
+    expect(parseChatSourcesEvent({ sources: [] })).toEqual([]);
+  });
+
+  it('returns null for a normal OpenAI-shaped token chunk', () => {
+    const payload = { choices: [{ delta: { content: 'hello' }, index: 0, finish_reason: null }] };
+    expect(parseChatSourcesEvent(payload)).toBeNull();
+  });
+
+  it('returns null for non-object payloads', () => {
+    expect(parseChatSourcesEvent('plain string')).toBeNull();
+    expect(parseChatSourcesEvent(null)).toBeNull();
+    expect(parseChatSourcesEvent(42)).toBeNull();
+  });
+
+  it('returns null when sources is present but not an array', () => {
+    expect(parseChatSourcesEvent({ sources: 'not-an-array' })).toBeNull();
+  });
+
+  it('drops entries with an unsafe slug', () => {
+    const result = parseChatSourcesEvent({
+      sources: [
+        { slug: 'Bad Slug', title: 'Bad', snippet: 'excerpt' },
+        { slug: 'good-slug', title: 'Good', snippet: 'excerpt' },
+      ],
+    });
+
+    expect(result).toEqual([{ slug: 'good-slug', title: 'Good', snippet: 'excerpt' }]);
+  });
+
+  it('drops entries with a missing or empty title', () => {
+    const result = parseChatSourcesEvent({
+      sources: [
+        { slug: 'good-slug', title: '', snippet: 'excerpt' },
+        { slug: 'other-slug', snippet: 'excerpt' },
+      ],
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  it('drops entries with a missing or empty snippet', () => {
+    const result = parseChatSourcesEvent({
+      sources: [
+        { slug: 'good-slug', title: 'Good', snippet: '' },
+        { slug: 'other-slug', title: 'Other' },
+      ],
+    });
+
+    expect(result).toEqual([]);
+  });
+
+  it('drops non-object entries within the sources array', () => {
+    const result = parseChatSourcesEvent({ sources: [null, 'string-entry', 42] });
+    expect(result).toEqual([]);
   });
 });
 

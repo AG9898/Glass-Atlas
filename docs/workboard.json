@@ -1684,7 +1684,7 @@
       "group_id": "CHAT",
       "title": "Add chat source popup UI",
       "description": "Render a subtle source button on assistant messages when source metadata exists. The popup lists note titles and brief snippets, with each title linking to the note. Keep the control visually quiet and absent for messages without sources. No schema change is expected.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "CHAT-06A"

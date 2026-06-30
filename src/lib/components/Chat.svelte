@@ -1,12 +1,15 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { renderChatMessageHtml } from '$lib/utils/chat-format';
+  import { renderChatMessageHtml, parseChatSourcesEvent, type ChatSource } from '$lib/utils/chat-format';
+  import { Dialog } from '$lib/components/ui';
 
   type ChatRole = 'user' | 'assistant';
 
   type ChatMessage = {
     role: ChatRole;
     content: string;
+    /** Source-popup metadata for assistant messages; absent when there are no sources. */
+    sources?: ChatSource[];
   };
 
   const PLACEHOLDER = 'Ask anything grounded in these notes…';
@@ -37,6 +40,24 @@
       index === lastIndex ? { ...message, content } : message,
     );
     void scrollMessagesToBottom();
+  }
+
+  /**
+   * Attaches source-popup metadata to the last assistant message. Called when
+   * the trailing `{ sources }` SSE event arrives, after the answer text has
+   * already streamed in. A no-op when there is no in-flight assistant message
+   * (mirrors the guard in `setLastAssistantMessage`).
+   */
+  function setLastAssistantSources(sources: ChatSource[]): void {
+    if (messages.length === 0) return;
+
+    const lastIndex = messages.length - 1;
+    const lastMessage = messages[lastIndex];
+    if (!lastMessage || lastMessage.role !== 'assistant') return;
+
+    messages = messages.map((message, index) =>
+      index === lastIndex ? { ...message, sources } : message,
+    );
   }
 
   function extractToken(payload: unknown): string {
@@ -81,6 +102,46 @@
       .filter((line) => line.startsWith('data:'))
       .map((line) => line.slice(5).trimStart())
       .filter((line) => line.length > 0);
+  }
+
+  /** Mutable per-stream accumulator threaded through `handleSseDataLine`. */
+  type StreamState = { assistantText: string; receivedToken: boolean };
+
+  /**
+   * Handles one parsed SSE `data:` line for the in-flight assistant response.
+   * Each line is either the `[DONE]` sentinel (ignored), the trailing
+   * `{ sources }` source-popup event, or an OpenAI-shaped token chunk —
+   * shared by both the live-read loop and the final buffered-tail pass so the
+   * two never drift out of sync.
+   */
+  function handleSseDataLine(dataLine: string, state: StreamState): void {
+    if (dataLine === '[DONE]') return;
+
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(dataLine);
+    } catch {
+      parsed = null;
+    }
+
+    if (parsed !== null) {
+      const sources = parseChatSourcesEvent(parsed);
+      if (sources) {
+        setLastAssistantSources(sources);
+        return;
+      }
+    }
+
+    const token = parsed !== null ? extractToken(parsed) : dataLine;
+    if (!token) return;
+
+    if (!state.receivedToken) {
+      state.assistantText = '';
+      state.receivedToken = true;
+    }
+
+    state.assistantText += token;
+    setLastAssistantMessage(state.assistantText);
   }
 
   async function onSubmit(event: SubmitEvent): Promise<void> {
@@ -131,8 +192,7 @@
       const decoder = new TextDecoder();
 
       let buffer = '';
-      let assistantText = '';
-      let receivedToken = false;
+      const state: StreamState = { assistantText: '', receivedToken: false };
 
       while (true) {
         const { done, value } = await reader.read();
@@ -143,56 +203,17 @@
         buffer = events.pop() ?? '';
 
         for (const eventBlock of events) {
-          const dataLines = parseSseChunk(eventBlock);
-
-          for (const dataLine of dataLines) {
-            if (dataLine === '[DONE]') {
-              continue;
-            }
-
-            let token = '';
-            try {
-              token = extractToken(JSON.parse(dataLine));
-            } catch {
-              token = dataLine;
-            }
-
-            if (!token) continue;
-
-            if (!receivedToken) {
-              assistantText = '';
-              receivedToken = true;
-            }
-
-            assistantText += token;
-            setLastAssistantMessage(assistantText);
+          for (const dataLine of parseSseChunk(eventBlock)) {
+            handleSseDataLine(dataLine, state);
           }
         }
       }
 
-      const tailEvents = parseSseChunk(buffer);
-      for (const dataLine of tailEvents) {
-        if (dataLine === '[DONE]') continue;
-
-        let token = '';
-        try {
-          token = extractToken(JSON.parse(dataLine));
-        } catch {
-          token = dataLine;
-        }
-
-        if (!token) continue;
-
-        if (!receivedToken) {
-          assistantText = '';
-          receivedToken = true;
-        }
-
-        assistantText += token;
-        setLastAssistantMessage(assistantText);
+      for (const dataLine of parseSseChunk(buffer)) {
+        handleSseDataLine(dataLine, state);
       }
 
-      if (!receivedToken) {
+      if (!state.receivedToken) {
         setLastAssistantMessage('No response returned.');
       }
     } catch (err: unknown) {
@@ -222,6 +243,34 @@
             <!-- eslint-disable-next-line svelte/no-at-html-tags -->
             {@html renderChatMessageHtml(message.content)}
           </p>
+          {#if message.sources && message.sources.length > 0}
+            {@const sources = message.sources}
+            <div class="ga-chat__source-control">
+              <Dialog
+                title="Sources"
+                description="Notes referenced in this answer."
+                triggerClass="ga-chat__source-trigger"
+                closeText="Close"
+              >
+                {#snippet trigger()}
+                  Sources <span class="ga-chat__source-count">({sources.length})</span>
+                {/snippet}
+                {#snippet children()}
+                  <ul class="ga-chat__source-list">
+                    {#each sources as source (source.slug)}
+                      <li class="ga-chat__source-item">
+                        <a href={`/notes/${source.slug}`} class="ga-chat__source-title">{source.title}</a>
+                        <p class="ga-chat__source-snippet">
+                          <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+                          {@html source.snippet}
+                        </p>
+                      </li>
+                    {/each}
+                  </ul>
+                {/snippet}
+              </Dialog>
+            </div>
+          {/if}
         </article>
       {/each}
     {/if}
@@ -342,6 +391,72 @@
     color: var(--color-accent-500);
     text-decoration: underline;
     text-underline-offset: 0.12em;
+  }
+
+  .ga-chat__source-control {
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  /*
+   * Overrides the Dialog wrapper's trigger button via the `triggerClass`
+   * prop. The element is rendered inside `Dialog.svelte`'s own template, so
+   * scoped styles here cannot reach it without `:global` — same
+   * trigger-override pattern documented for `Select.svelte` in
+   * docs/CONVENTIONS.md.
+   */
+  :global(.ga-chat__source-trigger) {
+    min-height: 1.65rem;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+    border-color: var(--color-line-2);
+  }
+
+  :global(.ga-chat__source-trigger:hover) {
+    color: var(--color-text-strong);
+    border-color: var(--color-line-3);
+  }
+
+  :global(.ga-chat__source-count) {
+    color: var(--color-text-muted);
+  }
+
+  .ga-chat__source-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 1rem;
+  }
+
+  .ga-chat__source-item {
+    padding-bottom: 1rem;
+    border-bottom: var(--line-thin) solid var(--color-line-1);
+  }
+
+  .ga-chat__source-item:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .ga-chat__source-title {
+    display: block;
+    margin: 0 0 0.35rem;
+    color: var(--color-accent-700);
+    font-family: 'Space Grotesk', 'Inter', 'Segoe UI', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
+  }
+
+  .ga-chat__source-snippet {
+    margin: 0;
+    color: var(--color-text);
+    font-size: 0.88rem;
+    line-height: 1.55;
   }
 
   .ga-chat__error {

@@ -36,6 +36,54 @@ export function buildSourceSnippet(text: string, maxLength = SOURCE_SNIPPET_MAX_
 }
 
 /**
+ * Client-side shape of the chat source-popup contract, mirroring the
+ * server's `ChatSource` type in `src/lib/server/chat.ts`. Kept as a separate
+ * declaration here (rather than imported) so this module — and anything that
+ * imports it, like `Chat.svelte` — never pulls in `$lib/server/**`.
+ */
+export type ChatSource = {
+  /** URL-safe slug identifying the note; re-validated before linking. */
+  slug: string;
+  /** Human-readable note title. Not pre-escaped — render via normal text interpolation. */
+  title: string;
+  /** HTML-escaped excerpt (see `buildSourceSnippet`); safe to render via `{@html}` as-is. */
+  snippet: string;
+};
+
+/**
+ * Parses the trailing chat SSE source-metadata event (`{ sources: [...] }`)
+ * appended by `POST /api/chat` after the citable LLM path completes.
+ *
+ * Returns `null` when `payload` is not a sources event at all (e.g. a normal
+ * token chunk), so callers can fall back to ordinary token extraction.
+ * Returns a (possibly empty) array when `payload` does carry a `sources`
+ * field, filtering out any entry with an unsafe slug or a non-string/empty
+ * title or snippet. The server already applies these same rules in
+ * `buildChatSources`, but the wire payload is untrusted input from the
+ * client's perspective, so it is re-validated here rather than trusted blindly.
+ */
+export function parseChatSourcesEvent(payload: unknown): ChatSource[] | null {
+  if (typeof payload !== 'object' || payload === null) return null;
+
+  const sources = (payload as { sources?: unknown }).sources;
+  if (!Array.isArray(sources)) return null;
+
+  return sources.filter((entry): entry is ChatSource => {
+    if (typeof entry !== 'object' || entry === null) return false;
+
+    const { slug, title, snippet } = entry as Record<string, unknown>;
+    return (
+      typeof slug === 'string' &&
+      isSafeNoteSlug(slug) &&
+      typeof title === 'string' &&
+      title.length > 0 &&
+      typeof snippet === 'string' &&
+      snippet.length > 0
+    );
+  });
+}
+
+/**
  * Returns `true` when `value` is a safe URL slug for a note page.
  * Slugs must start with a lowercase alphanumeric character and contain only
  * lowercase letters, digits, and hyphens. This is the canonical slug safety

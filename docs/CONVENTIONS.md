@@ -423,8 +423,9 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 ### Admin Quality Warnings
 
 - Editor-page quality checks are advisory only. Never block Save Draft or Publish because of stale embeddings, missing takeaway, no internal links, or weak title.
+- `getNoteQualityWarnings()` (`src/lib/server/admin/quality-warnings.ts`) is the single mapper for all four warning types; it returns a plain `QualityWarning[]` and never mutates or reads from save/publish payloads.
 - Reuse `getSemanticIndexDisplay()` for stale/failed semantic index messaging instead of duplicating timestamp logic in client code.
-- Missing takeaway and no-internal-link checks should be deterministic and local to note state. Weak-title checks should start as deterministic heuristics; do not add an LLM call unless a future decision explicitly accepts that cost/latency.
+- Missing takeaway and no-internal-link checks should be deterministic and local to note state. Weak-title checks should start as deterministic heuristics (`isWeakTitle()`); do not add an LLM call unless a future decision explicitly accepts that cost/latency.
 - Show warnings inside the note editor surfaces, not only on the admin dashboard, so the author sees them while editing.
 
 ### Public Markdown Technical Blocks

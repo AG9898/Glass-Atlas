@@ -198,14 +198,14 @@ The review UI is shared between both admin editors via `src/lib/components/admin
 
 ### Admin quality warning flow
 
-Editor-page quality checks are advisory only. The server load and/or client-safe helper should shape a small list of warnings from the current note state:
+Editor-page quality checks are advisory only. `getNoteQualityWarnings()` (`src/lib/server/admin/quality-warnings.ts`) is a pure mapper — given current note state, it returns a stable `QualityWarning[]` (`type`, `label`, `message`) without reading/writing the database or touching save/publish payloads:
 
-- stale or failed semantic index state from `getSemanticIndexDisplay()`
+- stale or failed semantic index state, reused from `getSemanticIndexDisplay()` rather than re-deriving timestamp/status rules
 - missing or blank takeaway
-- no internal links in the note body
-- weak title heuristic (deterministic first; no required LLM call)
+- no internal links in the note body (zero `parseWikiLinks()` matches)
+- weak title heuristic via `isWeakTitle()` (deterministic: blank/too-short/single-word/placeholder-pattern; no LLM call)
 
-Warnings appear inside `/admin/notes/new` and `/admin/notes/[slug]/edit` near the existing editor/status surfaces. Save Draft and Publish remain available when warnings are present.
+Warnings are intended to appear inside `/admin/notes/new` and `/admin/notes/[slug]/edit` near the existing editor/status surfaces. Save Draft and Publish remain available when warnings are present; wiring the helper into the editor route load/UI is tracked as separate follow-on work.
 
 ### Agent authoring flow (`/write-post`, local, draft-only)
 

@@ -1812,7 +1812,7 @@
       "group_id": "ADMIN",
       "title": "Add editor quality warning helper",
       "description": "Create deterministic warning mapping for stale semantic index, missing takeaway, no internal links, and weak title. Warnings are advisory only and must not affect save or publish behavior. No schema change is expected.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [],
       "blocked_by": [],

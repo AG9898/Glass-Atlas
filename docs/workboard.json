@@ -1,7 +1,7 @@
 {
   "$schema": "./workboard.schema.json",
   "schema_version": "1.0.0",
-  "last_updated": "2026-06-08",
+  "last_updated": "2026-06-30",
   "tasks": [
     {
       "id": "SCAFFOLD-01",
@@ -1644,6 +1644,366 @@
       "commands": [
         "npm run test:run",
         "npm run lint"
+      ]
+    },
+    {
+      "id": "CHAT-06A",
+      "group_id": "CHAT",
+      "title": "Add chat source metadata contract",
+      "description": "Expose deterministic source metadata from chat retrieval for assistant messages without changing grounding rules. Use retrieved note slugs, titles, and snippets only; never use model-invented citations and never send full note bodies just to power source UI. No schema change is expected.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Chat responses with citable retrieval expose source metadata with slug, title, and snippet",
+        "Low-confidence, no-source, and social-intent responses omit source metadata cleanly",
+        "Source metadata is derived from retrieval candidates, not LLM output",
+        "Route/helper tests cover source payload safety, escaping, and omission behavior",
+        "npm run test:run and npm run lint pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/chat.ts",
+        "src/routes/api/chat/+server.ts",
+        "src/lib/utils/chat-format.ts",
+        "src/routes/api/chat/chat.test.ts",
+        "src/lib/server/chat.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "CHAT-06B",
+      "group_id": "CHAT",
+      "title": "Add chat source popup UI",
+      "description": "Render a subtle source button on assistant messages when source metadata exists. The popup lists note titles and brief snippets, with each title linking to the note. Keep the control visually quiet and absent for messages without sources. No schema change is expected.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "CHAT-06A"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Assistant messages with sources show a source control",
+        "The popup shows safe snippets and note links",
+        "Messages without sources show no empty source control",
+        "Desktop and mobile manual smoke checks confirm the popup is usable",
+        "npm run test:run, npm run lint, and npm run check pass"
+      ],
+      "docs": [
+        "docs/styleguide.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/components/Chat.svelte",
+        "src/lib/components/ui",
+        "src/lib/utils/chat-format.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check"
+      ]
+    },
+    {
+      "id": "PUBLIC-04A",
+      "group_id": "PUBLIC",
+      "title": "Add semantic related-note helper",
+      "description": "Add a server-side helper for published semantic related notes using existing embeddings and retrieval data. Keep semantic related notes separate from backlinks and outlinks. No schema change is expected.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Helper returns published related notes excluding the current note",
+        "Results are bounded, ordered, and serializable",
+        "Unpublished notes are excluded from public related-note results",
+        "Tests cover ordering, exclusion, and empty states",
+        "npm run test:run and npm run lint pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/db/notes.ts",
+        "src/lib/server/db/notes.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "PUBLIC-04B",
+      "group_id": "PUBLIC",
+      "title": "Show note reader paths",
+      "description": "Wire semantic related notes plus backlinks and outlinks into public note detail pages as separate reader-path modules. Keep the article body primary and ensure public pages only link to published notes. No schema change is expected.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "PUBLIC-04A"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Note detail shows semantic related notes when available",
+        "Backlinks and outlinks are labeled separately from semantic related notes",
+        "Unpublished and unresolved notes are not linked publicly",
+        "Admin draft preview remains protected and functional",
+        "npm run test:run, npm run lint, and npm run check pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/styleguide.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/routes/notes/[slug]/+page.server.ts",
+        "src/routes/notes/[slug]/+page.svelte",
+        "src/lib/components/NoteDetail.svelte"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check"
+      ]
+    },
+    {
+      "id": "PUBLIC-04C",
+      "group_id": "PUBLIC",
+      "title": "Polish note graph interaction",
+      "description": "Improve the existing small D3 note graph so it feels more fluid and less static while remaining a supporting widget. Preserve SSR-safe dynamic D3 imports and reduced-motion usability. No schema change is expected.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [
+        "PUBLIC-04B"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Graph has clearer hover and click feedback",
+        "Motion feels smoother while respecting reduced-motion behavior",
+        "No static D3 import is introduced",
+        "Desktop and mobile manual smoke checks confirm the graph remains usable",
+        "npm run test:run, npm run lint, and npm run check pass"
+      ],
+      "docs": [
+        "docs/CONVENTIONS.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
+        "src/lib/components/NoteGraph.svelte"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check"
+      ]
+    },
+    {
+      "id": "ADMIN-12A",
+      "group_id": "ADMIN",
+      "title": "Add editor quality warning helper",
+      "description": "Create deterministic warning mapping for stale semantic index, missing takeaway, no internal links, and weak title. Warnings are advisory only and must not affect save or publish behavior. No schema change is expected.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Helper returns stable warning objects for all four warning types",
+        "Weak-title heuristic is deterministic and documented in tests",
+        "Warning mapping reuses existing semantic index display logic",
+        "Warnings do not affect save or publish payloads",
+        "npm run test:run and npm run lint pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/admin",
+        "src/lib/utils/wiki-links.ts",
+        "src/lib/server/admin/*.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint"
+      ]
+    },
+    {
+      "id": "ADMIN-12B",
+      "group_id": "ADMIN",
+      "title": "Show quality warnings in editors",
+      "description": "Render quality warnings inside new and edit note editor pages near existing editor/status surfaces. Save Draft and Publish must remain available when warnings are present. No schema change is expected.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "ADMIN-12A"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Warnings appear in both new and edit note editors",
+        "Save Draft and Publish remain usable with warnings present",
+        "Warning styling matches line-led admin guidance",
+        "Manual editor smoke check confirms warnings do not block authoring",
+        "npm run test:run, npm run lint, and npm run check pass"
+      ],
+      "docs": [
+        "docs/styleguide.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/routes/admin/notes/new/+page.svelte",
+        "src/routes/admin/notes/[slug]/edit/+page.svelte",
+        "src/lib/components/admin"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check"
+      ]
+    },
+    {
+      "id": "PUBLIC-05A",
+      "group_id": "PUBLIC",
+      "title": "Render Mermaid diagrams safely",
+      "description": "Add Mermaid rendering for public markdown while preserving fail-soft fallback to readable source when rendering fails. Do not let diagram rendering failures 500 note pages. No schema change is expected.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Valid Mermaid fences render as diagrams",
+        "Invalid diagrams render readable fallback instead of throwing",
+        "Existing code fence rendering remains readable",
+        "Renderer tests cover success and failure paths",
+        "npm run test:run, npm run lint, and npm run build pass"
+      ],
+      "docs": [
+        "docs/CONVENTIONS.md",
+        "docs/styleguide.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/markdown.ts",
+        "src/lib/server/markdown.test.ts",
+        "package.json",
+        "package-lock.json"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run build"
+      ]
+    },
+    {
+      "id": "PUBLIC-05B",
+      "group_id": "PUBLIC",
+      "title": "Add code block controls",
+      "description": "Add blueprint-panel code block controls: copy, language label, optional filename label, and wrapping toggle where metadata exists. Keep controls stable and avoid layout shift. No schema change is expected.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [
+        "PUBLIC-05A"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Code blocks show language labels when known",
+        "Copy control copies the code text only",
+        "Filename labels render when metadata exists",
+        "Wrapping control works without layout shift",
+        "npm run test:run, npm run lint, and npm run check pass"
+      ],
+      "docs": [
+        "docs/CONVENTIONS.md",
+        "docs/styleguide.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/markdown.ts",
+        "src/lib/components",
+        "src/app.css",
+        "src/lib/server/markdown.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check"
+      ]
+    },
+    {
+      "id": "POLISH-05",
+      "group_id": "POLISH",
+      "title": "Add how-this-site-works page",
+      "description": "Add /how-it-works as a reader-friendly technical colophon explaining the site, stack, architecture, and note-grounded chat without privacy/rate-limit detail or portfolio framing. No schema change is expected.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Route renders publicly without auth",
+        "Content explains stack and architecture at a high level",
+        "Page does not include chat privacy or rate-limit details",
+        "Navigation path to the page exists where appropriate",
+        "npm run test:run, npm run lint, npm run check, and npm run build pass"
+      ],
+      "docs": [
+        "docs/PRD.md",
+        "docs/ARCHITECTURE.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
+        "src/routes/how-it-works/+page.svelte",
+        "src/lib/components/Nav.svelte"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check",
+        "npm run build"
+      ]
+    },
+    {
+      "id": "POLISH-06",
+      "group_id": "POLISH",
+      "title": "Reinforce chat-first homepage",
+      "description": "Audit and lightly refine the landing page so the first screen remains optimized for asking a question while automatic note-derived previews support the chat-first experience. Do not introduce manual curation or schema changes.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [
+        "CHAT-06B",
+        "PUBLIC-04B"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "First viewport remains chat-first on desktop and mobile",
+        "Supporting note content is automatically derived from published notes",
+        "No manual curation data source is introduced",
+        "Desktop and mobile manual smoke checks confirm the homepage hierarchy",
+        "npm run test:run, npm run lint, npm run check, and npm run build pass"
+      ],
+      "docs": [
+        "docs/PRD.md",
+        "docs/styleguide.md"
+      ],
+      "files": [
+        "src/routes/+page.server.ts",
+        "src/routes/+page.svelte",
+        "src/lib/components/Chat.svelte"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check",
+        "npm run build"
       ]
     }
   ]

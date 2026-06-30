@@ -198,14 +198,12 @@ The review UI is shared between both admin editors via `src/lib/components/admin
 
 ### Admin quality warning flow
 
-Editor-page quality checks are advisory only. `getNoteQualityWarnings()` (`src/lib/server/admin/quality-warnings.ts`) is a pure mapper — given current note state, it returns a stable `QualityWarning[]` (`type`, `label`, `message`) without reading/writing the database or touching save/publish payloads:
+Editor-page quality checks are advisory only and split across a client-safe helper and a server-only composer so the same logic stays live while typing and reusable for any future server-only consumer:
 
-- stale or failed semantic index state, reused from `getSemanticIndexDisplay()` rather than re-deriving timestamp/status rules
-- missing or blank takeaway
-- no internal links in the note body (zero `parseWikiLinks()` matches)
-- weak title heuristic via `isWeakTitle()` (deterministic: blank/too-short/single-word/placeholder-pattern; no LLM call)
+- `getContentQualityWarnings()` (`src/lib/utils/quality-warnings.ts`) is a pure, client-safe mapper over current (possibly unsaved) `{ title, takeaway, body }` form state. It returns `missing-takeaway`, `no-internal-links` (zero `parseWikiLinks()` matches), and `weak-title` (via the deterministic `isWeakTitle()` heuristic: blank/too-short/single-word/placeholder-pattern, no LLM call) warnings. It has no `$lib/server` import, so it is called directly from `src/lib/components/admin/QualityWarningsPanel.svelte` and recomputes on every keystroke.
+- `getNoteQualityWarnings()` (`src/lib/server/admin/quality-warnings.ts`) composes the same content warnings with a `semantic-index` warning reused from `getSemanticIndexDisplay()` (stale/failed/pending state derived from saved DB timestamps). It remains the full server-side mapper for any consumer that only has saved note state (e.g. a future admin list view).
 
-Warnings are intended to appear inside `/admin/notes/new` and `/admin/notes/[slug]/edit` near the existing editor/status surfaces. Save Draft and Publish remain available when warnings are present; wiring the helper into the editor route load/UI is tracked as separate follow-on work.
+`QualityWarningsPanel` renders inside `/admin/notes/new` and `/admin/notes/[slug]/edit` near the existing editor/status surfaces. The `new` editor has no saved note yet, so it only ever shows live content warnings; the `edit` editor additionally receives the semantic-index warning from its route `load` (computed once per page load from saved state, since that state doesn't change between saves) alongside the live content warnings. Save Draft and Publish remain available when warnings are present.
 
 ### Agent authoring flow (`/write-post`, local, draft-only)
 

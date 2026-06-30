@@ -1,5 +1,6 @@
 <script lang="ts">
   import NoteReviewPanel from '$lib/components/admin/NoteReviewPanel.svelte';
+  import QualityWarningsPanel from '$lib/components/admin/QualityWarningsPanel.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import { Select } from '$lib/components/ui';
   import type { UiSelectOption } from '$lib/components/ui';
@@ -302,17 +303,18 @@
       <p class:success={form.saved} class="form-message" role="status">{form.message}</p>
     {/if}
 
-    {#if data.note.semanticIndexDisplay.showWarning}
-      <section class="index-warning" aria-label="Semantic index warning" role="status">
-        <div>
-          <p class="eyebrow">{data.note.semanticIndexDisplay.label}</p>
-          <p>{data.note.semanticIndexDisplay.summary}</p>
-          {#if data.note.semanticIndexDisplay.detail}
-            <small>{data.note.semanticIndexDisplay.detail}</small>
-          {/if}
-        </div>
-      </section>
-    {/if}
+    <QualityWarningsPanel
+      {title}
+      {takeaway}
+      {body}
+      semanticIndex={data.note.semanticIndexDisplay.showWarning
+        ? {
+            label: data.note.semanticIndexDisplay.label,
+            message: data.note.semanticIndexDisplay.summary,
+            detail: data.note.semanticIndexDisplay.detail,
+          }
+        : null}
+    />
 
     <section class="editor-meta" aria-label="Note status metadata">
       <div>
@@ -595,32 +597,6 @@
   .form-message.success {
     border-color: var(--color-success);
     color: var(--color-success);
-  }
-
-  .index-warning {
-    margin-top: 1rem;
-    border: var(--line-std) solid var(--color-warning);
-    background: color-mix(in srgb, var(--color-warning) 9%, var(--color-bg));
-    color: var(--color-text-strong);
-    padding: 1rem 1.25rem;
-  }
-
-  .index-warning div {
-    display: grid;
-    gap: 0.5rem;
-  }
-
-  .index-warning p:not(.eyebrow),
-  .index-warning small {
-    max-width: 52rem;
-    margin: 0;
-    color: var(--color-text-muted);
-    line-height: 1.5;
-  }
-
-  .index-warning small {
-    font-family: 'Space Grotesk', 'Inter', 'Segoe UI', sans-serif;
-    font-size: 0.72rem;
   }
 
   .editor-meta {

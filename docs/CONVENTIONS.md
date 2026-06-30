@@ -423,10 +423,10 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 ### Admin Quality Warnings
 
 - Editor-page quality checks are advisory only. Never block Save Draft or Publish because of stale embeddings, missing takeaway, no internal links, or weak title.
-- `getNoteQualityWarnings()` (`src/lib/server/admin/quality-warnings.ts`) is the single mapper for all four warning types; it returns a plain `QualityWarning[]` and never mutates or reads from save/publish payloads.
-- Reuse `getSemanticIndexDisplay()` for stale/failed semantic index messaging instead of duplicating timestamp logic in client code.
+- Content warning logic (missing takeaway, no internal links, weak title) lives in the client-safe `getContentQualityWarnings()` / `isWeakTitle()` (`src/lib/utils/quality-warnings.ts`) so the editor UI can recompute it live from unsaved form state. `getNoteQualityWarnings()` (`src/lib/server/admin/quality-warnings.ts`) is the server-only composer that adds the semantic-index warning on top of the same content helper — do not duplicate the heuristics between the two files; the server module imports from the client-safe one.
+- Reuse `getSemanticIndexDisplay()` for stale/failed semantic index messaging instead of duplicating timestamp logic in client code. Pass the resulting label/summary/detail into `QualityWarningsPanel` as its `semanticIndex` prop only when `showWarning` is true.
 - Missing takeaway and no-internal-link checks should be deterministic and local to note state. Weak-title checks should start as deterministic heuristics (`isWeakTitle()`); do not add an LLM call unless a future decision explicitly accepts that cost/latency.
-- Show warnings inside the note editor surfaces, not only on the admin dashboard, so the author sees them while editing.
+- Show warnings inside the note editor surfaces, not only on the admin dashboard, so the author sees them while editing. `src/lib/components/admin/QualityWarningsPanel.svelte` is the single shared component used by both `/admin/notes/new` and `/admin/notes/[slug]/edit` — keep warning rendering/styling consistent between editors by reusing it rather than re-implementing the markup per page.
 
 ### Public Markdown Technical Blocks
 

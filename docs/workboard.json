@@ -1843,7 +1843,7 @@
       "group_id": "ADMIN",
       "title": "Show quality warnings in editors",
       "description": "Render quality warnings inside new and edit note editor pages near existing editor/status surfaces. Save Draft and Publish must remain available when warnings are present. No schema change is expected.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "ADMIN-12A"

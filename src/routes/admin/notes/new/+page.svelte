@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import NoteReviewPanel from '$lib/components/admin/NoteReviewPanel.svelte';
+  import QualityWarningsPanel from '$lib/components/admin/QualityWarningsPanel.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import { Select } from '$lib/components/ui';
   import type { UiSelectOption } from '$lib/components/ui';
@@ -408,6 +409,8 @@
           <span>Embedding generation is wired in ADMIN-05.</span>
         </div>
       </div>
+
+      <QualityWarningsPanel {title} {takeaway} {body} />
 
       <div class="form-panel">
         <label class="field-row">

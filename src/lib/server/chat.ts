@@ -1,7 +1,7 @@
 import { embedText } from './embeddings';
 import { searchChunksBySimilarity, searchNotesByLexical } from './db/notes';
 import type { RetrievedNoteChunk, RetrievedLexicalNote } from './db/notes';
-import { isSafeNoteSlug } from '$lib/utils/chat-format';
+import { isSafeNoteSlug, buildSourceSnippet } from '$lib/utils/chat-format';
 
 /** Maximum number of chunk candidates to retrieve from pgvector. */
 const CHUNK_CANDIDATES = 20;
@@ -32,7 +32,21 @@ export type CitedNote = {
   slug: string;
   /** Human-readable note title. */
   title: string;
+  /**
+   * Brief, HTML-escaped excerpt derived from the retrieved chunk/takeaway
+   * already selected for prompt assembly. Never LLM output. Powers the chat
+   * source-popup contract; see `buildChatSources`.
+   */
+  snippet: string;
 };
+
+/**
+ * Source metadata exposed to the client for the chat source-popup contract.
+ * Structurally identical to `CitedNote` today; kept as a distinct alias so
+ * call sites read clearly as "what gets sent over the wire" rather than the
+ * internal retrieval-fusion bookkeeping type.
+ */
+export type ChatSource = CitedNote;
 
 export type CoverageTier = 'high' | 'borderline' | 'low';
 
@@ -114,6 +128,26 @@ export function buildFallbackResponse(citedNotes: CitedNote[], query = ''): stri
 }
 
 /**
+ * Selects deterministic source metadata for the chat source-popup contract.
+ *
+ * Source metadata is derived entirely from retrieval candidates already
+ * assembled into the prompt context — never from LLM output. Notes with an
+ * unsafe slug or an empty snippet are dropped, using the same slug-safety
+ * rule as `buildFallbackResponse` and chat link rendering, so the caller
+ * never has to re-validate slugs before emitting metadata to the client.
+ *
+ * The caller is responsible for only invoking this when retrieval confidence
+ * is sufficient (see `hasSufficientCoverage`) — low-confidence, no-source,
+ * and social-intent responses should omit source metadata entirely rather
+ * than calling this with an empty or irrelevant candidate list.
+ *
+ * @param citedNotes - Notes retrieved by the context assembly step.
+ */
+export function buildChatSources(citedNotes: CitedNote[]): ChatSource[] {
+  return citedNotes.filter((note) => isSafeNoteSlug(note.slug) && note.snippet.length > 0);
+}
+
+/**
  * Embeds `query`, then runs semantic (pgvector cosine) and lexical/topic
  * (title/tags/category ILIKE) retrieval in parallel against published notes.
  * Candidate sets are fused: semantic chunks are grouped by note and ranked by
@@ -180,13 +214,21 @@ export async function assembleContext(query: string): Promise<AssembledContext> 
   // Semantic entries first (ranked by cosine similarity).
   for (const [slug, noteChunks] of chunksBySlug) {
     snippets.push(formatChunkSnippet(slug, noteChunks));
-    citedNotes.push({ slug, title: noteChunks[0].noteTitle });
+    citedNotes.push({
+      slug,
+      title: noteChunks[0].noteTitle,
+      snippet: buildSourceSnippet(noteChunks[0].chunkText),
+    });
   }
 
   // Lexical-only entries appended after semantic entries.
   for (const note of lexicalOnlyNotes) {
     snippets.push(formatLexicalSnippet(note));
-    citedNotes.push({ slug: note.slug, title: note.title });
+    citedNotes.push({
+      slug: note.slug,
+      title: note.title,
+      snippet: buildSourceSnippet(note.takeaway ?? note.title),
+    });
   }
 
   const context = `Retrieved notes:\n\n${snippets.join('\n\n---\n\n')}`;

@@ -17,6 +17,7 @@ import {
   assembleContext,
   hasSufficientCoverage,
   buildFallbackResponse,
+  buildChatSources,
   buildSemanticSearchQuery,
   INSUFFICIENT_COVERAGE_RESPONSE,
   SEMANTIC_CONFIDENCE_THRESHOLDS,
@@ -449,7 +450,7 @@ describe('hasSufficientCoverage', () => {
     expect(hasSufficientCoverage({
       context: 'Retrieved notes:\n\nSlug: foo',
       citedSlugs: ['foo'],
-      citedNotes: [{ slug: 'foo', title: 'Foo' }],
+      citedNotes: [{ slug: 'foo', title: 'Foo', snippet: 'A foo excerpt.' }],
       confidence: { tier: 'high', bestSemanticDistance: 0.1, lexicalMatchCount: 0 },
     })).toBe(true);
   });
@@ -468,7 +469,7 @@ describe('hasSufficientCoverage', () => {
     expect(hasSufficientCoverage({
       context: '',
       citedSlugs: ['foo'],
-      citedNotes: [{ slug: 'foo', title: 'Foo' }],
+      citedNotes: [{ slug: 'foo', title: 'Foo', snippet: 'A foo excerpt.' }],
       confidence: { tier: 'high', bestSemanticDistance: 0.1, lexicalMatchCount: 0 },
     })).toBe(false);
   });
@@ -486,7 +487,7 @@ describe('hasSufficientCoverage', () => {
     expect(hasSufficientCoverage({
       context: 'x',
       citedSlugs: ['any-slug'],
-      citedNotes: [{ slug: 'any-slug', title: 'Any Slug' }],
+      citedNotes: [{ slug: 'any-slug', title: 'Any Slug', snippet: 'An excerpt.' }],
       confidence: { tier: 'borderline', bestSemanticDistance: 0.4, lexicalMatchCount: 0 },
     })).toBe(true);
   });
@@ -495,7 +496,7 @@ describe('hasSufficientCoverage', () => {
     expect(hasSufficientCoverage({
       context: 'Retrieved notes:\n\nSlug: maybe-related',
       citedSlugs: ['maybe-related'],
-      citedNotes: [{ slug: 'maybe-related', title: 'Maybe Related' }],
+      citedNotes: [{ slug: 'maybe-related', title: 'Maybe Related', snippet: 'An excerpt.' }],
       confidence: { tier: 'low', bestSemanticDistance: 0.9, lexicalMatchCount: 0 },
     })).toBe(false);
   });
@@ -526,8 +527,8 @@ describe('buildFallbackResponse', () => {
 
   it('appends an italicized related-notes footer with wiki-links when notes are provided', () => {
     const result = buildFallbackResponse([
-      { slug: 'rag-pipeline', title: 'RAG Pipeline' },
-      { slug: 'vector-search', title: 'Vector Search' },
+      { slug: 'rag-pipeline', title: 'RAG Pipeline', snippet: 'An excerpt.' },
+      { slug: 'vector-search', title: 'Vector Search', snippet: 'An excerpt.' },
     ]);
     expect(result).toContain(INSUFFICIENT_COVERAGE_RESPONSE);
     expect(result).toContain('*Related notes:');
@@ -536,16 +537,18 @@ describe('buildFallbackResponse', () => {
   });
 
   it('wraps the related-notes footer in single asterisks (italic)', () => {
-    const result = buildFallbackResponse([{ slug: 'test-note', title: 'Test Note' }]);
+    const result = buildFallbackResponse([
+      { slug: 'test-note', title: 'Test Note', snippet: 'An excerpt.' },
+    ]);
     // Footer must start and end with * (not **)
     expect(result).toMatch(/\*Related notes:.*\*$/s);
   });
 
   it('filters out notes with unsafe slugs', () => {
     const result = buildFallbackResponse([
-      { slug: 'valid-note', title: 'Valid Note' },
-      { slug: 'BAD_SLUG!', title: 'Bad Slug' },
-      { slug: 'also invalid slug', title: 'Also Invalid' },
+      { slug: 'valid-note', title: 'Valid Note', snippet: 'An excerpt.' },
+      { slug: 'BAD_SLUG!', title: 'Bad Slug', snippet: 'An excerpt.' },
+      { slug: 'also invalid slug', title: 'Also Invalid', snippet: 'An excerpt.' },
     ]);
     expect(result).toContain('[[valid-note|Valid Note]]');
     expect(result).not.toContain('BAD_SLUG');
@@ -554,15 +557,17 @@ describe('buildFallbackResponse', () => {
 
   it('returns canned response without footer when all slugs are unsafe', () => {
     const result = buildFallbackResponse([
-      { slug: 'BAD SLUG', title: 'Bad' },
-      { slug: 'UPPERCASE', title: 'Upper' },
+      { slug: 'BAD SLUG', title: 'Bad', snippet: 'An excerpt.' },
+      { slug: 'UPPERCASE', title: 'Upper', snippet: 'An excerpt.' },
     ]);
     expect(result).toContain(INSUFFICIENT_COVERAGE_RESPONSE);
     expect(result).not.toContain('*Related notes:');
   });
 
   it('includes slugs that start with a digit (valid slug pattern)', () => {
-    const result = buildFallbackResponse([{ slug: '2024-recap', title: '2024 Recap' }]);
+    const result = buildFallbackResponse([
+      { slug: '2024-recap', title: '2024 Recap', snippet: 'An excerpt.' },
+    ]);
     expect(result).toContain('[[2024-recap|2024 Recap]]');
   });
 
@@ -585,8 +590,30 @@ describe('assembleContext — citedNotes', () => {
     const result = await assembleContext('vector search');
 
     expect(result.citedNotes).toEqual([
-      { slug: 'vector-search', title: 'Vector Search' },
-      { slug: 'rag-pipeline', title: 'RAG Pipeline' },
+      {
+        slug: 'vector-search',
+        title: 'Vector Search',
+        snippet: 'Use pgvector cosine search for RAG retrieval.',
+      },
+      {
+        slug: 'rag-pipeline',
+        title: 'RAG Pipeline',
+        snippet: 'Retrieval-augmented generation combines search with LLMs.',
+      },
+    ]);
+  });
+
+  it('derives semantic citedNotes snippet from the best (first) chunk only', async () => {
+    mockSearchChunks.mockResolvedValue([chunkA1, chunkA2]);
+
+    const result = await assembleContext('vector indexing');
+
+    expect(result.citedNotes).toEqual([
+      {
+        slug: 'vector-search',
+        title: 'Vector Search',
+        snippet: 'Use pgvector cosine search for RAG retrieval.',
+      },
     ]);
   });
 
@@ -604,7 +631,25 @@ describe('assembleContext — citedNotes', () => {
 
     const result = await assembleContext('language models');
 
-    expect(result.citedNotes).toEqual([{ slug: 'llm-basics', title: 'LLM Basics' }]);
+    expect(result.citedNotes).toEqual([
+      {
+        slug: 'llm-basics',
+        title: 'LLM Basics',
+        snippet: 'Language models predict the next token.',
+      },
+    ]);
+  });
+
+  it('falls back to the note title for lexical-only citedNotes snippet when takeaway is missing', async () => {
+    const noTakeaway = { ...lexicalNoteC, takeaway: null };
+    mockSearchChunks.mockResolvedValue([]);
+    mockSearchLexical.mockResolvedValue([noTakeaway]);
+
+    const result = await assembleContext('language models');
+
+    expect(result.citedNotes).toEqual([
+      { slug: 'llm-basics', title: 'LLM Basics', snippet: 'LLM Basics' },
+    ]);
   });
 
   it('returns empty citedNotes when no notes are retrieved', async () => {
@@ -615,5 +660,36 @@ describe('assembleContext — citedNotes', () => {
 
     expect(result.citedNotes).toEqual([]);
     expect(result.confidence.tier).toBe('low');
+  });
+});
+
+describe('buildChatSources', () => {
+  it('returns slug, title, and snippet for each safe cited note', () => {
+    const result = buildChatSources([
+      { slug: 'vector-search', title: 'Vector Search', snippet: 'A safe excerpt.' },
+    ]);
+
+    expect(result).toEqual([
+      { slug: 'vector-search', title: 'Vector Search', snippet: 'A safe excerpt.' },
+    ]);
+  });
+
+  it('drops notes with an unsafe slug', () => {
+    const result = buildChatSources([
+      { slug: 'valid-note', title: 'Valid Note', snippet: 'Safe excerpt.' },
+      { slug: 'BAD_SLUG!', title: 'Bad Slug', snippet: 'Unsafe slug excerpt.' },
+    ]);
+
+    expect(result).toEqual([{ slug: 'valid-note', title: 'Valid Note', snippet: 'Safe excerpt.' }]);
+  });
+
+  it('drops notes with an empty snippet', () => {
+    const result = buildChatSources([{ slug: 'valid-note', title: 'Valid Note', snippet: '' }]);
+
+    expect(result).toEqual([]);
+  });
+
+  it('returns an empty array when no cited notes are provided', () => {
+    expect(buildChatSources([])).toEqual([]);
   });
 });

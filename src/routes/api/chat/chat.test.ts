@@ -8,6 +8,7 @@ vi.mock('$lib/server/chat', () => ({
   assembleContext: vi.fn(),
   hasSufficientCoverage: vi.fn(),
   buildFallbackResponse: vi.fn(),
+  buildChatSources: vi.fn(),
   INSUFFICIENT_COVERAGE_RESPONSE: "I don't have a note on that yet.",
 }));
 
@@ -25,16 +26,41 @@ vi.mock('$lib/server/db/notes', () => ({
 }));
 
 import { POST } from './+server';
-import { assembleContext, hasSufficientCoverage, buildFallbackResponse } from '$lib/server/chat';
+import {
+  assembleContext,
+  hasSufficientCoverage,
+  buildFallbackResponse,
+  buildChatSources,
+} from '$lib/server/chat';
 import { streamChatCompletion } from '$lib/server/ai/openrouter';
 import { consumeChatRateLimit, recordCitations } from '$lib/server/db/notes';
 
 const mockAssembleContext = vi.mocked(assembleContext);
 const mockHasSufficientCoverage = vi.mocked(hasSufficientCoverage);
 const mockBuildFallbackResponse = vi.mocked(buildFallbackResponse);
+const mockBuildChatSources = vi.mocked(buildChatSources);
 const mockStreamChatCompletion = vi.mocked(streamChatCompletion);
 const mockConsumeChatRateLimit = vi.mocked(consumeChatRateLimit);
 const mockRecordCitations = vi.mocked(recordCitations);
+
+/**
+ * Builds a small real (non-empty) upstream SSE ReadableStream so tests can
+ * exercise `appendChatSourcesToStream`'s pull-through behavior without the
+ * unresolved hang of a bare `new ReadableStream()`.
+ */
+function makeUpstreamStream(text: string): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  const chunk = JSON.stringify({
+    choices: [{ delta: { content: text }, finish_reason: null, index: 0 }],
+  });
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(`data: ${chunk}\n\n`));
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      controller.close();
+    },
+  });
+}
 
 type CookieSetOptions = {
   httpOnly: boolean;
@@ -96,13 +122,16 @@ beforeEach(() => {
   mockAssembleContext.mockResolvedValue({
     context: 'some context',
     citedSlugs: ['note-a'],
-    citedNotes: [{ slug: 'note-a', title: 'Note A' }],
+    citedNotes: [{ slug: 'note-a', title: 'Note A', snippet: 'An excerpt about note A.' }],
     confidence: { tier: 'high', bestSemanticDistance: 0.1, lexicalMatchCount: 0 },
   });
   // Default: sufficient coverage — normal LLM path
   mockHasSufficientCoverage.mockReturnValue(true);
   // Default: fallback builder returns the canned response
   mockBuildFallbackResponse.mockReturnValue("I don't have a note on that yet.");
+  // Default: no source metadata attached, so most tests don't need to drain
+  // the wrapped stream's upstream reader.
+  mockBuildChatSources.mockReturnValue([]);
   mockStreamChatCompletion.mockResolvedValue(new ReadableStream());
   mockConsumeChatRateLimit.mockResolvedValue({
     allowed: true,
@@ -362,7 +391,7 @@ describe('POST /api/chat', () => {
     const lowConfidenceContext = {
       context: 'Retrieved notes:\n\nSlug: distant-note',
       citedSlugs: ['distant-note'],
-      citedNotes: [{ slug: 'distant-note', title: 'Distant Note' }],
+      citedNotes: [{ slug: 'distant-note', title: 'Distant Note', snippet: 'An excerpt.' }],
       confidence: { tier: 'low' as const, bestSemanticDistance: 0.8, lexicalMatchCount: 0 },
     };
     mockAssembleContext.mockResolvedValueOnce(lowConfidenceContext);
@@ -391,7 +420,7 @@ describe('POST /api/chat', () => {
   });
 
   it('fallback path passes citedNotes to buildFallbackResponse', async () => {
-    const relatedNotes = [{ slug: 'rag-pipeline', title: 'RAG Pipeline' }];
+    const relatedNotes = [{ slug: 'rag-pipeline', title: 'RAG Pipeline', snippet: 'An excerpt.' }];
     mockAssembleContext.mockResolvedValueOnce({
       context: '',
       citedSlugs: [],
@@ -431,7 +460,7 @@ describe('POST /api/chat', () => {
     const borderlineContext = {
       context: 'Retrieved notes:\n\nSlug: adjacent-note',
       citedSlugs: ['adjacent-note'],
-      citedNotes: [{ slug: 'adjacent-note', title: 'Adjacent Note' }],
+      citedNotes: [{ slug: 'adjacent-note', title: 'Adjacent Note', snippet: 'An excerpt.' }],
       confidence: { tier: 'borderline' as const, bestSemanticDistance: 0.38, lexicalMatchCount: 1 },
     };
     mockAssembleContext.mockResolvedValueOnce(borderlineContext);
@@ -447,7 +476,7 @@ describe('POST /api/chat', () => {
     mockAssembleContext.mockResolvedValueOnce({
       context: 'Retrieved notes:\n\nSlug: adjacent-note',
       citedSlugs: ['adjacent-note'],
-      citedNotes: [{ slug: 'adjacent-note', title: 'Adjacent Note' }],
+      citedNotes: [{ slug: 'adjacent-note', title: 'Adjacent Note', snippet: 'An excerpt.' }],
       confidence: { tier: 'borderline', bestSemanticDistance: 0.38, lexicalMatchCount: 1 },
     });
     mockHasSufficientCoverage.mockReturnValueOnce(true);
@@ -465,7 +494,7 @@ describe('POST /api/chat', () => {
     mockAssembleContext.mockResolvedValueOnce({
       context: 'Retrieved notes:\n\nSlug: rag-basics',
       citedSlugs: ['rag-basics'],
-      citedNotes: [{ slug: 'rag-basics', title: 'RAG Basics' }],
+      citedNotes: [{ slug: 'rag-basics', title: 'RAG Basics', snippet: 'An excerpt.' }],
       confidence: { tier: 'high', bestSemanticDistance: 0.12, lexicalMatchCount: 0 },
     });
     mockHasSufficientCoverage.mockReturnValueOnce(true);
@@ -477,5 +506,72 @@ describe('POST /api/chat', () => {
     expect(userMsg?.content).toContain('Retrieved notes:');
     expect(userMsg?.content).toContain('explain RAG');
     expect(userMsg?.content).not.toContain('Limited coverage:');
+  });
+
+  // ----- Source metadata contract (CHAT-06A) -----
+
+  it('derives source metadata from retrieved citedNotes via buildChatSources', async () => {
+    const citedNotes = [
+      { slug: 'rag-basics', title: 'RAG Basics', snippet: 'An excerpt about RAG.' },
+    ];
+    mockAssembleContext.mockResolvedValueOnce({
+      context: 'Retrieved notes:\n\nSlug: rag-basics',
+      citedSlugs: ['rag-basics'],
+      citedNotes,
+      confidence: { tier: 'high', bestSemanticDistance: 0.12, lexicalMatchCount: 0 },
+    });
+    mockStreamChatCompletion.mockResolvedValueOnce(makeUpstreamStream('answer'));
+
+    await callPost(makeEvent({ message: 'explain RAG' }));
+
+    expect(mockBuildChatSources).toHaveBeenCalledWith(citedNotes);
+  });
+
+  it('appends a trailing SSE event with source metadata when sources exist', async () => {
+    const sources = [
+      { slug: 'rag-basics', title: 'RAG Basics', snippet: 'An excerpt about RAG.' },
+    ];
+    mockBuildChatSources.mockReturnValueOnce(sources);
+    mockStreamChatCompletion.mockResolvedValueOnce(makeUpstreamStream('answer'));
+
+    const res = await callPost(makeEvent({ message: 'explain RAG' }));
+    const raw = await readStreamBody(res);
+
+    expect(raw).toContain('"sources"');
+    expect(raw).toContain('rag-basics');
+    expect(raw).toContain('RAG Basics');
+    expect(raw).toContain('An excerpt about RAG.');
+    // The answer tokens must still stream through unmodified.
+    expect(raw).toContain('answer');
+  });
+
+  it('omits the sources SSE event when buildChatSources returns no sources', async () => {
+    mockBuildChatSources.mockReturnValueOnce([]);
+    mockStreamChatCompletion.mockResolvedValueOnce(makeUpstreamStream('answer'));
+
+    const res = await callPost(makeEvent({ message: 'explain RAG' }));
+    const raw = await readStreamBody(res);
+
+    expect(raw).not.toContain('"sources"');
+  });
+
+  it('never calls buildChatSources on the low-confidence fallback path', async () => {
+    mockAssembleContext.mockResolvedValueOnce({
+      context: '',
+      citedSlugs: [],
+      citedNotes: [],
+      confidence: { tier: 'low', bestSemanticDistance: null, lexicalMatchCount: 0 },
+    });
+    mockHasSufficientCoverage.mockReturnValueOnce(false);
+
+    await callPost(makeEvent({ message: 'unknown topic' }));
+
+    expect(mockBuildChatSources).not.toHaveBeenCalled();
+  });
+
+  it('never calls buildChatSources on the social-intent lane', async () => {
+    await callPost(makeEvent({ message: 'hello' }));
+
+    expect(mockBuildChatSources).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,12 @@
 import { type RequestHandler } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
-import { assembleContext, hasSufficientCoverage, buildFallbackResponse } from '$lib/server/chat';
+import {
+  assembleContext,
+  hasSufficientCoverage,
+  buildFallbackResponse,
+  buildChatSources,
+  type ChatSource,
+} from '$lib/server/chat';
 import { streamChatCompletion } from '$lib/server/ai/openrouter';
 import { SYSTEM_PROMPT } from '$lib/server/personality';
 import { consumeChatRateLimit, recordCitations } from '$lib/server/db/notes';
@@ -135,6 +141,46 @@ function makeFallbackStream(message: string): ReadableStream<Uint8Array> {
   });
 }
 
+/**
+ * Wraps `upstream` so a single trailing SSE data event containing
+ * `{ sources }` is enqueued right after the upstream LLM stream completes,
+ * before the wrapped stream closes.
+ *
+ * The payload intentionally omits the OpenAI `choices` shape, so the
+ * client's `extractToken` helper parses it as valid JSON but returns an
+ * empty token (no `choices` array) and ignores it. This keeps the
+ * source-metadata contract transport-compatible with clients that have not
+ * yet implemented source-popup rendering.
+ *
+ * No-ops (returns `upstream` unchanged) when there are no sources to attach,
+ * so low-confidence fallback and social-intent streams never reach this path.
+ */
+function appendChatSourcesToStream(
+  upstream: ReadableStream<Uint8Array>,
+  sources: ChatSource[],
+): ReadableStream<Uint8Array> {
+  if (sources.length === 0) return upstream;
+
+  const encoder = new TextEncoder();
+  const reader = upstream.getReader();
+
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const { done, value } = await reader.read();
+      if (done) {
+        const payload = JSON.stringify({ sources });
+        controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+        controller.close();
+        return;
+      }
+      controller.enqueue(value);
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
+  });
+}
+
 function setChatSessionCookie(
   cookies: {
     set: (
@@ -259,6 +305,9 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
     });
   }
 
+  // --- 7b. Build deterministic source metadata for this citable response ---
+  const sources = buildChatSources(citedNotes);
+
   // --- 8. Assemble messages for LLM ---
   const limitedCoveragePrefix =
     assembledCtx.confidence.tier === 'borderline' ? `${LIMITED_COVERAGE_INSTRUCTION}\n\n` : '';
@@ -282,7 +331,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
     });
   }
 
-  return new Response(stream, {
+  return new Response(appendChatSourcesToStream(stream, sources), {
     headers: {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',

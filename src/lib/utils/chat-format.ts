@@ -1,10 +1,38 @@
-function escapeHtml(value: string): string {
+/**
+ * Escapes the five HTML-significant characters in `value`.
+ * Exported so other chat-safe formatting helpers (e.g. source snippets) can
+ * reuse the same escaping rules instead of duplicating them.
+ */
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+/** Default character cap for chat source-popup snippets. */
+const SOURCE_SNIPPET_MAX_LENGTH = 200;
+
+/**
+ * Builds a safe, deterministic snippet string for the chat source-popup
+ * contract from raw retrieved note text (a chunk excerpt or takeaway).
+ *
+ * Collapses internal whitespace/newlines to single spaces, truncates to
+ * `maxLength` characters with an ellipsis when needed, and HTML-escapes the
+ * result. Truncation happens before escaping so multi-byte HTML entities are
+ * never split. Source text always comes from retrieval candidates already
+ * selected for prompt assembly — never from LLM output.
+ */
+export function buildSourceSnippet(text: string, maxLength = SOURCE_SNIPPET_MAX_LENGTH): string {
+  const collapsed = text.replace(/\s+/g, ' ').trim();
+  if (collapsed.length === 0) return '';
+
+  const truncated =
+    collapsed.length > maxLength ? `${collapsed.slice(0, maxLength).trimEnd()}…` : collapsed;
+
+  return escapeHtml(truncated);
 }
 
 /**

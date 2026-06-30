@@ -1651,7 +1651,7 @@
       "group_id": "CHAT",
       "title": "Add chat source metadata contract",
       "description": "Expose deterministic source metadata from chat retrieval for assistant messages without changing grounding rules. Use retrieved note slugs, titles, and snippets only; never use model-invented citations and never send full note bodies just to power source UI. No schema change is expected.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [],
       "blocked_by": [],

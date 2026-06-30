@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderChatMessageHtml, isSafeNoteSlug } from './chat-format';
+import { renderChatMessageHtml, isSafeNoteSlug, buildSourceSnippet } from './chat-format';
 
 describe('renderChatMessageHtml', () => {
   it('renders single-asterisk italics', () => {
@@ -69,6 +69,54 @@ describe('isSafeNoteSlug', () => {
 
   it('rejects slug starting with a hyphen', () => {
     expect(isSafeNoteSlug('-bad-start')).toBe(false);
+  });
+});
+
+describe('buildSourceSnippet', () => {
+  it('returns short text unchanged', () => {
+    expect(buildSourceSnippet('A short excerpt.')).toBe('A short excerpt.');
+  });
+
+  it('collapses internal whitespace and newlines into single spaces', () => {
+    expect(buildSourceSnippet('Line one.\n\nLine   two.')).toBe('Line one. Line two.');
+  });
+
+  it('trims leading and trailing whitespace', () => {
+    expect(buildSourceSnippet('   padded text   ')).toBe('padded text');
+  });
+
+  it('returns an empty string for whitespace-only input', () => {
+    expect(buildSourceSnippet('   \n\t  ')).toBe('');
+  });
+
+  it('truncates text longer than maxLength and appends an ellipsis', () => {
+    const longText = 'a'.repeat(250);
+    const result = buildSourceSnippet(longText);
+
+    expect(result.length).toBeLessThanOrEqual(201);
+    expect(result.endsWith('…')).toBe(true);
+  });
+
+  it('does not truncate text at or under a custom maxLength', () => {
+    const result = buildSourceSnippet('exactly ten', 11);
+    expect(result).toBe('exactly ten');
+  });
+
+  it('truncates using a custom maxLength', () => {
+    const result = buildSourceSnippet('this text is too long for a tiny snippet', 10);
+    expect(result).toBe('this text…');
+  });
+
+  it('HTML-escapes unsafe characters after truncation', () => {
+    const result = buildSourceSnippet('<script>alert(1)</script>');
+    expect(result).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(result).not.toContain('<script>');
+  });
+
+  it('escapes ampersands and quotes', () => {
+    expect(buildSourceSnippet(`Tom & Jerry's "great" escape`)).toBe(
+      'Tom &amp; Jerry&#39;s &quot;great&quot; escape',
+    );
   });
 });
 

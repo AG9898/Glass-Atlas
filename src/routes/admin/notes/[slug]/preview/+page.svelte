@@ -4,7 +4,7 @@
 
   let { data }: { data: PageData } = $props();
 
-  const { note, bodyHtml, allPublished, relatedNotes } = $derived(data);
+  const { note, bodyHtml, allPublished, relatedNotes, backlinks, outlinks } = $derived(data);
 </script>
 
 <svelte:head>
@@ -12,4 +12,4 @@
   <meta name="robots" content="noindex" />
 </svelte:head>
 
-<NoteDetail {note} {bodyHtml} {allPublished} {relatedNotes} />
+<NoteDetail {note} {bodyHtml} {allPublished} {relatedNotes} {backlinks} {outlinks} />

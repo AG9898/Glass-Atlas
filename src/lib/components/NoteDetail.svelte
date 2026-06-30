@@ -19,15 +19,46 @@
     edges: { source: string; target: string }[];
   };
 
+  // Semantic "next read" suggestion — deliberately narrower than
+  // NoteDetailNote. Public reader-path UI should not receive the full
+  // note body, and the underlying cosine distance is never rendered
+  // (see docs/ARCHITECTURE.md "Reader path model").
+  type RelatedNote = {
+    slug: string;
+    title: string;
+    takeaway: string | null;
+    category: string | null;
+    image: string | null;
+    publishedAt: Date | null;
+  };
+
+  // Explicit wiki-link connection (backlink or outlink) — title + date is
+  // all the reader-path list needs to render.
+  type NoteConnection = {
+    slug: string;
+    title: string;
+    publishedAt: Date | null;
+  };
+
   type Props = {
     note: NoteDetailNote;
     bodyHtml: string;
     allPublished: NoteDetailNote[];
-    relatedNotes: NoteDetailNote[];
-    graph: NoteGraphData;
+    relatedNotes: RelatedNote[];
+    backlinks?: NoteConnection[];
+    outlinks?: NoteConnection[];
+    graph?: NoteGraphData;
   };
 
-  let { note, bodyHtml, allPublished, relatedNotes, graph }: Props = $props();
+  let {
+    note,
+    bodyHtml,
+    allPublished,
+    relatedNotes,
+    backlinks = [],
+    outlinks = [],
+    graph,
+  }: Props = $props();
 
   const dateFormatter = new Intl.DateTimeFormat('en', {
     year: 'numeric',
@@ -80,10 +111,12 @@
       </ul>
     </nav>
 
-    <div class="sidebar-left__graph">
-      <p class="sidebar-left__catalog-label">CONNECTIONS</p>
-      <NoteGraph {graph} />
-    </div>
+    {#if graph}
+      <div class="sidebar-left__graph">
+        <p class="sidebar-left__catalog-label">CONNECTIONS</p>
+        <NoteGraph {graph} />
+      </div>
+    {/if}
   </aside>
 
   <main class="note-main" aria-labelledby="note-title">
@@ -144,7 +177,7 @@
   <aside class="sidebar-right" aria-label="Related notes and citation">
     {#if relatedNotes.length > 0}
       <section class="sidebar-right__section">
-        <h2 class="sidebar-right__section-label">OTHER NOTES</h2>
+        <h2 class="sidebar-right__section-label">RELATED NOTES</h2>
         <ul class="sidebar-right__related-list">
           {#each relatedNotes as related (related.slug)}
             <li class="sidebar-right__related-item">
@@ -156,6 +189,52 @@
                     datetime={related.publishedAt.toISOString()}
                   >
                     {shortDateFormatter.format(related.publishedAt)}
+                  </time>
+                {/if}
+              </a>
+            </li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
+
+    {#if outlinks.length > 0}
+      <section class="sidebar-right__section">
+        <h2 class="sidebar-right__section-label">LINKS TO</h2>
+        <ul class="sidebar-right__related-list">
+          {#each outlinks as target (target.slug)}
+            <li class="sidebar-right__related-item">
+              <a href="/notes/{target.slug}" class="sidebar-right__related-link">
+                <span class="sidebar-right__related-title">{target.title}</span>
+                {#if target.publishedAt}
+                  <time
+                    class="sidebar-right__related-date"
+                    datetime={target.publishedAt.toISOString()}
+                  >
+                    {shortDateFormatter.format(target.publishedAt)}
+                  </time>
+                {/if}
+              </a>
+            </li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
+
+    {#if backlinks.length > 0}
+      <section class="sidebar-right__section">
+        <h2 class="sidebar-right__section-label">LINKED FROM</h2>
+        <ul class="sidebar-right__related-list">
+          {#each backlinks as source (source.slug)}
+            <li class="sidebar-right__related-item">
+              <a href="/notes/{source.slug}" class="sidebar-right__related-link">
+                <span class="sidebar-right__related-title">{source.title}</span>
+                {#if source.publishedAt}
+                  <time
+                    class="sidebar-right__related-date"
+                    datetime={source.publishedAt.toISOString()}
+                  >
+                    {shortDateFormatter.format(source.publishedAt)}
                   </time>
                 {/if}
               </a>

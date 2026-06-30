@@ -1747,7 +1747,7 @@
       "group_id": "PUBLIC",
       "title": "Show note reader paths",
       "description": "Wire semantic related notes plus backlinks and outlinks into public note detail pages as separate reader-path modules. Keep the article body primary and ensure public pages only link to published notes. No schema change is expected.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "PUBLIC-04A"

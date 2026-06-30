@@ -12,6 +12,7 @@ vi.mock('./index', () => ({
 
 import {
   consumeChatRateLimit,
+  getRelatedNotes,
   getTotalCitations,
   recordCitations,
   replaceNoteChunks,
@@ -81,6 +82,39 @@ function chunkContains(chunk: unknown, text: string): boolean {
   if (typeof chunk === 'object' && chunk !== null && 'value' in chunk) {
     const value = (chunk as { value: unknown }).value;
     return Array.isArray(value) && value.some((part) => typeof part === 'string' && part.includes(text));
+  }
+
+  return false;
+}
+
+type SourceLookupChain = {
+  from: ReturnType<typeof vi.fn>;
+  where: ReturnType<typeof vi.fn>;
+};
+
+function createSourceLookupChain(rows: unknown[]): SourceLookupChain {
+  const chain = {} as SourceLookupChain;
+  chain.from = vi.fn(() => chain);
+  chain.where = vi.fn(async () => rows);
+  return chain;
+}
+
+/**
+ * Recursively searches a Drizzle SQL/condition object (queryChunks, Param
+ * values, column metadata, etc.) for a string value, skipping the `table`
+ * key to avoid circular column->table references.
+ */
+function deepContainsValue(node: unknown, text: string, seen = new WeakSet<object>()): boolean {
+  if (typeof node === 'string') return node.includes(text);
+  if (Array.isArray(node)) return node.some((item) => deepContainsValue(item, text, seen));
+
+  if (typeof node === 'object' && node !== null) {
+    if (seen.has(node)) return false;
+    seen.add(node);
+    for (const [key, value] of Object.entries(node)) {
+      if (key === 'table') continue;
+      if (deepContainsValue(value, text, seen)) return true;
+    }
   }
 
   return false;
@@ -312,6 +346,57 @@ describe('notes DB query helpers', () => {
 
   it('searchChunksBySimilarity skips the database when limit is zero', async () => {
     await expect(searchChunksBySimilarity([0.1, 0.2, 0.3], 0)).resolves.toEqual([]);
+    expect(dbMock.select).not.toHaveBeenCalled();
+  });
+
+  it('getRelatedNotes orders published notes by cosine distance to the source embedding, excluding the source note', async () => {
+    const sourceChain = createSourceLookupChain([{ embedding: [0.1, 0.2, 0.3] }]);
+    const relatedRow = {
+      slug: 'other-note',
+      title: 'Other Note',
+      takeaway: 'Some takeaway.',
+      category: 'databases',
+      image: null,
+      publishedAt: new Date('2026-04-04T00:00:00Z'),
+      distance: '0.042',
+    };
+    const relatedChain = createSelectLimitChain([relatedRow]);
+    dbMock.select.mockReturnValueOnce(sourceChain).mockReturnValueOnce(relatedChain);
+
+    const result = await getRelatedNotes('vector-search', 3);
+
+    expect(result).toEqual([{ ...relatedRow, distance: 0.042 }]);
+    expect(relatedChain.limit).toHaveBeenCalledWith(3);
+
+    const [orderExpression] = relatedChain.orderBy.mock.calls[0];
+    const orderQueryChunks = (orderExpression as { queryChunks: unknown[] }).queryChunks;
+    expect(orderQueryChunks.some((chunk) => chunkContains(chunk, '<=>'))).toBe(true);
+    expect(orderQueryChunks).toContain('[0.1,0.2,0.3]');
+    expect(orderQueryChunks.some((chunk) => chunkContains(chunk, '::vector'))).toBe(true);
+
+    const [whereExpression] = relatedChain.where.mock.calls[0];
+    expect(deepContainsValue(whereExpression, 'published')).toBe(true);
+    expect(deepContainsValue(whereExpression, 'vector-search')).toBe(true);
+  });
+
+  it('getRelatedNotes returns an empty list when the source note has no embedding yet', async () => {
+    const sourceChain = createSourceLookupChain([{ embedding: null }]);
+    dbMock.select.mockReturnValueOnce(sourceChain);
+
+    await expect(getRelatedNotes('pending-note', 3)).resolves.toEqual([]);
+    expect(dbMock.select).toHaveBeenCalledOnce();
+  });
+
+  it('getRelatedNotes returns an empty list when the source note does not exist', async () => {
+    const sourceChain = createSourceLookupChain([]);
+    dbMock.select.mockReturnValueOnce(sourceChain);
+
+    await expect(getRelatedNotes('missing-note', 3)).resolves.toEqual([]);
+    expect(dbMock.select).toHaveBeenCalledOnce();
+  });
+
+  it('getRelatedNotes skips the database entirely when limit is zero', async () => {
+    await expect(getRelatedNotes('vector-search', 0)).resolves.toEqual([]);
     expect(dbMock.select).not.toHaveBeenCalled();
   });
 });

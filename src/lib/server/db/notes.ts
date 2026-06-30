@@ -260,6 +260,74 @@ export async function searchNotesBySimilarity(embedding: number[], limit: number
 }
 
 // ---------------------------------------------------------------------------
+// Semantic related notes (reader-path helper — kept separate from the
+// explicit wiki-link backlinks/outlinks helpers above)
+// ---------------------------------------------------------------------------
+
+/**
+ * A published note returned as a semantic "next read" suggestion.
+ * Deliberately narrower than `Note` — public reader-path UI should not
+ * receive the full body or raw embedding vector.
+ */
+export type RelatedNote = {
+  slug: string;
+  title: string;
+  takeaway: string | null;
+  category: string | null;
+  image: string | null;
+  publishedAt: Date | null;
+  distance: number;
+};
+
+/**
+ * Returns published notes whose embeddings are closest (cosine distance) to the
+ * given note's own embedding, excluding the note itself. Used to power the
+ * "semantic related notes" reader path on public note detail pages, distinct
+ * from the explicit `getBacklinks`/`getOutlinks` wiki-link graph.
+ *
+ * Returns an empty array when the source note does not exist, has no embedding
+ * yet (e.g. semantic index still pending), or `limit` resolves to zero.
+ */
+export async function getRelatedNotes(slug: string, limit: number): Promise<RelatedNote[]> {
+  const safeLimit = Math.max(0, Math.floor(limit));
+  if (safeLimit === 0) return [];
+
+  const [source] = await db
+    .select({ embedding: notes.embedding })
+    .from(notes)
+    .where(eq(notes.slug, slug));
+  if (!source?.embedding) return [];
+
+  const vectorLiteral = JSON.stringify(source.embedding);
+
+  const rows = await db
+    .select({
+      slug: notes.slug,
+      title: notes.title,
+      takeaway: notes.takeaway,
+      category: notes.category,
+      image: notes.image,
+      publishedAt: notes.publishedAt,
+      distance: sql<number>`${notes.embedding} <=> ${vectorLiteral}::vector`,
+    })
+    .from(notes)
+    .where(
+      and(
+        eq(notes.status, 'published'),
+        isNotNull(notes.embedding),
+        sql`${notes.slug} <> ${slug}`,
+      ),
+    )
+    .orderBy(sql`${notes.embedding} <=> ${vectorLiteral}::vector`)
+    .limit(safeLimit);
+
+  return rows.map((row) => ({
+    ...row,
+    distance: Number(row.distance),
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // Citation tracking
 // ---------------------------------------------------------------------------
 

@@ -1717,7 +1717,7 @@
       "group_id": "PUBLIC",
       "title": "Add semantic related-note helper",
       "description": "Add a server-side helper for published semantic related notes using existing embeddings and retrieval data. Keep semantic related notes separate from backlinks and outlinks. No schema change is expected.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [],
       "blocked_by": [],

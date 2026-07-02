@@ -79,6 +79,7 @@ This phase keeps the site optimized for recruiters and developers evaluating the
 | 9 | Note detail supports reader paths | Open a note with links/semantic neighbors; related notes and backlinks/outlinks are visible without disrupting reading |
 | 10 | Admin editor quality checks warn without blocking | Open an imperfect draft; warnings appear, but save and publish remain available |
 | 11 | Technical diagrams/code blocks are readable and usable | Open a note with Mermaid and code fences; diagram renders and code controls work |
+| 12 | `/how-it-works` explains the site without portfolio framing or privacy/quota detail | Open `/how-it-works` without auth; page loads, covers notes/chat/stack/architecture, and omits rate-limit/privacy specifics |
 
 ---
 

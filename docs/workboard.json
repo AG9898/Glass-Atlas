@@ -1944,7 +1944,7 @@
       "group_id": "POLISH",
       "title": "Add how-this-site-works page",
       "description": "Add /how-it-works as a reader-friendly technical colophon explaining the site, stack, architecture, and note-grounded chat without privacy/rate-limit detail or portfolio framing. No schema change is expected.",
-      "status": "todo",
+      "status": "done",
       "priority": "medium",
       "depends_on": [],
       "blocked_by": [],

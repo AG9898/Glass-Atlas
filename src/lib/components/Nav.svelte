@@ -75,6 +75,12 @@
       >
         CHAT
       </a>
+      <a
+        href="/how-it-works"
+        class="ga-nav__link {pathname === '/how-it-works' ? 'ga-nav__link--active' : ''}"
+      >
+        HOW IT WORKS
+      </a>
     </nav>
 
     <!-- Logo (centered) -->

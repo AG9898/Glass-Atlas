@@ -37,15 +37,15 @@
 
 <main class="landing-shell" aria-labelledby="landing-title">
   <section class="hero" aria-label="Landing hero">
+    <aside id="chat" class="hero-chat" aria-label="Grounded chat panel">
+      <Chat compact />
+    </aside>
+
     <div class="hero-copy">
       <p class="hero-eyebrow">Glass Atlas</p>
       <h1 id="landing-title">Notes from a developer who would rather show his work.</h1>
       <a class="ga-btn ga-btn-primary ga-btn-lg hero-cta ga-focus-ring" href="/notes">Read The Latest</a>
     </div>
-
-    <aside id="chat" class="hero-chat" aria-label="Grounded chat panel">
-      <Chat compact />
-    </aside>
   </section>
 
   <section class="stats" aria-label="Site statistics">
@@ -97,6 +97,16 @@
     align-content: start;
     gap: 1.5rem;
     padding-right: 1.25rem;
+    /*
+     * Markup order puts the chat panel first so mobile (single-column)
+     * stacking keeps the chat-first hierarchy without scrolling past the
+     * headline. Desktop keeps copy on the left visually via explicit
+     * grid-column/grid-row placement, independent of DOM order (grid-row
+     * is required too — without it, auto-placement pushes the
+     * out-of-DOM-order item to a second row instead of sharing row 1).
+     */
+    grid-column: 1 / 2;
+    grid-row: 1;
   }
 
   .hero-eyebrow {
@@ -132,6 +142,8 @@
   }
 
   .hero-chat {
+    grid-column: 2 / 3;
+    grid-row: 1;
     inline-size: min(100%, 790px);
     min-width: 0;
     background: var(--color-surface-1);
@@ -222,6 +234,10 @@
 
     .hero-copy {
       padding-right: 0;
+      /* Single column now: fall back to DOM order (chat, then copy) so the
+         chat panel stays first in the mobile viewport. */
+      grid-column: auto;
+      grid-row: auto;
     }
 
     h1 {
@@ -229,6 +245,8 @@
     }
 
     .hero-chat {
+      grid-column: auto;
+      grid-row: auto;
       inline-size: 100%;
       justify-self: stretch;
     }

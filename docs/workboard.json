@@ -1976,7 +1976,7 @@
       "group_id": "POLISH",
       "title": "Reinforce chat-first homepage",
       "description": "Audit and lightly refine the landing page so the first screen remains optimized for asking a question while automatic note-derived previews support the chat-first experience. Do not introduce manual curation or schema changes.",
-      "status": "todo",
+      "status": "done",
       "priority": "medium",
       "depends_on": [
         "CHAT-06B",

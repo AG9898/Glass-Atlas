@@ -1781,7 +1781,7 @@
       "group_id": "PUBLIC",
       "title": "Polish note graph interaction",
       "description": "Improve the existing small D3 note graph so it feels more fluid and less static while remaining a supporting widget. Preserve SSR-safe dynamic D3 imports and reduced-motion usability. No schema change is expected.",
-      "status": "todo",
+      "status": "done",
       "priority": "medium",
       "depends_on": [
         "PUBLIC-04B"

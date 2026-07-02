@@ -381,7 +381,7 @@ Canonical visual mockups are in `reference/UI/design_handoff_glass_atlas/`. Thes
 - Three-column layout: left sidebar (notes catalog — all published notes listed by date, NEW CONVERSATION CTA at top), main column (note Markdown body), right sidebar (related notes + cite section).
 - Structural pattern aligns with the chat surface conventions (line-led rails, citations, and grounded response framing), but this route remains the canonical note-view/main-blog page.
 - Related notes should prioritize semantic relevance. Backlinks/outlinks should be labeled separately as explicit note connections.
-- The graph should stay small, but future polish should improve movement, hover/click feedback, and perceived continuity.
+- The graph should stay small, but future polish should improve movement, hover/click feedback, and perceived continuity. Hovering a node dims unrelated nodes/links, highlights the hovered node's direct connections, and enlarges the hovered node via CSS-eased transitions (`r`/`opacity`/`stroke-opacity`/`stroke-width`); clicking a non-current node still navigates to `/notes/[slug]`. Nodes seed from a small radial spread (rather than all stacking at the exact center) so the force simulation has a visible, fluid unfold instead of a static snap. Under `prefers-reduced-motion: reduce`, the simulation converges synchronously and paints once with no animated ticks or hover transitions, so the graph stays fully usable without motion.
 
 **Admin Note Editor (`/admin/notes/[slug]/edit`):**
 - Two-column: left = title / takeaway / CodeMirror body / tags + categories; right sidebar = date, status, series, related notes.

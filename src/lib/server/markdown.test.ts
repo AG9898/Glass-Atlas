@@ -2,15 +2,33 @@ import { describe, expect, it } from 'vitest';
 import { renderMarkdown } from './markdown';
 
 describe('renderMarkdown', () => {
-  it('renders Mermaid fences as code blocks without failing Shiki highlighting', async () => {
-    await expect(
-      renderMarkdown([
-        '```mermaid',
-        'flowchart TD',
-        '  A[AGENTS.md] --> B[docs/INDEX.md]',
-        '```',
-      ].join('\n')),
-    ).resolves.toContain('flowchart TD');
+  it('renders valid Mermaid fences as inline SVG diagrams', async () => {
+    const html = await renderMarkdown(
+      ['```mermaid', 'flowchart TD', '  A[AGENTS.md] --> B[docs/INDEX.md]', '```'].join('\n'),
+    );
+
+    expect(html).toContain('mermaid-diagram');
+    expect(html).toContain('<svg');
+    expect(html).not.toContain('unhighlighted-code-source');
+  });
+
+  it('renders invalid Mermaid fences as a readable fallback instead of throwing', async () => {
+    const html = await renderMarkdown(
+      ['```mermaid', 'flowchart TD', '  A[Start --> B[[End', '```'].join('\n'),
+    );
+
+    expect(html).toContain('unhighlighted-code-source');
+    expect(html).toContain('data-language="mermaid"');
+    expect(html).toContain('Start --> B[[End');
+    expect(html).not.toContain('<svg');
+  });
+
+  it('renders empty Mermaid fences as a readable fallback instead of throwing', async () => {
+    const html = await renderMarkdown(['```mermaid', '```'].join('\n'));
+
+    expect(html).toContain('unhighlighted-code-source');
+    expect(html).toContain('data-language="mermaid"');
+    expect(html).not.toContain('<svg');
   });
 
   it('renders plain-text fences as code blocks without failing Shiki highlighting', async () => {

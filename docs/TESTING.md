@@ -90,7 +90,7 @@ This table starts empty and is filled in as test files are added to the project.
 | `src/lib/server/chat.test.ts` | `src/lib/server/chat.ts` | Semantic query alias expansion, parallel semantic + lexical retrieval, candidate fusion ordering (semantic-first then lexical fill), deduplication of overlapping slugs, per-note chunk grouping (cap 2), fused 5-note cap, lexical-only note formatting (title + takeaway), section heading inclusion/omission, slug/title inclusion, ranked citation slug order, empty-result handling, confidence tier boundary cases, `INSUFFICIENT_COVERAGE_RESPONSE` first-person voice contract, `buildFallbackResponse` (no notes, with notes footer, italic wrapping, unsafe slug filtering, all-unsafe fallback, digit-starting slug), `citedNotes` population from semantic chunks and lexical notes (including the derived `snippet` field and its title fallback when a lexical note has no takeaway), and `buildChatSources` (safe-slug passthrough, unsafe-slug filtering, empty-snippet filtering, empty-input handling) |
 | `src/lib/server/ai/draft-review.test.ts` | `src/lib/server/ai/draft-review.ts` | Mocked OpenRouter draft-review coverage for `docs/VOICE.md` rubric inclusion, score-shape normalization, model selection from `OPENROUTER_DRAFT_REVIEW_MODEL`, and malformed/non-conforming model output fallback |
 | `src/tests/create-note-script.test.ts` | `scripts/create-note.js` | Agent draft writer coverage for draft-status forcing, slug generation/collision handling, helper invocation (`createNote` + `reindexNoteAfterSave`), required env validation, and file argument parsing |
-| `src/lib/server/markdown.test.ts` | `src/lib/server/markdown.ts` | Public Markdown renderer coverage for Mermaid and plain-text fenced blocks falling back to renderable unhighlighted code instead of failing legacy Shiki highlighting |
+| `src/lib/server/markdown.test.ts` | `src/lib/server/markdown.ts` | Public Markdown renderer coverage: valid Mermaid fences render inline SVG (`mermaid-diagram` wrapper, `<svg` present); invalid or empty Mermaid fences fall back to the readable `unhighlighted-code-source` treatment instead of throwing; plain-text fenced blocks fall back to renderable unhighlighted code instead of failing legacy Shiki highlighting |
 
 Naming rules that govern where each file lives are in the next section.
 
@@ -235,9 +235,10 @@ Manual smoke verification is still required in local dev for typing latency and 
 
 ### Testing Mermaid and code block controls
 
-- Mermaid rendering should have unit coverage for valid diagrams and invalid/failing diagrams. Failing diagrams must render readable fallback source instead of throwing.
+- Mermaid rendering has unit coverage in `src/lib/server/markdown.test.ts`, calling the real `renderMarkdown()` (no mocking of `mermaid` or `jsdom` — the renderer's own DOM shimming makes it callable directly in Vitest's default `node` environment): a valid flowchart resolves to HTML containing `mermaid-diagram` and `<svg`; invalid syntax and empty diagram source both resolve to the `unhighlighted-code-source`/`data-language="mermaid"` fallback instead of throwing.
+- `renderMermaidToSvg()` itself (`src/lib/server/mermaid-render.ts`) is exercised indirectly through those `markdown.test.ts` cases; it has no separate test file today. If it grows additional branches (e.g. diagram-type-specific config), add direct unit coverage there.
 - Code block metadata parsing should cover language labels, optional filename labels, copy-button text/source extraction, and wrapping-control state where implemented.
-- Component-level browser automation remains out of scope; manual local smoke checks are required for copy interaction and diagram layout.
+- Component-level browser automation remains out of scope; manual local smoke checks are required for copy interaction and diagram layout fidelity (server-side diagram layout uses patched jsdom SVG measurement stand-ins and is approximate, not pixel-perfect).
 
 ### Testing rate limiting
 

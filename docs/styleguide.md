@@ -297,7 +297,7 @@ Fonts are **self-hosted**.
 - Internal regions separated by `1px` rules.
 - No shadows, no glassmorphism, no rounded corners.
 - Code block header strips may include language labels, optional filename labels, copy controls, and wrapping controls.
-- Mermaid diagrams should render inside the same panel family, with a source/fallback state that remains readable if rendering fails.
+- Mermaid diagrams render as inline SVG (see `docs/CONVENTIONS.md` — Public Markdown Technical Blocks) wrapped in a `div.mermaid-diagram` container; a diagram that fails to render falls back to the same readable unhighlighted-code fallback state as plaintext fences. The `mermaid-diagram` wrapper does not yet carry the full blueprint panel chrome (header strip, `2px` border) — that visual polish is still open follow-up work, not part of `PUBLIC-05A`.
 
 ### 5.8 Buttons, Inputs, Tags
 

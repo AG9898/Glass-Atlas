@@ -1876,7 +1876,7 @@
       "group_id": "PUBLIC",
       "title": "Render Mermaid diagrams safely",
       "description": "Add Mermaid rendering for public markdown while preserving fail-soft fallback to readable source when rendering fails. Do not let diagram rendering failures 500 note pages. No schema change is expected.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [],
       "blocked_by": [],

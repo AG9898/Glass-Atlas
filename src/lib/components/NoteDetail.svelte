@@ -60,6 +60,59 @@
     graph,
   }: Props = $props();
 
+  // Progressive enhancement for the `.ga-code-block` controls emitted by
+  // `src/lib/server/markdown.ts` inside the static `bodyHtml` string. The
+  // markup only carries `data-role` hooks — click behavior is wired here via
+  // delegation since the buttons live inside `{@html bodyHtml}`, not as
+  // individually bound Svelte elements. Copy failures (e.g. Clipboard API
+  // unavailable) fail soft with no user-facing error, matching the fail-soft
+  // contract used elsewhere for optional editorial affordances.
+  let bodyEl: HTMLDivElement | undefined;
+
+  const COPIED_STATE_CLASS = 'ga-code-block__control--copied';
+  const COPIED_STATE_MS = 1500;
+
+  $effect(() => {
+    const container = bodyEl;
+    if (!container) return;
+
+    function handleClick(event: MouseEvent) {
+      const target = event.target as HTMLElement | null;
+      const control = target?.closest<HTMLElement>(
+        '[data-role="copy"], [data-role="wrap-toggle"]',
+      );
+      if (!control || !container!.contains(control)) return;
+
+      const block = control.closest<HTMLElement>('.ga-code-block');
+      if (!block) return;
+
+      if (control.dataset.role === 'wrap-toggle') {
+        const isWrapped = block.classList.toggle('ga-code-block--wrap');
+        control.setAttribute('aria-pressed', String(isWrapped));
+        return;
+      }
+
+      if (control.dataset.role === 'copy') {
+        const codeEl = block.querySelector('.ga-code-block__body code');
+        const text = codeEl?.textContent?.replace(/\n$/, '') ?? '';
+        if (!text || !navigator.clipboard) return;
+
+        navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            control.classList.add(COPIED_STATE_CLASS);
+            window.setTimeout(() => control.classList.remove(COPIED_STATE_CLASS), COPIED_STATE_MS);
+          })
+          .catch(() => {
+            // Clipboard write failed — fail soft, no user-facing error.
+          });
+      }
+    }
+
+    container.addEventListener('click', handleClick);
+    return () => container.removeEventListener('click', handleClick);
+  });
+
   const dateFormatter = new Intl.DateTimeFormat('en', {
     year: 'numeric',
     month: 'long',
@@ -168,7 +221,7 @@
       {/if}
     </header>
 
-    <div class="note-body prose">
+    <div class="note-body prose" bind:this={bodyEl}>
       <!-- eslint-disable-next-line svelte/no-at-html-tags -->
       {@html bodyHtml}
     </div>
@@ -537,12 +590,10 @@
     padding: 0.1em 0.35em;
   }
 
-  .note-body :global(pre) {
-    margin: 1.5rem 0;
-    overflow-x: auto;
-    padding: 1.25rem 1.5rem;
-  }
-
+  /* `<pre>` chrome (margin, scroll, wrap toggle) lives in the shared
+     `.ga-code-block` system in app.css since the server renderer
+     (src/lib/server/markdown.ts) always wraps fenced code in that panel.
+     Only reading-surface-specific code text sizing stays scoped here. */
   .note-body :global(pre code) {
     background: none;
     border: none;

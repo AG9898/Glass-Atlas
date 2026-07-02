@@ -434,4 +434,125 @@ select:focus-visible {
     line-height: 1;
     flex-shrink: 0;
   }
+
+  /* --- Code block controls (blueprint technical panel) ---
+     Emitted server-side by `src/lib/server/markdown.ts` (rehypeWrapCodeBlocks)
+     around every rendered `<pre><code>` block, then injected into the page via
+     `{@html bodyHtml}` in NoteDetail.svelte — so these classes must stay global
+     (never route/component-scoped) for the injected HTML to pick them up.
+     Click behavior (copy / wrap toggle) is wired up in NoteDetail.svelte via
+     event delegation on the `data-role` hooks below. */
+
+  .ga-code-block {
+    border: var(--line-std) solid var(--color-line-3);
+    background: var(--color-surface-2);
+    margin: 1.5rem 0;
+  }
+
+  .ga-code-block__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    border-bottom: var(--line-thin) solid var(--color-line-1);
+    padding: 0.5rem 0.75rem;
+  }
+
+  .ga-code-block__meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .ga-code-block__lang,
+  .ga-code-block__filename {
+    color: var(--color-text-muted);
+    font-family: "Space Grotesk", "Inter", "Segoe UI", sans-serif;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .ga-code-block__filename {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    border-left: var(--line-thin) solid var(--color-line-2);
+    padding-left: 0.75rem;
+  }
+
+  .ga-code-block__controls {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .ga-code-block__control {
+    border: var(--line-thin) solid var(--color-line-2);
+    border-radius: 0;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-family: "Space Grotesk", "Inter", "Segoe UI", sans-serif;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.55rem;
+    min-width: 3.75rem;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+
+  .ga-code-block__control:hover {
+    background: var(--color-surface-1);
+    color: var(--color-text-strong);
+  }
+
+  .ga-code-block__control:focus-visible {
+    outline: var(--line-std) solid var(--color-accent-700);
+    outline-offset: 2px;
+  }
+
+  /* Wrap-toggle active state — border/color only, no size change, so
+     toggling never shifts surrounding layout. */
+  .ga-code-block__control[aria-pressed="true"] {
+    border-color: var(--color-accent-700);
+    color: var(--color-accent-700);
+    background: var(--color-accent-100);
+  }
+
+  /* Transient copy-feedback state — also border/color only. */
+  .ga-code-block__control--copied {
+    border-color: var(--color-success);
+    color: var(--color-success);
+  }
+
+  .ga-code-block__body {
+    overflow-x: auto;
+  }
+
+  .ga-code-block__body pre {
+    margin: 0;
+    padding: 1.25rem 1.5rem;
+  }
+
+  /* Wrap toggle — reflows long lines instead of horizontal scroll. Only the
+     `.ga-code-block--wrap` modifier class changes; the header/controls never
+     resize, so toggling does not shift the panel's own layout. */
+  .ga-code-block--wrap .ga-code-block__body {
+    overflow-x: hidden;
+  }
+
+  .ga-code-block--wrap .ga-code-block__body pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .ga-code-block--wrap .ga-code-block__body pre code {
+    white-space: inherit;
+  }
 }

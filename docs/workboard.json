@@ -1909,7 +1909,7 @@
       "group_id": "PUBLIC",
       "title": "Add code block controls",
       "description": "Add blueprint-panel code block controls: copy, language label, optional filename label, and wrapping toggle where metadata exists. Keep controls stable and avoid layout shift. No schema change is expected.",
-      "status": "todo",
+      "status": "done",
       "priority": "medium",
       "depends_on": [
         "PUBLIC-05A"

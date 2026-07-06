@@ -2011,7 +2011,7 @@
       "group_id": "POLISH",
       "title": "Build public GSAP motion foundation",
       "description": "Establish the shared public-site GSAP foundation without adding page choreography yet. Do a short inspiration pass using GSAP official docs/showcases and one or two high-signal creative coding references, then implement client-only plugin registration, reduced-motion helpers, component-scoped setup patterns, and ScrollTrigger cleanup/refresh utilities that later motion tasks can reuse. Record useful inspiration links for downstream motion tasks in the final summary or by appending them to the next applicable task.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [],
       "blocked_by": [],

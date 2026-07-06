@@ -1,7 +1,13 @@
 <script lang="ts">
   import { env } from '$env/dynamic/public';
+  import { afterNavigate } from '$app/navigation';
+  import { onMount } from 'svelte';
   import '../app.css';
   import Nav from '$lib/components/Nav.svelte';
+  import {
+    schedulePublicScrollTriggerRefresh,
+    setupPublicScrollTriggerAutoRefresh,
+  } from '$lib/motion';
 
   let { children, data } = $props();
 
@@ -12,6 +18,12 @@
   const siteUrl = $derived(
     configuredSiteUrl.endsWith('/') ? configuredSiteUrl.slice(0, -1) : configuredSiteUrl,
   );
+
+  afterNavigate(() => {
+    schedulePublicScrollTriggerRefresh('route');
+  });
+
+  onMount(() => setupPublicScrollTriggerAutoRefresh());
 </script>
 
 <svelte:head>

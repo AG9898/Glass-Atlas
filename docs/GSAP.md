@@ -159,14 +159,16 @@ Use component-scoped GSAP setup:
 ```svelte
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { gsap } from 'gsap';
+  import { createPublicGsapContext } from '$lib/motion';
 
   let container: HTMLElement | null = $state(null);
 
   onMount(() => {
     if (!container) return;
 
-    const ctx = gsap.context(() => {
+    const setup = createPublicGsapContext(container, ({ gsap, canUseSpatialMotion }) => {
+      if (!canUseSpatialMotion) return;
+
       gsap.from('[data-motion="item"]', {
         autoAlpha: 0,
         y: 12,
@@ -174,9 +176,11 @@ Use component-scoped GSAP setup:
         stagger: 0.06,
         ease: 'power2.out',
       });
-    }, container);
+    });
 
-    return () => ctx.revert();
+    return () => {
+      void setup.then((cleanup) => cleanup());
+    };
   });
 </script>
 
@@ -192,3 +196,59 @@ Rules:
 - Use `gsap.matchMedia()` for reduced-motion and responsive variants.
 - Never run GSAP setup during SSR.
 - Prefer `data-motion` attributes over fragile route-global selectors.
+
+---
+
+## 9) Shipped Foundation
+
+`POLISH-07A` introduced the public motion foundation in `src/lib/motion/`:
+
+- `loadPublicGsap()` dynamically imports `gsap` and `ScrollTrigger`, registers the plugin only in the browser, and returns `null` during SSR.
+- `createPublicGsapContext(scope, setup)` wraps component animation setup in `gsap.context(...)` and returns a cleanup that calls `context.revert()`.
+- `prefersReducedMotion()` defaults to `true` without a browser window, so spatial choreography is disabled until a real client preference is known.
+- `canUseSpatialMotion()` is the default gate for movement such as `x`, `y`, scale, pinning, scrubbed timelines, parallax, or smooth-scroll effects.
+- `schedulePublicScrollTriggerRefresh()` and `setupPublicScrollTriggerAutoRefresh()` centralize `ScrollTrigger.refresh()` after route, resize, load, and font-layout changes; they no-op until a component has already loaded GSAP.
+- `src/routes/+layout.svelte` wires route-level refresh scheduling for public pages without adding any page choreography.
+
+Usage pattern for future ScrollTrigger work:
+
+```svelte
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { createPublicGsapContext } from '$lib/motion';
+
+  let section: HTMLElement | null = $state(null);
+
+  onMount(() => {
+    if (!section) return;
+
+    const setup = createPublicGsapContext(section, ({ gsap, canUseSpatialMotion }) => {
+      if (!canUseSpatialMotion) return;
+
+      gsap.from('[data-motion="rule"]', {
+        scaleX: 0,
+        transformOrigin: 'left center',
+        duration: 0.45,
+        ease: 'power2.out',
+        scrollTrigger: {
+          trigger: section,
+          start: 'top 80%',
+          once: true,
+        },
+      });
+    });
+
+    return () => {
+      void setup.then((cleanup) => cleanup());
+    };
+  });
+</script>
+```
+
+Inspiration links recorded for downstream motion tasks:
+
+- GSAP `gsap.context()` docs, `https://gsap.com/docs/v3/GSAP/gsap.context%28%29/` — cleanup/revert contract for Svelte component scopes.
+- GSAP `gsap.matchMedia()` docs, `https://gsap.com/docs/v3/GSAP/gsap.matchMedia%28%29/` — responsive and reduced-motion variants inside GSAP-managed contexts.
+- GSAP `ScrollTrigger` docs, `https://gsap.com/docs/v3/Plugins/ScrollTrigger/` — refresh/kill semantics for scroll-coupled timelines.
+- GSAP Showcase, `https://gsap.com/showcase/` — timing/staging reference only; keep Glass Atlas sharper and more restrained.
+- Codrops GSAP tag, `https://tympanus.net/codrops/tag/gsap/` — creative coding reference for scroll structure, not visual style.

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { createPublicGsapContext, schedulePublicScrollTriggerRefresh } from '$lib/motion';
   import NoteGraph from '$lib/components/NoteGraph.svelte';
 
   type NoteDetailNote = {
@@ -67,7 +68,8 @@
   // individually bound Svelte elements. Copy failures (e.g. Clipboard API
   // unavailable) fail soft with no user-facing error, matching the fail-soft
   // contract used elsewhere for optional editorial affordances.
-  let bodyEl: HTMLDivElement | undefined;
+  let bodyEl = $state<HTMLDivElement | undefined>(undefined);
+  let viewerEl: HTMLDivElement | null = $state(null);
 
   const COPIED_STATE_CLASS = 'ga-code-block__control--copied';
   const COPIED_STATE_MS = 1500;
@@ -134,9 +136,104 @@
   );
 
   const isVideo = $derived(note.mediaType === 'video-mp4');
+
+  const detailMotionKey = $derived(`${note.slug}:${bodyHtml.length}`);
+
+  $effect(() => {
+    const motionKey = detailMotionKey;
+    const viewer = viewerEl;
+    const articleBody = bodyEl;
+    if (!viewer || !motionKey) return;
+
+    const setup = createPublicGsapContext(viewer, ({ gsap, canUseSpatialMotion }) => {
+      if (!canUseSpatialMotion) return;
+
+      const cover = viewer.querySelector<HTMLElement>('[data-note-detail-motion="cover"]');
+      const headerItems = gsap.utils.toArray<HTMLElement>(
+        '[data-note-detail-motion="header-item"]',
+      );
+      const timeline = gsap.timeline({
+        defaults: {
+          duration: 0.42,
+          ease: 'power2.out',
+        },
+      });
+
+      if (cover) {
+        const coverAsset = cover.querySelector('img, video');
+
+        timeline
+          .from(
+            cover,
+            {
+              autoAlpha: 0,
+              y: 14,
+              clipPath: 'inset(0 0 12% 0)',
+              duration: 0.5,
+            },
+            0,
+          );
+
+        if (coverAsset) {
+          timeline.from(
+            coverAsset,
+            {
+              scale: 1.025,
+              duration: 0.68,
+              ease: 'power2.out',
+            },
+            0,
+          );
+        }
+      }
+
+      if (headerItems.length > 0) {
+        timeline.from(
+          headerItems,
+          {
+            autoAlpha: 0,
+            y: 12,
+            stagger: 0.055,
+          },
+          cover ? 0.12 : 0,
+        );
+      }
+
+      if (articleBody) {
+        const firstMajorBlocks = Array.from(articleBody.children)
+          .filter((child) =>
+            child.matches(
+              'h1, h2, h3, h4, p, blockquote, ul, ol, table, .inline-media, .ga-code-block, .mermaid-diagram',
+            ),
+          )
+          .slice(0, 4);
+
+        if (firstMajorBlocks.length > 0) {
+          gsap.from(firstMajorBlocks, {
+            autoAlpha: 0,
+            y: 12,
+            duration: 0.4,
+            stagger: 0.055,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: articleBody,
+              start: 'top 88%',
+              once: true,
+            },
+          });
+        }
+      }
+
+      schedulePublicScrollTriggerRefresh('layout');
+    });
+
+    return () => {
+      void setup.then((cleanup) => cleanup());
+    };
+  });
 </script>
 
-<div class="note-viewer">
+<div class="note-viewer" bind:this={viewerEl}>
   <aside class="sidebar-left" aria-label="Notes catalog">
     <div class="sidebar-left__cta-wrap">
       <a href="/" class="sidebar-left__cta ga-btn ga-btn-sm">
@@ -174,7 +271,7 @@
 
   <main class="note-main" aria-labelledby="note-title">
     {#if note.image}
-      <div class="cover-media">
+      <div class="cover-media" data-note-detail-motion="cover">
         {#if isVideo}
           <video
             src={note.image}
@@ -192,12 +289,14 @@
 
     <header class="note-header">
       {#if note.category}
-        <p class="eyebrow">{note.category}</p>
+        <p class="eyebrow" data-note-detail-motion="header-item">{note.category}</p>
       {/if}
 
-      <h1 id="note-title" class="note-title">{note.title}</h1>
+      <h1 id="note-title" class="note-title" data-note-detail-motion="header-item">
+        {note.title}
+      </h1>
 
-      <div class="note-meta">
+      <div class="note-meta" data-note-detail-motion="header-item">
         {#if formattedDate}
           <time class="note-date" datetime={note.publishedAt?.toISOString() ?? ''}>
             {formattedDate}
@@ -209,7 +308,7 @@
       </div>
 
       {#if note.tags && note.tags.length > 0}
-        <div class="tag-list" aria-label="Tags">
+        <div class="tag-list" aria-label="Tags" data-note-detail-motion="header-item">
           {#each note.tags as tag (tag)}
             <span class="tag-badge">#{tag}</span>
           {/each}
@@ -217,7 +316,7 @@
       {/if}
 
       {#if note.takeaway}
-        <p class="note-takeaway">{note.takeaway}</p>
+        <p class="note-takeaway" data-note-detail-motion="header-item">{note.takeaway}</p>
       {/if}
     </header>
 

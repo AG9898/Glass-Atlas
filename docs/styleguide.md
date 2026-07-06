@@ -47,6 +47,7 @@ Glass Atlas uses **Soft Editorial Brutalism**:
 - Use horizontal and vertical dividers to structure content density.
 - Avoid decorative cards for standard note previews.
 - Keep a compact filter bar with `Search`, `Topic`, and `Sort`; search and topic filters must compose in the URL (`?q=` + `?topic=`).
+- **Shipped (`POLISH-07D`):** notes rows now use page-local GSAP choreography on first load and filter/sort URL changes. The motion is limited to small `y` offsets plus opacity on the first visible rows, keyed to the filtered slug list, and reduced-motion mode exits before any spatial transform is applied.
 
 ### Note View / Main Blog (`/notes/[slug]`)
 
@@ -55,6 +56,7 @@ Glass Atlas uses **Soft Editorial Brutalism**:
 - Emphasize section dividers, pull quotes, diagrams, and code/technical callouts.
 - Reader-path modules should distinguish semantic related notes from backlinks/outlinks. Keep them line-led, compact, and secondary to the article body.
 - The note graph remains a small supporting widget, but motion/interaction should feel fluid and exploratory rather than static.
+- **Shipped (`POLISH-07D`):** note detail motion is one restrained editorial sequence for cover media, category, title, metadata, tags, and takeaway, followed by a one-shot reveal for only the first four major article blocks. Do not extend this into paragraph-by-paragraph choreography; the long-form body must remain stable and immediate.
 
 ### Chat (`/` and shared chat UI)
 

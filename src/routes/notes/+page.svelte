@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import NoteCard from '$lib/components/NoteCard.svelte';
+  import { createPublicGsapContext, schedulePublicScrollTriggerRefresh } from '$lib/motion';
   import { Select } from '$lib/components/ui';
   import type { UiSelectOption } from '$lib/components/ui';
   import { CATEGORIES } from '$lib/utils/note-taxonomy';
@@ -12,6 +13,7 @@
   let selectedTopic = $state('');
   let selectedSort = $state('newest');
   let searchQuery = $state('');
+  let notesShell: HTMLElement | null = $state(null);
   let searchInput: HTMLInputElement | null = null;
 
   const topicOptions: UiSelectOption[] = [
@@ -78,6 +80,50 @@
     if ($page.url.searchParams.get('focus') !== 'search') return;
     searchInput?.focus();
   });
+
+  const notesMotionKey = $derived(
+    `${data.q ?? ''}:${data.topic ?? ''}:${data.sort ?? 'newest'}:${data.notes
+      .map((note) => note.slug)
+      .join('|')}`,
+  );
+
+  $effect(() => {
+    const motionKey = notesMotionKey;
+    const shell = notesShell;
+    if (!shell || !motionKey) return;
+
+    const setup = createPublicGsapContext(shell, ({ gsap, canUseSpatialMotion }) => {
+      if (!canUseSpatialMotion) return;
+
+      const rows = gsap.utils.toArray<HTMLElement>('[data-note-motion="row"]');
+      const emptyState = shell.querySelector<HTMLElement>('[data-note-motion="empty"]');
+
+      if (rows.length > 0) {
+        gsap.from(rows.slice(0, 16), {
+          autoAlpha: 0,
+          y: 14,
+          duration: 0.34,
+          stagger: 0.045,
+          ease: 'power2.out',
+          clearProps: 'transform,opacity,visibility',
+        });
+      } else if (emptyState) {
+        gsap.from(emptyState, {
+          autoAlpha: 0,
+          y: 10,
+          duration: 0.3,
+          ease: 'power2.out',
+          clearProps: 'transform,opacity,visibility',
+        });
+      }
+
+      schedulePublicScrollTriggerRefresh('layout');
+    });
+
+    return () => {
+      void setup.then((cleanup) => cleanup());
+    };
+  });
 </script>
 
 <svelte:head>
@@ -88,7 +134,7 @@
   />
 </svelte:head>
 
-<main class="notes-shell" aria-labelledby="notes-title">
+<main class="notes-shell" aria-labelledby="notes-title" bind:this={notesShell}>
   <header class="notes-header">
     <div class="header-text">
       <p class="eyebrow">Archive</p>
@@ -146,7 +192,7 @@
   </header>
 
   {#if data.notes.length === 0}
-    <section class="empty-state" aria-label="No notes found">
+    <section class="empty-state" aria-label="No notes found" data-note-motion="empty">
       <p class="eyebrow">No results</p>
       <h2>{data.q ? `No notes match "${data.q}".` : 'No notes match this filter.'}</h2>
       <p>
@@ -327,6 +373,43 @@
 
     .filter-field {
       align-items: flex-start;
+    }
+  }
+
+  @media (max-width: 520px) {
+    .notes-shell {
+      max-width: 100vw;
+      overflow-x: hidden;
+      width: 100vw;
+    }
+
+    .header-text {
+      max-width: calc(100vw - 2.5rem);
+    }
+
+    h1 {
+      font-size: clamp(2rem, 11vw, 2.7rem);
+      max-width: 9ch;
+      overflow-wrap: break-word;
+      text-wrap: balance;
+    }
+
+    .filter-bar {
+      align-items: stretch;
+      flex-direction: column;
+      width: 100%;
+    }
+
+    .filter-field,
+    .filter-field--search {
+      min-width: 0;
+      width: 100%;
+    }
+
+    input,
+    :global(.filter-select-trigger) {
+      min-width: 0;
+      width: 100%;
     }
   }
 </style>

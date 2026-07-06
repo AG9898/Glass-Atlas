@@ -23,7 +23,12 @@
   const isVideo = $derived(note.mediaType === 'video-mp4');
 </script>
 
-<article class="note-row" aria-label={note.title} data-motion="latest-note">
+<article
+  class="note-row"
+  aria-label={note.title}
+  data-motion="latest-note"
+  data-note-motion="row"
+>
   <div class="row-meta">
     <span class="note-number">{noteNumber}</span>
     {#if formattedDate}
@@ -114,6 +119,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+    min-width: 0;
   }
 
   .cover-media {
@@ -134,13 +140,18 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
+    min-width: 0;
   }
 
   .tag-badge {
     border: var(--line-thin) solid var(--color-line-2);
     color: var(--color-text-muted);
+    flex-shrink: 1;
     font-size: 0.65rem;
     font-weight: 600;
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
     padding: 0.2rem 0.5rem;
   }
 
@@ -174,6 +185,7 @@
     font-family: 'Literata', Georgia, serif;
     font-size: 1rem;
     line-height: 1.65;
+    overflow-wrap: break-word;
   }
 
   .read-link {
@@ -206,6 +218,10 @@
       flex-direction: row;
       gap: 1rem;
       align-items: center;
+    }
+
+    .tag-badge {
+      max-width: min(100%, 8.5rem);
     }
   }
 </style>

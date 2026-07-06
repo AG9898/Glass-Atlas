@@ -2118,7 +2118,7 @@
       "group_id": "POLISH",
       "title": "Add notes browse and detail motion polish",
       "description": "Add restrained public motion to the notes index and note detail surfaces using the shared GSAP foundation. Cover notes row entrance/filter transitions, note detail header and media reveal, and a limited first-block article reveal. Do not animate every paragraph or add motion that competes with reading.",
-      "status": "todo",
+      "status": "done",
       "priority": "medium",
       "depends_on": [
         "POLISH-07A"

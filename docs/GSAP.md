@@ -219,6 +219,11 @@ Rules:
   - First-paint motion stays short and staged: rule draw, hero copy, chat panel, then stat values. The latest-note section uses a one-shot ScrollTrigger reveal for its rule/header/rows.
   - Reduced-motion users get the normal static page immediately because the setup exits before applying spatial transforms.
   - Note rows expose `data-motion="latest-note"` from `NoteCard.svelte`; keep this hook stable for landing choreography, but do not make `NoteCard` own page-level timelines.
+- `POLISH-07D` added notes-index and note-detail choreography:
+  - `/notes` binds a page-local GSAP context keyed to the filtered note slug list. Note rows expose `data-note-motion="row"` and enter with capped transform/opacity staggers on first load and URL filter/sort changes; the existing `data-motion="latest-note"` hook remains reserved for landing-page choreography.
+  - `NoteDetail.svelte` binds its own GSAP context and reveals cover media, title, metadata, tags, and takeaway as one short editorial sequence. Cover media uses a small clip/offset reveal, not autoplay or parallax.
+  - Only the first four major direct article blocks are eligible for body reveal via a one-shot ScrollTrigger. The rest of the article is immediate so long-form reading is not paced paragraph-by-paragraph.
+  - Reduced-motion users skip these spatial timelines entirely because both contexts exit before applying transforms.
 
 Usage pattern for future ScrollTrigger work:
 
@@ -258,6 +263,10 @@ Usage pattern for future ScrollTrigger work:
 Inspiration links recorded for downstream motion tasks:
 
 - GSAP `gsap.context()` docs, `https://gsap.com/docs/v3/GSAP/gsap.context%28%29/` — cleanup/revert contract for Svelte component scopes.
+- GSAP Staggers docs, `https://gsap.com/resources/getting-started/Staggers/` — supports the short row/header stagger timing used for notes index and detail header items.
+- GSAP ScrollTrigger docs, `https://gsap.com/docs/v3/Plugins/ScrollTrigger/` — supports the one-shot first-block article reveal and cleanup through the shared context.
+- GSAP Showcase, `https://gsap.com/showcase/` — reference for restrained sequencing and avoiding overlong intro delays.
+- Codrops scroll tag, `https://tympanus.net/codrops/tag/scroll/` — reference for scroll-reveal structure; translated here into small editorial reveals rather than full-screen effects.
 - GSAP `gsap.matchMedia()` docs, `https://gsap.com/docs/v3/GSAP/gsap.matchMedia%28%29/` — responsive and reduced-motion variants inside GSAP-managed contexts.
 - GSAP `ScrollTrigger` docs, `https://gsap.com/docs/v3/Plugins/ScrollTrigger/` — refresh/kill semantics for scroll-coupled timelines.
 - GSAP `ScrollSmoother` docs, `https://gsap.com/docs/v3/Plugins/ScrollSmoother/` — native-scroll-based smooth scrolling and wrapper/content setup.

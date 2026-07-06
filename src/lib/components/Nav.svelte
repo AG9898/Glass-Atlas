@@ -327,12 +327,23 @@
 
   @media (max-width: 480px) {
     .ga-nav__brand-row {
-      grid-template-columns: auto 1fr auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
     }
 
     .ga-nav__logo {
       font-size: 1.3rem;
       order: -1;
+    }
+
+    .ga-nav__links-left,
+    .ga-nav__controls-right {
+      width: 100%;
+      justify-content: center;
+      flex-wrap: wrap;
+      row-gap: 8px;
     }
   }
 </style>

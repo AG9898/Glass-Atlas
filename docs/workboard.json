@@ -2192,7 +2192,7 @@
       "group_id": "POLISH",
       "title": "Create wave-like 3D grid motion asset",
       "description": "Research and implement the branded wave-like 3D grid field or its generated/static fallback using the Glass Atlas palette. Prefer Three.js for real-time 3D and keep the field line-based, sparse, and structurally integrated with public pages rather than framed as a decorative card. If generated assets are used, ensure prompts and outputs follow the style guide and include reduced-motion fallbacks.",
-      "status": "todo",
+      "status": "done",
       "priority": "medium",
       "depends_on": [
         "POLISH-07A"

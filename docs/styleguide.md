@@ -40,6 +40,7 @@ Glass Atlas uses **Soft Editorial Brutalism**:
 - The homepage remains chat-first. Supporting note lists, stats, and prompts should be populated automatically from published notes unless a future curation decision changes that.
 - **Shipped (`POLISH-06`):** chat-first hierarchy is reinforced on mobile, not just desktop. `+page.svelte`'s hero markup places the chat `<aside>` before the copy `<div>` in DOM order, so the collapsed single-column mobile layout shows the chat panel first (no headline/CTA scroll penalty before reaching it). Desktop keeps the original copy-left/chat-right visual split via explicit `grid-column` **and** `grid-row` placement on both children (both are required — pinning only `grid-column` lets auto-placement push the out-of-DOM-order item to a second row instead of sharing row 1 with its sibling). The mobile media query resets both properties to `auto` so single-column stacking follows DOM order.
 - **Shipped (`POLISH-07C`):** landing motion is now a page-local GSAP enhancement. The first viewport remains chat-first while hero rules, copy, CTA, chat panel, and stats enter with short staggered timing; the latest-note section uses a one-shot ScrollTrigger reveal for its rule/header/rows. Motion hooks are `data-motion` attributes, and reduced-motion mode exits before spatial transforms are applied so the page stays immediately readable.
+- **Shipped (`POLISH-07F`):** a `WaveGridField` band (see §7.3) sits between the hero and stats sections as a bounded structural atmosphere strip, bordered top/bottom by the same `--line-std`/`--color-line-3` rule used around `.stats`. It does not overlap the hero copy/CTA/chat panel or the stats row, and is `aria-hidden`/`pointer-events: none` throughout.
 
 ### Notes Index (`/notes`)
 
@@ -360,6 +361,7 @@ The approved branded motion-asset direction is a wave-like 3D grid field.
 - Provide a static or near-static reduced-motion fallback.
 - If implemented as real-time 3D, use Three.js and keep it integrated into the page structure rather than framed as a decorative card.
 - Generated bitmap assets may be used for loader frames, transition plates, or static fallback frames when they match this style.
+- **Shipped (`POLISH-07F`):** `WaveGridField.svelte` implements this direction as a real-time Three.js scene (see `docs/GSAP.md` §9 for the full implementation note). A static inline-SVG line-grid frame renders unconditionally (SSR-safe, zero-JS, reduced-motion permanent state); the animated `THREE.LineSegments` wireframe overlay only mounts in the browser when motion is allowed. It is integrated on the landing page as a bounded band between the hero and stats sections — full-bleed within that band, no card border or background panel — and uses only neutral line tokens plus a small minority of sage/warm-taupe accent lines.
 
 ### 7.4 Loading and Transition Assets
 

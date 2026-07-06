@@ -35,3 +35,15 @@ export {
   PAGE_TRANSITION_REVEAL_EASE,
   PAGE_TRANSITION_REVEALED_CLIP_PATH,
 } from './page-transition';
+export {
+  resolveWaveGridPalette,
+  shouldUseWaveGridMotion,
+  WAVE_GRID_CONFIG,
+  WAVE_GRID_PALETTE_FALLBACKS,
+  WAVE_GRID_PALETTE_TOKENS,
+  type WaveGridPalette,
+  type WaveGridPaletteDocument,
+  type WaveGridPaletteKey,
+  type WaveGridStyleDeclaration,
+  type WaveGridStyleReader,
+} from './wave-grid';

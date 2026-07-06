@@ -2229,7 +2229,7 @@
       "group_id": "POLISH",
       "title": "Run public motion QA pass",
       "description": "Run a dedicated final QA pass across the public motion work after smooth scroll, page choreography, route transitions, and the wave-grid asset have landed. Focus on reduced-motion behavior, light/dark parity, desktop/mobile composition, route navigation cleanup, and native browser affordances.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "POLISH-07B",

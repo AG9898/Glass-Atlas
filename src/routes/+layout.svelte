@@ -1,10 +1,13 @@
 <script lang="ts">
   import { env } from '$env/dynamic/public';
   import { afterNavigate } from '$app/navigation';
+  import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import '../app.css';
   import Nav from '$lib/components/Nav.svelte';
   import {
+    isPublicSmoothScrollPath,
+    publicSmoothScroll,
     schedulePublicScrollTriggerRefresh,
     setupPublicScrollTriggerAutoRefresh,
   } from '$lib/motion';
@@ -18,6 +21,7 @@
   const siteUrl = $derived(
     configuredSiteUrl.endsWith('/') ? configuredSiteUrl.slice(0, -1) : configuredSiteUrl,
   );
+  const usePublicSmoothScroll = $derived(isPublicSmoothScrollPath($page.url.pathname));
 
   afterNavigate(() => {
     schedulePublicScrollTriggerRefresh('route');
@@ -37,4 +41,12 @@
 
 <Nav session={data.session} />
 
-{@render children()}
+{#if usePublicSmoothScroll}
+  <div id="smooth-wrapper" data-public-smooth-wrapper use:publicSmoothScroll>
+    <div id="smooth-content" data-public-smooth-content>
+      {@render children()}
+    </div>
+  </div>
+{:else}
+  {@render children()}
+{/if}

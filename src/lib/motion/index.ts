@@ -18,3 +18,9 @@ export {
   schedulePublicScrollTriggerRefresh,
   setupPublicScrollTriggerAutoRefresh,
 } from './scroll-trigger';
+export {
+  isPublicSmoothScrollPath,
+  publicSmoothScroll,
+  PUBLIC_SMOOTH_SCROLL_CONFIG,
+  PUBLIC_SMOOTH_SCROLL_CONTENT_SELECTOR,
+} from './smooth-scroll';

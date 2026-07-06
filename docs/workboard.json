@@ -2045,7 +2045,7 @@
       "group_id": "POLISH",
       "title": "Add public smooth scroll layer",
       "description": "Implement the public-only smooth scroll layer on top of the shared GSAP foundation. Prefer ScrollSmoother if it preserves native browser behavior; otherwise keep ScrollTrigger choreography compatible with native scroll and document the fallback. Scope this to public page content and keep admin routes out of the smoother.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "depends_on": [
         "POLISH-07A"

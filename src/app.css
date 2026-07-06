@@ -105,6 +105,34 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
+[data-public-smooth-wrapper],
+[data-public-smooth-content] {
+  width: 100%;
+}
+
+[data-public-smooth-wrapper] {
+  position: relative;
+}
+
+[data-public-smooth-content] {
+  min-height: 100vh;
+}
+
+[data-public-smooth-wrapper][data-public-smooth-scroll-ready="true"] [data-public-smooth-content] {
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  [data-public-smooth-wrapper][data-public-smooth-scroll-ready="true"] [data-public-smooth-content] {
+    transform: none !important;
+    will-change: auto;
+  }
+}
+
 @layer components {
   .ga-focus-ring:focus-visible {
     outline: var(--line-std) solid var(--color-accent-700);

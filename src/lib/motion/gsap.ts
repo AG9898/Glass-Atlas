@@ -4,6 +4,7 @@ import { canUseSpatialMotion, prefersReducedMotion } from './preferences';
 export type PublicGsap = {
   gsap: typeof import('gsap').gsap;
   ScrollTrigger: typeof import('gsap/ScrollTrigger').ScrollTrigger;
+  ScrollSmoother: typeof import('gsap/ScrollSmoother').ScrollSmoother;
   prefersReducedMotion: boolean;
   canUseSpatialMotion: boolean;
 };
@@ -16,21 +17,25 @@ let publicGsapPromise: Promise<PublicGsap | null> | null = null;
 export async function loadPublicGsap(): Promise<PublicGsap | null> {
   if (!browser) return null;
 
-  publicGsapPromise ??= Promise.all([import('gsap'), import('gsap/ScrollTrigger')]).then(
-    ([gsapModule, scrollTriggerModule]) => {
+  publicGsapPromise ??= Promise.all([
+    import('gsap'),
+    import('gsap/ScrollTrigger'),
+    import('gsap/ScrollSmoother'),
+  ]).then(([gsapModule, scrollTriggerModule, scrollSmootherModule]) => {
       const { gsap } = gsapModule;
       const { ScrollTrigger } = scrollTriggerModule;
+      const { ScrollSmoother } = scrollSmootherModule;
 
-      gsap.registerPlugin(ScrollTrigger);
+      gsap.registerPlugin(ScrollTrigger, ScrollSmoother);
 
       return {
         gsap,
         ScrollTrigger,
+        ScrollSmoother,
         prefersReducedMotion: prefersReducedMotion(),
         canUseSpatialMotion: canUseSpatialMotion(),
       };
-    },
-  );
+    });
 
   return publicGsapPromise;
 }

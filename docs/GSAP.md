@@ -87,20 +87,20 @@ Constraints:
 
 ## 5) Smooth Scroll
 
-Glass Atlas may use `ScrollSmoother` for the public site if it passes accessibility and route-navigation checks.
+Glass Atlas uses `ScrollSmoother` for public editorial page content only. The root layout wraps public routes in `#smooth-wrapper` / `#smooth-content` and mounts the `publicSmoothScroll` action from `src/lib/motion/smooth-scroll.ts`; admin, auth, sign-in, and API surfaces stay outside that wrapper.
 
 Implementation requirements:
 
 - Register `ScrollTrigger` and `ScrollSmoother` client-side only.
 - Scope the smoother to public page content, not admin.
-- Use a conservative smoothing value; the goal is creamy scroll, not heavy momentum.
+- Use the conservative shared `PUBLIC_SMOOTH_SCROLL_CONFIG` (`smooth: 0.45`, no effects, no touch smoothing, no `normalizeScroll`); the goal is creamy scroll, not heavy momentum.
 - Disable ScrollSmoother when `prefers-reduced-motion: reduce` matches.
 - Preserve native browser expectations: keyboard scroll, focus navigation, anchor links, browser find, and scroll restoration must remain usable.
 - Call `ScrollTrigger.refresh()` after route changes, font/media load events that affect layout, or dynamic list changes.
 
 Fallback:
 
-- If ScrollSmoother creates route, focus, or accessibility problems, keep ScrollTrigger choreography and fall back to native scroll plus CSS `scroll-behavior: smooth` where appropriate.
+- If ScrollSmoother creates route, focus, or accessibility problems, keep ScrollTrigger choreography and fall back to native scroll; add CSS `scroll-behavior: smooth` only where reduced-motion and anchor-navigation checks remain clean.
 
 ---
 
@@ -209,6 +209,11 @@ Rules:
 - `canUseSpatialMotion()` is the default gate for movement such as `x`, `y`, scale, pinning, scrubbed timelines, parallax, or smooth-scroll effects.
 - `schedulePublicScrollTriggerRefresh()` and `setupPublicScrollTriggerAutoRefresh()` centralize `ScrollTrigger.refresh()` after route, resize, load, and font-layout changes; they no-op until a component has already loaded GSAP.
 - `src/routes/+layout.svelte` wires route-level refresh scheduling for public pages without adding any page choreography.
+- `POLISH-07B` added the public smooth-scroll layer:
+  - `loadPublicGsap()` now dynamically imports and registers `ScrollSmoother` with `ScrollTrigger`, still client-side only.
+  - `publicSmoothScroll` mounts ScrollSmoother on the public route wrapper, watches `prefers-reduced-motion`, kills the smoother when reduction is requested or the wrapper unmounts, and schedules a `ScrollTrigger.refresh()` after setup/teardown.
+  - `isPublicSmoothScrollPath()` keeps admin, auth, sign-in, and API paths outside the smoother while allowing current and future public editorial routes.
+  - `src/app.css` defines only minimal wrapper sizing/reset styles so content remains readable before JS initializes and reduced-motion can remove active transforms.
 
 Usage pattern for future ScrollTrigger work:
 
@@ -250,5 +255,8 @@ Inspiration links recorded for downstream motion tasks:
 - GSAP `gsap.context()` docs, `https://gsap.com/docs/v3/GSAP/gsap.context%28%29/` — cleanup/revert contract for Svelte component scopes.
 - GSAP `gsap.matchMedia()` docs, `https://gsap.com/docs/v3/GSAP/gsap.matchMedia%28%29/` — responsive and reduced-motion variants inside GSAP-managed contexts.
 - GSAP `ScrollTrigger` docs, `https://gsap.com/docs/v3/Plugins/ScrollTrigger/` — refresh/kill semantics for scroll-coupled timelines.
+- GSAP `ScrollSmoother` docs, `https://gsap.com/docs/v3/Plugins/ScrollSmoother/` — native-scroll-based smooth scrolling and wrapper/content setup.
+- GSAP accessibility guide, `https://gsap.com/resources/a11y/` — reduced-motion gating and `matchMedia` guidance.
 - GSAP Showcase, `https://gsap.com/showcase/` — timing/staging reference only; keep Glass Atlas sharper and more restrained.
 - Codrops GSAP tag, `https://tympanus.net/codrops/tag/gsap/` — creative coding reference for scroll structure, not visual style.
+- Codrops scroll tag, `https://tympanus.net/codrops/tag/scroll/` — later smooth-scroll choreography inspiration; avoid its heavier cinematic patterns for core reading pages.

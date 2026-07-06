@@ -1,6 +1,7 @@
 <script lang="ts">
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
+  import { canUseSpatialMotion } from '$lib/motion';
 
   // Auth session passed from layout data
   let { session = null }: { session?: { user?: { name?: string | null; email?: string | null; image?: string | null } | null } | null } = $props();
@@ -50,10 +51,25 @@
     }
   }
 
+  function commitThemeChange(next: boolean) {
+    isDark = next;
+    localStorage.setItem('ga-theme', next ? 'dark' : 'light');
+    applyTheme(next);
+  }
+
+  // Wipes the new theme in left-to-right via the View Transitions API (same clip-path
+  // wave idiom as PageTransitionOverlay — see the ::view-transition-* rules in app.css),
+  // instead of an instant color swap. Falls back to an instant swap when the API is
+  // unsupported or reduced motion is preferred; app.css also force-disables the
+  // animation under prefers-reduced-motion as a defense-in-depth backstop.
   function toggleDark() {
-    isDark = !isDark;
-    localStorage.setItem('ga-theme', isDark ? 'dark' : 'light');
-    applyTheme(isDark);
+    const next = !isDark;
+
+    if (typeof document.startViewTransition === 'function' && canUseSpatialMotion(window)) {
+      document.startViewTransition(() => commitThemeChange(next));
+    } else {
+      commitThemeChange(next);
+    }
   }
 
   // Derive current path for active link detection

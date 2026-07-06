@@ -2,6 +2,7 @@
   import { tick } from 'svelte';
   import { renderChatMessageHtml, parseChatSourcesEvent, type ChatSource } from '$lib/utils/chat-format';
   import { Dialog } from '$lib/components/ui';
+  import WaveGridLoader from '$lib/components/WaveGridLoader.svelte';
 
   type ChatRole = 'user' | 'assistant';
 
@@ -239,10 +240,18 @@
       {#each messages as message}
         <article class="ga-chat__message" class:ga-chat__message--assistant={message.role === 'assistant'}>
           <p class="ga-chat__message-label">{message.role === 'user' ? 'You' : 'Atlas'}</p>
-          <p class="ga-chat__message-content">
-            <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-            {@html renderChatMessageHtml(message.content)}
-          </p>
+          {#if message.role === 'assistant' && message.content === SEARCHING_MESSAGE}
+            <p class="ga-chat__message-content ga-chat__message-content--searching">
+              <span class="ga-chat__searching-spinner"><WaveGridLoader variant="compact" /></span>
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+              {@html renderChatMessageHtml(message.content)}
+            </p>
+          {:else}
+            <p class="ga-chat__message-content">
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
+              {@html renderChatMessageHtml(message.content)}
+            </p>
+          {/if}
           {#if message.sources && message.sources.length > 0}
             {@const sources = message.sources}
             <div class="ga-chat__source-control">
@@ -385,6 +394,20 @@
 
   .ga-chat__message-content :global(em) {
     font-style: italic;
+  }
+
+  .ga-chat__message-content--searching {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .ga-chat__searching-spinner {
+    display: block;
+    inline-size: 1.35rem;
+    block-size: 1.35rem;
+    flex-shrink: 0;
+    border: var(--line-thin) solid var(--color-line-2);
   }
 
   .ga-chat__message-content :global(.ga-chat__note-link) {

@@ -6,8 +6,11 @@ import {
   type MotionPreferenceWindow,
 } from './preferences';
 import {
+  getWaveGridConfig,
   resolveWaveGridPalette,
   shouldUseWaveGridMotion,
+  WAVE_GRID_COMPACT_CONFIG,
+  WAVE_GRID_OVERLAY_CONFIG,
   WAVE_GRID_PALETTE_FALLBACKS,
   WAVE_GRID_PALETTE_TOKENS,
   type WaveGridPaletteDocument,
@@ -111,5 +114,10 @@ describe('wave grid motion config', () => {
       ...WAVE_GRID_PALETTE_FALLBACKS,
       bg: '#faf7ef',
     });
+  });
+
+  test('selects the overlay config by default and the compact config for the inline spinner', () => {
+    expect(getWaveGridConfig('overlay')).toBe(WAVE_GRID_OVERLAY_CONFIG);
+    expect(getWaveGridConfig('compact')).toBe(WAVE_GRID_COMPACT_CONFIG);
   });
 });

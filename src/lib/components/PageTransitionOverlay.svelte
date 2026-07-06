@@ -1,6 +1,7 @@
 <script lang="ts">
   import { afterNavigate, beforeNavigate } from '$app/navigation';
   import { onMount } from 'svelte';
+  import WaveGridLoader from '$lib/components/WaveGridLoader.svelte';
   import { createPublicGsapContext, type PublicGsap } from '$lib/motion';
   import {
     PAGE_TRANSITION_COVER_DURATION,
@@ -22,6 +23,9 @@
   let root: HTMLElement | null = $state(null);
   let motion: PublicGsap | null = null;
   let cleanupContext: (() => void) | null = null;
+  // Mounted only while the overlay is actually covering the screen, so the wave-grid's
+  // three.js scene never runs continuously between navigations.
+  let showLoader = $state(false);
 
   onMount(() => {
     if (!root) return;
@@ -48,6 +52,8 @@
     const toPathname = navigation.to?.url.pathname ?? null;
     if (shouldSkipPageTransition(fromPathname, toPathname)) return;
 
+    showLoader = true;
+
     motion.gsap.fromTo(
       root,
       { clipPath: PAGE_TRANSITION_IDLE_CLIP_PATH },
@@ -73,13 +79,18 @@
         overwrite: true,
         onComplete: () => {
           motion?.gsap.set(root, { clipPath: PAGE_TRANSITION_IDLE_CLIP_PATH });
+          showLoader = false;
         },
       },
     );
   });
 </script>
 
-<div class="page-transition-overlay" bind:this={root} aria-hidden="true"></div>
+<div class="page-transition-overlay" bind:this={root} aria-hidden="true">
+  {#if showLoader}
+    <WaveGridLoader variant="overlay" />
+  {/if}
+</div>
 
 <style>
   .page-transition-overlay {
@@ -89,13 +100,6 @@
     pointer-events: none;
     clip-path: inset(0 100% 0 0);
     background-color: var(--color-bg);
-    background-image: repeating-linear-gradient(
-      to right,
-      var(--color-line-1) 0,
-      var(--color-line-1) 1px,
-      transparent 1px,
-      transparent 64px
-    );
   }
 
   @media (prefers-reduced-motion: reduce) {

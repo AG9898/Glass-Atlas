@@ -4,6 +4,7 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import '../app.css';
+  import InitialLoadScreen from '$lib/components/InitialLoadScreen.svelte';
   import Nav from '$lib/components/Nav.svelte';
   import PageTransitionOverlay from '$lib/components/PageTransitionOverlay.svelte';
   import {
@@ -22,6 +23,8 @@
   const siteUrl = $derived(
     configuredSiteUrl.endsWith('/') ? configuredSiteUrl.slice(0, -1) : configuredSiteUrl,
   );
+  // Also gates the initial-load splash: public-only flourish, same scope rule as route
+  // transitions — admin stays low-motion (docs/styleguide.md section 7.1).
   const usePublicSmoothScroll = $derived(isPublicSmoothScrollPath($page.url.pathname));
 
   afterNavigate(() => {
@@ -43,6 +46,10 @@
 <Nav session={data.session} />
 
 <PageTransitionOverlay />
+
+{#if usePublicSmoothScroll}
+  <InitialLoadScreen />
+{/if}
 
 {#if usePublicSmoothScroll}
   <div id="smooth-wrapper" data-public-smooth-wrapper use:publicSmoothScroll>

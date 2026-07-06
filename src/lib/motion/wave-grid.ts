@@ -44,7 +44,32 @@ export const WAVE_GRID_PALETTE_FALLBACKS = {
   accentSecondary: '#BBA079',
 } as const satisfies WaveGridPalette;
 
-export const WAVE_GRID_CONFIG = {
+export type WaveGridVariant = 'overlay' | 'compact';
+
+export type WaveGridConfig = {
+  columns: number;
+  rows: number;
+  width: number;
+  depth: number;
+  horizontalSubdivisions: number;
+  verticalSubdivisions: number;
+  amplitude: number;
+  accentAmplitude: number;
+  waveFrequencyX: number;
+  waveFrequencyZ: number;
+  waveSpeed: number;
+  camera: {
+    fov: number;
+    near: number;
+    far: number;
+    x: number;
+    y: number;
+    z: number;
+  };
+};
+
+/** Full-viewport config used by the route transition overlay and initial load screen. */
+export const WAVE_GRID_OVERLAY_CONFIG = {
   columns: 18,
   rows: 9,
   width: 18,
@@ -64,7 +89,34 @@ export const WAVE_GRID_CONFIG = {
     y: 5.1,
     z: 9.2,
   },
-} as const;
+} as const satisfies WaveGridConfig;
+
+/** Small, dense config for the inline spinner (e.g. next to chat's "Searching notes…" state). */
+export const WAVE_GRID_COMPACT_CONFIG = {
+  columns: 8,
+  rows: 5,
+  width: 6,
+  depth: 3.2,
+  horizontalSubdivisions: 16,
+  verticalSubdivisions: 10,
+  amplitude: 0.26,
+  accentAmplitude: 0.36,
+  waveFrequencyX: 0.9,
+  waveFrequencyZ: 1.1,
+  waveSpeed: 0.00068,
+  camera: {
+    fov: 46,
+    near: 0.1,
+    far: 30,
+    x: 0,
+    y: 2.5,
+    z: 4.4,
+  },
+} as const satisfies WaveGridConfig;
+
+export function getWaveGridConfig(variant: WaveGridVariant): WaveGridConfig {
+  return variant === 'compact' ? WAVE_GRID_COMPACT_CONFIG : WAVE_GRID_OVERLAY_CONFIG;
+}
 
 function getDefaultDocument(): WaveGridPaletteDocument | undefined {
   return typeof document === 'undefined' ? undefined : document;

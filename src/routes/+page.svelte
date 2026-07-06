@@ -2,7 +2,6 @@
   import { onMount } from 'svelte';
   import Chat from '$lib/components/Chat.svelte';
   import NoteCard from '$lib/components/NoteCard.svelte';
-  import WaveGridField from '$lib/components/WaveGridField.svelte';
   import { createPublicGsapContext, schedulePublicScrollTriggerRefresh } from '$lib/motion';
   import type { PageData } from './$types';
 
@@ -96,10 +95,6 @@
         >Read The Latest</a
       >
     </div>
-  </section>
-
-  <section class="wave-band" aria-hidden="true">
-    <WaveGridField />
   </section>
 
   <section class="stats" aria-label="Site statistics">
@@ -223,11 +218,6 @@
     min-width: 0;
     background: var(--color-surface-1);
     justify-self: end;
-  }
-
-  .wave-band {
-    border-top: var(--line-std) solid var(--color-line-3);
-    border-bottom: var(--line-std) solid var(--color-line-3);
   }
 
   .stats {

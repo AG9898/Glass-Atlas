@@ -36,14 +36,28 @@ export {
   PAGE_TRANSITION_REVEALED_CLIP_PATH,
 } from './page-transition';
 export {
+  getWaveGridConfig,
   resolveWaveGridPalette,
   shouldUseWaveGridMotion,
-  WAVE_GRID_CONFIG,
+  WAVE_GRID_COMPACT_CONFIG,
+  WAVE_GRID_OVERLAY_CONFIG,
   WAVE_GRID_PALETTE_FALLBACKS,
   WAVE_GRID_PALETTE_TOKENS,
+  type WaveGridConfig,
   type WaveGridPalette,
   type WaveGridPaletteDocument,
   type WaveGridPaletteKey,
   type WaveGridStyleDeclaration,
   type WaveGridStyleReader,
+  type WaveGridVariant,
 } from './wave-grid';
+export {
+  createGridSegments,
+  createWaveGridLayers,
+  createWaveGridScene,
+  updateWaveGridLayer,
+  type GridSegment,
+  type ThreeModule,
+  type WaveGridLayer,
+  type WaveGridScene,
+} from './wave-grid-engine';

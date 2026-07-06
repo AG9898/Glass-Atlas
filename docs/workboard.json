@@ -1,7 +1,7 @@
 {
   "$schema": "./workboard.schema.json",
   "schema_version": "1.0.0",
-  "last_updated": "2026-06-30",
+  "last_updated": "2026-07-06",
   "tasks": [
     {
       "id": "SCAFFOLD-01",
@@ -1998,6 +1998,265 @@
         "src/routes/+page.server.ts",
         "src/routes/+page.svelte",
         "src/lib/components/Chat.svelte"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check",
+        "npm run build"
+      ]
+    },
+    {
+      "id": "POLISH-07A",
+      "group_id": "POLISH",
+      "title": "Build public GSAP motion foundation",
+      "description": "Establish the shared public-site GSAP foundation without adding page choreography yet. Do a short inspiration pass using GSAP official docs/showcases and one or two high-signal creative coding references, then implement client-only plugin registration, reduced-motion helpers, component-scoped setup patterns, and ScrollTrigger cleanup/refresh utilities that later motion tasks can reuse. Record useful inspiration links for downstream motion tasks in the final summary or by appending them to the next applicable task.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Shared public motion utilities initialize GSAP client-side only and never during SSR",
+        "Reduced-motion helper is available for later tasks and disables spatial choreography by default",
+        "ScrollTrigger setup/cleanup/refresh pattern is documented in code or utility usage and uses gsap.context cleanup",
+        "A short inspiration pass is completed using GSAP official material plus at least one creative coding reference",
+        "Useful inspiration links and one-line applicability notes are handed forward to downstream motion tasks where relevant",
+        "npm run test:run, npm run lint, npm run check, and npm run build pass"
+      ],
+      "docs": [
+        "docs/GSAP.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/motion/**",
+        "src/routes/+layout.svelte",
+        "src/app.css"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check",
+        "npm run build"
+      ]
+    },
+    {
+      "id": "POLISH-07B",
+      "group_id": "POLISH",
+      "title": "Add public smooth scroll layer",
+      "description": "Implement the public-only smooth scroll layer on top of the shared GSAP foundation. Prefer ScrollSmoother if it preserves native browser behavior; otherwise keep ScrollTrigger choreography compatible with native scroll and document the fallback. Scope this to public page content and keep admin routes out of the smoother.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "POLISH-07A"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Smooth scroll is enabled only on public-facing routes and does not wrap admin surfaces",
+        "prefers-reduced-motion disables ScrollSmoother or any spatial smooth-scroll behavior",
+        "Keyboard scrolling, tab focus, anchor links, browser find, back/forward navigation, and scroll restoration remain usable",
+        "ScrollTrigger refresh is handled after route or layout changes that affect trigger positions",
+        "If ScrollSmoother is rejected, the fallback and reason are documented in the final summary and relevant docs",
+        "npm run test:run, npm run lint, npm run check, and npm run build pass"
+      ],
+      "docs": [
+        "docs/GSAP.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/routes/+layout.svelte",
+        "src/lib/motion/**",
+        "src/app.css"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check",
+        "npm run build"
+      ]
+    },
+    {
+      "id": "POLISH-07C",
+      "group_id": "POLISH",
+      "title": "Add landing page motion polish",
+      "description": "Add Tier 1 and Tier 2 motion to the public landing page after the homepage hierarchy is settled. Animate the hero, chat panel entrance, stats row, latest-note rows, and structural rule-line or section reveals using the shared GSAP motion foundation. Keep the homepage chat-first and editorial, and use or extend the inspiration handoff from POLISH-07A with landing-specific references if useful.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [
+        "POLISH-07A",
+        "POLISH-06"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Landing hero, CTA, chat panel, stats, and latest-note areas animate with restrained staged timing",
+        "The first viewport remains chat-first on desktop and mobile",
+        "Rule-line or section choreography reinforces the style guide without decorative clutter",
+        "Reduced-motion mode collapses spatial movement to instant state changes or simple fades",
+        "Any new landing-specific inspiration links are handed forward when useful",
+        "npm run test:run, npm run lint, npm run check, and npm run build pass"
+      ],
+      "docs": [
+        "docs/GSAP.md",
+        "docs/styleguide.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/routes/+page.svelte",
+        "src/lib/components/Chat.svelte",
+        "src/lib/components/NoteCard.svelte",
+        "src/lib/motion/**"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check",
+        "npm run build"
+      ]
+    },
+    {
+      "id": "POLISH-07D",
+      "group_id": "POLISH",
+      "title": "Add notes browse and detail motion polish",
+      "description": "Add restrained public motion to the notes index and note detail surfaces using the shared GSAP foundation. Cover notes row entrance/filter transitions, note detail header and media reveal, and a limited first-block article reveal. Do not animate every paragraph or add motion that competes with reading.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [
+        "POLISH-07A"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Notes index rows animate on load and filter/navigation changes without reflow jank",
+        "Note detail cover media, title, metadata, tags, and takeaway reveal as one restrained editorial sequence",
+        "Only the first few major article blocks may animate; long-form reading remains stable and immediate",
+        "Reduced-motion mode disables spatial note and article choreography",
+        "Any useful notes/article-specific inspiration links are handed forward when relevant",
+        "npm run test:run, npm run lint, npm run check, and npm run build pass"
+      ],
+      "docs": [
+        "docs/GSAP.md",
+        "docs/styleguide.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/routes/notes/+page.svelte",
+        "src/lib/components/NoteCard.svelte",
+        "src/lib/components/NoteDetail.svelte",
+        "src/lib/motion/**"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check",
+        "npm run build"
+      ]
+    },
+    {
+      "id": "POLISH-07E",
+      "group_id": "POLISH",
+      "title": "Add public route transitions and loader treatment",
+      "description": "Add a fast branded public route transition and loading treatment that coexists with the smooth scroll layer. Use Glass Atlas line/grid geometry, sharp masks, and restrained palette choices; avoid blocking readability or trapping interaction after navigation settles.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [
+        "POLISH-07B"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Public route changes use a fast branded transition or loader treatment aligned with Glass Atlas geometry",
+        "Transitions do not block interaction or delay readable content after navigation settles",
+        "Reduced-motion mode uses instant navigation or a non-spatial minimal fade",
+        "The treatment works across light and dark themes without introducing new accent families",
+        "The implementation coexists with smooth scroll and does not duplicate ScrollTrigger instances after navigation",
+        "npm run test:run, npm run lint, npm run check, and npm run build pass"
+      ],
+      "docs": [
+        "docs/GSAP.md",
+        "docs/styleguide.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/routes/+layout.svelte",
+        "src/lib/components/**",
+        "src/lib/motion/**",
+        "src/app.css"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check",
+        "npm run build"
+      ]
+    },
+    {
+      "id": "POLISH-07F",
+      "group_id": "POLISH",
+      "title": "Create wave-like 3D grid motion asset",
+      "description": "Research and implement the branded wave-like 3D grid field or its generated/static fallback using the Glass Atlas palette. Prefer Three.js for real-time 3D and keep the field line-based, sparse, and structurally integrated with public pages rather than framed as a decorative card. If generated assets are used, ensure prompts and outputs follow the style guide and include reduced-motion fallbacks.",
+      "status": "todo",
+      "priority": "medium",
+      "depends_on": [
+        "POLISH-07A"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "A wave-like line/grid field or fallback asset uses neutral, sage, and warm taupe tokens without generic sci-fi or glossy styling",
+        "The field is integrated into a public surface without overlapping critical text or becoming a decorative card",
+        "Reduced-motion users receive a static or near-static fallback",
+        "If Three.js is added, browser smoke verification confirms nonblank rendering and responsive framing on desktop and mobile",
+        "Research references for grid, wave, or 3D motion inspiration are recorded and handed forward if they affect later placement work",
+        "npm run test:run, npm run lint, npm run check, and npm run build pass"
+      ],
+      "docs": [
+        "docs/GSAP.md",
+        "docs/styleguide.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/components/**",
+        "src/lib/motion/**",
+        "src/app.css",
+        "package.json"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check",
+        "npm run build"
+      ]
+    },
+    {
+      "id": "POLISH-07G",
+      "group_id": "POLISH",
+      "title": "Run public motion QA pass",
+      "description": "Run a dedicated final QA pass across the public motion work after smooth scroll, page choreography, route transitions, and the wave-grid asset have landed. Focus on reduced-motion behavior, light/dark parity, desktop/mobile composition, route navigation cleanup, and native browser affordances.",
+      "status": "todo",
+      "priority": "high",
+      "depends_on": [
+        "POLISH-07B",
+        "POLISH-07C",
+        "POLISH-07D",
+        "POLISH-07E",
+        "POLISH-07F"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Public routes pass desktop and mobile manual smoke checks in light and dark themes",
+        "prefers-reduced-motion disables smooth scroll, spatial choreography, and 3D movement as specified",
+        "Back/forward navigation, anchors, browser find, keyboard scroll, tab focus, and focus outlines remain usable",
+        "No duplicated ScrollTrigger or smoother instances appear after repeated navigation",
+        "No motion asset or transition overlaps critical text or delays long-form reading",
+        "npm run test:run, npm run lint, npm run check, and npm run build pass"
+      ],
+      "docs": [
+        "docs/GSAP.md",
+        "docs/styleguide.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/routes/**",
+        "src/lib/components/**",
+        "src/lib/motion/**",
+        "src/app.css"
       ],
       "commands": [
         "npm run test:run",

@@ -15,7 +15,7 @@ Keep this file current: add, remove, or rename a row in the same commit as the d
 | [VOICE.md](VOICE.md) | Canonical blog writing voice/style guide and AI-tell ban list — source of truth for `/write-post` and the draft-review scorer |
 | [styleguide.md](styleguide.md) | Canonical visual system: design tokens, typography roles, layout rules, and component recipes |
 | [bits-ui.md](bits-ui.md) | Default component primitive policy and implementation rules for using Bits UI across product surfaces |
-| [GSAP.md](GSAP.md) | Planned animation architecture and constraints for GSAP adoption |
+| [GSAP.md](GSAP.md) | Public motion architecture, GSAP usage rules, smooth scroll constraints, and branded motion asset direction |
 | [DECISIONS.md](DECISIONS.md) | Architectural decision log — open questions and resolved decisions |
 | [ENV_VARS.md](ENV_VARS.md) | Environment variable and secret matrix — names, required/optional, and where used |
 | [TESTING.md](TESTING.md) | Test strategy, Vitest configuration, how to run tests, patterns for writing new tests |

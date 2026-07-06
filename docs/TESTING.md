@@ -27,7 +27,7 @@ All test commands assume dependencies are installed (`npm install`) and a `.env`
 | Type checking | `tsc --noEmit` (via `npm run lint`) + `svelte-check` (via `npm run check`) | Catches TypeScript and Svelte component errors before test run |
 | HTTP mocking | `Request` constructor (Web API) | Simulate SvelteKit route handler calls |
 
-There is no Playwright, Cypress, or any browser automation in this project. End-to-end tests are out of scope for v1.
+There is no default Playwright, Cypress, or browser automation suite in this project. End-to-end tests are out of scope for v1 unless a dedicated visual or motion task adds targeted browser smoke coverage.
 
 ---
 
@@ -58,7 +58,7 @@ There is no Playwright, Cypress, or any browser automation in this project. End-
 
 ### Explicitly NOT covered
 
-- End-to-end browser tests (Playwright / Cypress) — out of scope for v1
+- End-to-end browser tests (Playwright / Cypress) — out of scope for v1 unless a dedicated visual/motion task adds browser automation for that task
 - Visual regression testing
 - Load testing or stress testing
 - Real OpenRouter API calls — always mocked in tests
@@ -66,6 +66,31 @@ There is no Playwright, Cypress, or any browser automation in this project. End-
 - Svelte component rendering tests (no `@testing-library/svelte` in v1)
 
 If a gap above becomes critical, revisit before adding the dependency — don't add test tooling speculatively.
+
+### Motion QA
+
+Public motion work must include manual browser smoke verification in addition to `npm run test:run` and `npm run lint`.
+
+For GSAP/ScrollTrigger/ScrollSmoother changes, verify:
+
+- Public routes still render with JavaScript disabled or before client motion initializes.
+- `prefers-reduced-motion: reduce` disables smooth scroll and spatial choreography.
+- Keyboard scrolling, tab focus, focus outlines, anchor links, browser find, and route navigation remain usable.
+- Scroll-triggered animations clean up after route changes and do not duplicate after navigating back and forth.
+- Dynamic content changes that affect layout call `ScrollTrigger.refresh()` or otherwise avoid stale trigger positions.
+
+For generated loading/transition assets, verify:
+
+- Assets match the token palette and style guide constraints in both light and dark mode.
+- Transitions do not trap interaction or delay page readability after navigation settles.
+- Static or near-static fallbacks exist for reduced-motion users.
+
+For real-time 3D assets, verify:
+
+- The scene is nonblank on desktop and mobile viewport sizes.
+- The frame is correctly composed, does not overlap critical text, and remains readable in light and dark mode.
+- Reduced-motion fallback works.
+- If a task adds Three.js, include a browser-level smoke check for rendered canvas pixels and responsive framing as part of that task's verification plan.
 
 ---
 

@@ -330,17 +330,54 @@ Fonts are **self-hosted**.
 
 ---
 
-## 7) Accessibility and Quality Gates
+## 7) Motion and Generated Assets
+
+Motion belongs to the visual system. It must reinforce the same structural rules as the static design: sharp geometry, visible dividers, flat depth, restrained accent usage, and editorial reading comfort.
+
+### 7.1 Public Motion Scope
+
+- Public surfaces may receive the full motion treatment: landing, notes index, note detail, public editorial routes, chat moments, page transitions, and smooth scroll.
+- Admin surfaces remain intentionally lower-motion. Use small state transitions only unless a dedicated admin-motion task changes that rule.
+- Use [GSAP.md](GSAP.md) as the canonical implementation spec for GSAP, ScrollTrigger, ScrollSmoother, and page-transition behavior.
+
+### 7.2 Motion Language
+
+- Prefer line-led reveals, divider drawing, small vertical offsets, opacity, clip reveals, and subtle staggered timing.
+- Avoid bounce, elastic overshoot, heavy parallax, scroll-jacking, animated decoration with no content relationship, and motion that delays reading.
+- Do not animate every paragraph or every repeated item on long pages. Animate the structural arrival of a section, then let the reader read.
+- Reduced-motion users must get instant state changes or simple non-spatial fades.
+
+### 7.3 3D Grid Field Direction
+
+The approved branded motion-asset direction is a wave-like 3D grid field.
+
+- The field should feel like a structural coordinate plane or knowledge surface, not a literal map illustration.
+- Use neutral line colors with restrained sage and warm taupe accents from the token system.
+- Keep the field line-based, sparse, and readable behind or between content modules.
+- Provide a static or near-static reduced-motion fallback.
+- If implemented as real-time 3D, use Three.js and keep it integrated into the page structure rather than framed as a decorative card.
+- Generated bitmap assets may be used for loader frames, transition plates, or static fallback frames when they match this style.
+
+### 7.4 Loading and Transition Assets
+
+- Loading and transition visuals should use Glass Atlas geometry: rules, grids, coordinate lines, sharp rectangular masks, and restrained type.
+- Avoid stock-like abstract art, glossy glass effects, gradient-orb compositions, and mascot-style illustrations.
+- Asset generation prompts must explicitly include the palette, sharp geometry, flat editorial brutalism, and no rounded/glossy decoration.
+
+---
+
+## 8) Accessibility and Quality Gates
 
 - Baseline contrast target: WCAG AA across UI.
 - Selective AAA target: long-form article text and key reading surfaces.
 - Focus states must be keyboard-visible on every interactive element.
 - Minimum body text for long-form reading: 18px equivalent.
 - Do not encode meaning by color alone; pair semantic color with text/icon/label.
+- Motion must respect `prefers-reduced-motion` and must not be required to understand or navigate content.
 
 ---
 
-## 8) Anti-Patterns (Do Not Ship)
+## 9) Anti-Patterns (Do Not Ship)
 
 - Rounded corners on structural UI.
 - Shadow-heavy elevation systems.
@@ -348,17 +385,19 @@ Fonts are **self-hosted**.
 - Dense card mosaics as the default notes browsing pattern.
 - Decorative gradients or texture overlays that reduce legibility.
 - Unconstrained asymmetry that breaks reading flow on mobile.
+- Whole-page scroll effects that trap input, break anchor/focus behavior, or make reading feel delayed.
+- Generated motion assets that look like generic sci-fi, glossy glassmorphism, or brand-unrelated abstract decoration.
 
 ---
 
-## 9) Implementation Alignment
+## 10) Implementation Alignment
 
 - Use [bits-ui.md](bits-ui.md) as the default interactive component implementation policy.
-- Use [GSAP.md](GSAP.md) as the animation planning reference; do not treat it as a finalized motion standard yet.
+- Use [GSAP.md](GSAP.md) as the finalized public motion implementation standard.
 
 ---
 
-## 10) Design Reference
+## 11) Design Reference
 
 Canonical visual mockups are in `reference/UI/design_handoff_glass_atlas/`. These are the authority for pixel-level layout and surface decisions. When in doubt, the reference image wins over any written description.
 

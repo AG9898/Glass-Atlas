@@ -271,6 +271,12 @@ function wikiLinkCompletions(notes: { slug: string; title: string }[]): Completi
   - Use CSS/Svelte transitions for simple hover/focus/show-hide.
   - Use GSAP for complex sequencing, scroll-coupled choreography, and multi-element timeline control.
   - Respect reduced-motion behavior and ensure content remains usable without motion.
+  - Scope GSAP setup to public components/routes unless a task explicitly includes admin motion.
+  - Initialize GSAP only in client lifecycle (`onMount`) and clean up with `gsap.context(...).revert()`.
+  - Put `ScrollTrigger` instances inside the same GSAP context as their tweens, and refresh after route changes or layout-affecting media loads.
+  - Use `data-motion` attributes or local `bind:this` references for animation targets; avoid brittle route-global selectors.
+  - Disable ScrollSmoother and spatial choreography for `prefers-reduced-motion: reduce`.
+  - For real-time 3D motion assets, use Three.js rather than hand-rolled 3D math, and keep the scene progressive-enhancement safe.
 
 **Dropdown/Select design system**
 

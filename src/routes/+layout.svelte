@@ -5,6 +5,7 @@
   import { onMount } from 'svelte';
   import '../app.css';
   import Nav from '$lib/components/Nav.svelte';
+  import PageTransitionOverlay from '$lib/components/PageTransitionOverlay.svelte';
   import {
     isPublicSmoothScrollPath,
     publicSmoothScroll,
@@ -40,6 +41,8 @@
 </svelte:head>
 
 <Nav session={data.session} />
+
+<PageTransitionOverlay />
 
 {#if usePublicSmoothScroll}
   <div id="smooth-wrapper" data-public-smooth-wrapper use:publicSmoothScroll>

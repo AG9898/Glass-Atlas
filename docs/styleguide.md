@@ -366,6 +366,7 @@ The approved branded motion-asset direction is a wave-like 3D grid field.
 - Loading and transition visuals should use Glass Atlas geometry: rules, grids, coordinate lines, sharp rectangular masks, and restrained type.
 - Avoid stock-like abstract art, glossy glass effects, gradient-orb compositions, and mascot-style illustrations.
 - Asset generation prompts must explicitly include the palette, sharp geometry, flat editorial brutalism, and no rounded/glossy decoration.
+- **Shipped (`POLISH-07E`):** public route changes play a fast branded wipe overlay (`PageTransitionOverlay.svelte`, mounted once in `+layout.svelte`, outside the smooth-scroll wrapper). The overlay is a flat `--color-bg` panel with a faint repeating vertical rule (`--color-line-1`, one line every 64px) that is masked in and back out with a CSS `clip-path: inset(...)` tween — the mask boundary itself is the "sharp rectangular mask" called for above, not a separate asset. The overlay stays `pointer-events: none` for its whole lifecycle so it never traps interaction, and reduced-motion users get plain instant navigation because the cover/reveal tweens never run (gated on `canUseSpatialMotion`, with a CSS `prefers-reduced-motion` rule as a backstop). See [GSAP.md](GSAP.md) section 9 for implementation detail.
 
 ---
 

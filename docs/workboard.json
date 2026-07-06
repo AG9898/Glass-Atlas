@@ -2155,7 +2155,7 @@
       "group_id": "POLISH",
       "title": "Add public route transitions and loader treatment",
       "description": "Add a fast branded public route transition and loading treatment that coexists with the smooth scroll layer. Use Glass Atlas line/grid geometry, sharp masks, and restrained palette choices; avoid blocking readability or trapping interaction after navigation settles.",
-      "status": "todo",
+      "status": "done",
       "priority": "medium",
       "depends_on": [
         "POLISH-07B"

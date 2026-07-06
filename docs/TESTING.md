@@ -54,6 +54,7 @@ There is no default Playwright, Cypress, or browser automation suite in this pro
 | Public Markdown technical blocks | Server markdown renderer and client controls | Unit-test Mermaid render/fallback behavior, code block label metadata, and fail-soft behavior so unsupported diagrams never 500 a note page |
 | Public motion foundation | `src/lib/motion/**` | Unit-test reduced-motion defaults and SSR-safe GSAP loading; manually smoke-test visible page choreography when later tasks add animations |
 | Public smooth scroll layer | `src/lib/motion/smooth-scroll.ts` | Pure unit tests for public/admin route gating and conservative ScrollSmoother config; manual browser smoke checks for native scroll behaviors |
+| Landing page motion | `/` page choreography | No component-level browser automation in v1; verify with `npm run check` plus manual browser smoke for hero/chat/stats/latest-note reveals and reduced-motion behavior |
 | How-it-works route | `/how-it-works` page | Smoke-test route load/render boundaries if server data is added; otherwise rely on lint/check plus manual visual review |
 | Auth guard | SvelteKit hooks or route guards for `/admin` | Assert unauthenticated requests receive a redirect (302) or 401 response, including nested admin pages such as `/admin/notes/[slug]/preview` |
 | Rate limit logic | Chat quota utility (anonymous session cookie-based) | Pass mock session token/hash and mock store; test threshold, reset window, and cookie-missing behavior in isolation |

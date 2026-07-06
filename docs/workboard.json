@@ -2080,7 +2080,7 @@
       "group_id": "POLISH",
       "title": "Add landing page motion polish",
       "description": "Add Tier 1 and Tier 2 motion to the public landing page after the homepage hierarchy is settled. Animate the hero, chat panel entrance, stats row, latest-note rows, and structural rule-line or section reveals using the shared GSAP motion foundation. Keep the homepage chat-first and editorial, and use or extend the inspiration handoff from POLISH-07A with landing-specific references if useful.",
-      "status": "todo",
+      "status": "done",
       "priority": "medium",
       "depends_on": [
         "POLISH-07A",

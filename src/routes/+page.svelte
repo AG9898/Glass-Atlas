@@ -1,9 +1,12 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import Chat from '$lib/components/Chat.svelte';
   import NoteCard from '$lib/components/NoteCard.svelte';
+  import { createPublicGsapContext, schedulePublicScrollTriggerRefresh } from '$lib/motion';
   import type { PageData } from './$types';
 
   let { data }: { data: PageData } = $props();
+  let landingShell: HTMLElement | null = $state(null);
 
   const numberFormatter = new Intl.NumberFormat('en-US');
 
@@ -25,6 +28,47 @@
       value: numberFormatter.format(data.stats.totalCitations),
     },
   ]);
+
+  onMount(() => {
+    if (!landingShell) return;
+
+    const setup = createPublicGsapContext(landingShell, ({ gsap, canUseSpatialMotion }) => {
+      if (!canUseSpatialMotion) return;
+
+      gsap.set('[data-motion="hero-rule"], [data-motion="latest-rule"]', {
+        transformOrigin: 'left center',
+      });
+
+      const heroTimeline = gsap.timeline({
+        defaults: { duration: 0.42, ease: 'power3.out' },
+      });
+
+      heroTimeline
+        .from('[data-motion="hero-rule"]', { scaleX: 0, duration: 0.56 }, 0)
+        .from('[data-motion="hero-copy"]', { autoAlpha: 0, y: 12, stagger: 0.07 }, 0.08)
+        .from('[data-motion="hero-chat"]', { autoAlpha: 0, y: 16, duration: 0.48 }, 0.16)
+        .from('[data-motion="stat"]', { autoAlpha: 0, y: 10, stagger: 0.05 }, 0.34);
+
+      gsap
+        .timeline({
+          defaults: { duration: 0.4, ease: 'power2.out' },
+          scrollTrigger: {
+            trigger: '[data-motion-section="latest"]',
+            start: 'top 82%',
+            once: true,
+          },
+        })
+        .from('[data-motion="latest-rule"]', { scaleX: 0, duration: 0.5 }, 0)
+        .from('[data-motion="latest-heading"]', { autoAlpha: 0, y: 10 }, 0.08)
+        .from('[data-motion="latest-note"]', { autoAlpha: 0, y: 14, stagger: 0.06 }, 0.18);
+
+      schedulePublicScrollTriggerRefresh('layout');
+    });
+
+    return () => {
+      void setup.then((cleanup) => cleanup());
+    };
+  });
 </script>
 
 <svelte:head>
@@ -35,30 +79,36 @@
   />
 </svelte:head>
 
-<main class="landing-shell" aria-labelledby="landing-title">
-  <section class="hero" aria-label="Landing hero">
-    <aside id="chat" class="hero-chat" aria-label="Grounded chat panel">
+<main class="landing-shell" aria-labelledby="landing-title" bind:this={landingShell}>
+  <section class="hero" aria-label="Landing hero" data-motion-section="hero">
+    <span class="motion-rule motion-rule--top" data-motion="hero-rule" aria-hidden="true"></span>
+    <span class="motion-rule motion-rule--bottom" data-motion="hero-rule" aria-hidden="true"></span>
+
+    <aside id="chat" class="hero-chat" aria-label="Grounded chat panel" data-motion="hero-chat">
       <Chat compact />
     </aside>
 
     <div class="hero-copy">
-      <p class="hero-eyebrow">Glass Atlas</p>
-      <h1 id="landing-title">Notes from a developer who would rather show his work.</h1>
-      <a class="ga-btn ga-btn-primary ga-btn-lg hero-cta ga-focus-ring" href="/notes">Read The Latest</a>
+      <p class="hero-eyebrow" data-motion="hero-copy">Glass Atlas</p>
+      <h1 id="landing-title" data-motion="hero-copy">Notes from a developer who would rather show his work.</h1>
+      <a class="ga-btn ga-btn-primary ga-btn-lg hero-cta ga-focus-ring" href="/notes" data-motion="hero-copy"
+        >Read The Latest</a
+      >
     </div>
   </section>
 
   <section class="stats" aria-label="Site statistics">
     {#each statItems as stat}
-      <article class="stat-item">
+      <article class="stat-item" data-motion="stat">
         <p class="stat-value">{stat.value}</p>
         <p class="stat-label">{stat.label}</p>
       </article>
     {/each}
   </section>
 
-  <section class="latest" aria-labelledby="latest-title">
-    <header class="latest-header">
+  <section class="latest" aria-labelledby="latest-title" data-motion-section="latest">
+    <header class="latest-header" data-motion="latest-heading">
+      <span class="motion-rule motion-rule--latest" data-motion="latest-rule" aria-hidden="true"></span>
       <p class="latest-eyebrow">Archive</p>
       <h2 id="latest-title">The latest field notes.</h2>
     </header>
@@ -83,13 +133,33 @@
   }
 
   .hero {
+    position: relative;
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
     gap: 2rem;
     align-items: stretch;
-    border-top: var(--line-strong) solid var(--color-line-3);
-    border-bottom: var(--line-std) solid var(--color-line-3);
     padding: 2.25rem 0;
+  }
+
+  .motion-rule {
+    position: absolute;
+    left: 0;
+    right: 0;
+    z-index: 1;
+    display: block;
+    pointer-events: none;
+    background: var(--color-line-3);
+  }
+
+  .motion-rule--top {
+    top: 0;
+    height: var(--line-strong);
+  }
+
+  .motion-rule--bottom,
+  .motion-rule--latest {
+    bottom: 0;
+    height: var(--line-std);
   }
 
   .hero-copy {
@@ -191,7 +261,7 @@
   }
 
   .latest-header {
-    border-bottom: var(--line-std) solid var(--color-line-3);
+    position: relative;
     margin-bottom: 0;
     padding-bottom: 1rem;
   }

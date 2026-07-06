@@ -214,6 +214,11 @@ Rules:
   - `publicSmoothScroll` mounts ScrollSmoother on the public route wrapper, watches `prefers-reduced-motion`, kills the smoother when reduction is requested or the wrapper unmounts, and schedules a `ScrollTrigger.refresh()` after setup/teardown.
   - `isPublicSmoothScrollPath()` keeps admin, auth, sign-in, and API paths outside the smoother while allowing current and future public editorial routes.
   - `src/app.css` defines only minimal wrapper sizing/reset styles so content remains readable before JS initializes and reduced-motion can remove active transforms.
+- `POLISH-07C` added the first landing-page choreography in `src/routes/+page.svelte`:
+  - The homepage root binds a local GSAP context and uses `data-motion` hooks for hero copy, CTA, chat panel, stats, latest-note rows, and structural rule lines.
+  - First-paint motion stays short and staged: rule draw, hero copy, chat panel, then stat values. The latest-note section uses a one-shot ScrollTrigger reveal for its rule/header/rows.
+  - Reduced-motion users get the normal static page immediately because the setup exits before applying spatial transforms.
+  - Note rows expose `data-motion="latest-note"` from `NoteCard.svelte`; keep this hook stable for landing choreography, but do not make `NoteCard` own page-level timelines.
 
 Usage pattern for future ScrollTrigger work:
 

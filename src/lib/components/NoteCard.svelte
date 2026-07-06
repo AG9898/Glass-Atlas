@@ -23,7 +23,7 @@
   const isVideo = $derived(note.mediaType === 'video-mp4');
 </script>
 
-<article class="note-row" aria-label={note.title}>
+<article class="note-row" aria-label={note.title} data-motion="latest-note">
   <div class="row-meta">
     <span class="note-number">{noteNumber}</span>
     {#if formattedDate}

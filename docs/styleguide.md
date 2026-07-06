@@ -39,6 +39,7 @@ Glass Atlas uses **Soft Editorial Brutalism**:
 - The landing chat panel must use the standard neutral surface token in dark mode: `--color-surface-1` (`#232019`), not a custom olive override.
 - The homepage remains chat-first. Supporting note lists, stats, and prompts should be populated automatically from published notes unless a future curation decision changes that.
 - **Shipped (`POLISH-06`):** chat-first hierarchy is reinforced on mobile, not just desktop. `+page.svelte`'s hero markup places the chat `<aside>` before the copy `<div>` in DOM order, so the collapsed single-column mobile layout shows the chat panel first (no headline/CTA scroll penalty before reaching it). Desktop keeps the original copy-left/chat-right visual split via explicit `grid-column` **and** `grid-row` placement on both children (both are required — pinning only `grid-column` lets auto-placement push the out-of-DOM-order item to a second row instead of sharing row 1 with its sibling). The mobile media query resets both properties to `auto` so single-column stacking follows DOM order.
+- **Shipped (`POLISH-07C`):** landing motion is now a page-local GSAP enhancement. The first viewport remains chat-first while hero rules, copy, CTA, chat panel, and stats enter with short staggered timing; the latest-note section uses a one-shot ScrollTrigger reveal for its rule/header/rows. Motion hooks are `data-motion` attributes, and reduced-motion mode exits before spatial transforms are applied so the page stays immediately readable.
 
 ### Notes Index (`/notes`)
 

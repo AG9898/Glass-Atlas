@@ -122,6 +122,17 @@ select:focus-visible {
   will-change: transform;
 }
 
+/* GSAP ScrollSmoother pins the wrapper to `position: fixed; inset: 0` only in
+   its "fixed" branch (real desktop pointers, per PUBLIC_SMOOTH_SCROLL_CONFIG),
+   which ignores Nav's own (responsive) height since Nav sits outside the
+   wrapper. Reserve matching top space here so hero content doesn't render
+   underneath/behind Nav. Scoped to data-public-smooth-fixed="true" only —
+   applying it in the "relative" branch would double-count Nav's height on
+   top of the wrapper's own normal in-flow offset. See AGENTS.md discoveries. */
+[data-public-smooth-wrapper][data-public-smooth-fixed="true"] [data-public-smooth-content] {
+  padding-top: var(--ga-nav-height, 0px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -130,6 +141,10 @@ select:focus-visible {
   [data-public-smooth-wrapper][data-public-smooth-scroll-ready="true"] [data-public-smooth-content] {
     transform: none !important;
     will-change: auto;
+  }
+
+  [data-public-smooth-wrapper][data-public-smooth-fixed="true"] [data-public-smooth-content] {
+    padding-top: 0;
   }
 }
 

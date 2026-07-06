@@ -8,6 +8,11 @@
   // Dark mode state
   let isDark = $state(false);
 
+  // Root element ref: measured so the public smooth-scroll layer (which GSAP
+  // ScrollSmoother pins to `position: fixed; inset: 0`, ignoring this element's
+  // own height) can reserve matching top space via the --ga-nav-height var.
+  let navRoot: HTMLElement | null = $state(null);
+
   onMount(() => {
     // Read persisted preference or system preference
     const stored = localStorage.getItem('ga-theme');
@@ -19,6 +24,20 @@
       isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     }
     applyTheme(isDark);
+  });
+
+  $effect(() => {
+    if (!navRoot) return;
+
+    const setNavHeightVar = () => {
+      document.documentElement.style.setProperty('--ga-nav-height', `${navRoot!.offsetHeight}px`);
+    };
+
+    setNavHeightVar();
+    const observer = new ResizeObserver(setNavHeightVar);
+    observer.observe(navRoot);
+
+    return () => observer.disconnect();
   });
 
   function applyTheme(dark: boolean) {
@@ -41,7 +60,7 @@
   let pathname: string = $derived($page.url.pathname);
 </script>
 
-<header class="ga-nav">
+<header class="ga-nav" bind:this={navRoot}>
   <!-- Top utility row -->
   <div class="ga-nav__utility">
     <span class="ga-nav__utility-text">GLASS ATLAS</span>
@@ -141,6 +160,8 @@
 
 <style>
   .ga-nav {
+    position: relative;
+    z-index: 40;
     border-bottom: 2px solid var(--color-line-3);
     background: var(--color-bg);
     font-family: 'Space Grotesk', 'Inter', 'Segoe UI', sans-serif;

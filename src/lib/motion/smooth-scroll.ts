@@ -38,6 +38,7 @@ export const publicSmoothScroll: Action<HTMLElement> = (wrapper) => {
     smoother?.kill();
     smoother = null;
     wrapper.removeAttribute('data-public-smooth-scroll-ready');
+    wrapper.removeAttribute('data-public-smooth-fixed');
     schedulePublicScrollTriggerRefresh('layout');
   }
 
@@ -67,6 +68,17 @@ export const publicSmoothScroll: Action<HTMLElement> = (wrapper) => {
         ...PUBLIC_SMOOTH_SCROLL_CONFIG,
       });
       wrapper.setAttribute('data-public-smooth-scroll-ready', 'true');
+
+      // ScrollSmoother pins the wrapper to `position: fixed; inset: 0` only
+      // when it decides to run in "smooth" mode (matches its own isTouch
+      // check: `(hover: none), (pointer: coarse)`), keeping it `position:
+      // relative` otherwise (our smoothTouch: 0 means touch-classified
+      // pointers never get the fixed wrapper). Content padding that
+      // compensates for Nav's height (which the fixed wrapper ignores) must
+      // only apply in the fixed branch, or it double-counts Nav's height on
+      // top of the wrapper's own normal in-flow offset. See AGENTS.md.
+      const isSmoothScrollFixedMode = !window.matchMedia('(hover: none), (pointer: coarse)').matches;
+      wrapper.setAttribute('data-public-smooth-fixed', String(isSmoothScrollFixedMode));
     }
 
     schedulePublicScrollTriggerRefresh('layout');

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { renderChatMessageHtml, parseChatSourcesEvent, type ChatSource } from '$lib/utils/chat-format';
+  import { canUseSpatialMotion, loadPublicGsap, type PublicGsap } from '$lib/motion';
   import { Dialog } from '$lib/components/ui';
   import WaveGridLoader from '$lib/components/WaveGridLoader.svelte';
 
@@ -24,6 +25,205 @@
   let loading = $state(false);
   let error = $state('');
   let messagesViewport: HTMLDivElement | undefined;
+
+  const EXPAND_DURATION = 0.5;
+  const EXPAND_EASE = 'power3.inOut';
+  const BACKDROP_FADE_DURATION = 0.3;
+
+  let rootEl: HTMLElement | undefined;
+  let expandToggle: HTMLButtonElement | undefined;
+  let expanded = $state(false);
+  let expandAnimating = false;
+  let placeholderEl: HTMLDivElement | null = null;
+  let backdropEl: HTMLDivElement | null = null;
+  let motionRef: PublicGsap | null = null;
+  let backgroundScrollLocked = false;
+
+  /** Centered enlarged rectangle — bigger than the in-flow panel, never full screen. */
+  function getExpandedTargetRect(): { top: number; left: number; width: number; height: number } {
+    const width = Math.min(window.innerWidth * 0.92, 1040);
+    const height = Math.min(window.innerHeight * 0.88, 900);
+    return {
+      width,
+      height,
+      top: (window.innerHeight - height) / 2,
+      left: (window.innerWidth - width) / 2,
+    };
+  }
+
+  /**
+   * Blocks page scroll behind the expanded panel. When the public
+   * ScrollSmoother is active, pausing it is the reliable lock (it owns wheel
+   * scrolling); the overflow toggle covers the reduced-motion/no-smoother case.
+   */
+  function setBackgroundScrollLocked(locked: boolean): void {
+    backgroundScrollLocked = locked;
+    const smoother = motionRef?.ScrollSmoother.get();
+    if (smoother) {
+      smoother.paused(locked);
+    } else {
+      document.documentElement.style.overflow = locked ? 'hidden' : '';
+    }
+  }
+
+  /**
+   * Expands the chat into a centered fixed-position rectangle. The section is
+   * reparented to `document.body` first because it normally lives inside the
+   * transformed `#smooth-content` wrapper, where `position: fixed` would
+   * resolve against the smoother's transform instead of the viewport (see
+   * AGENTS.md / PageTransitionOverlay). A same-size placeholder keeps the hero
+   * grid cell from collapsing while the panel is out of flow.
+   */
+  async function expandChat(): Promise<void> {
+    if (expanded || expandAnimating || !rootEl) return;
+    expandAnimating = true;
+
+    motionRef ??= await loadPublicGsap();
+    const parent = rootEl?.parentElement;
+    if (!motionRef || !rootEl || !parent) {
+      expandAnimating = false;
+      return;
+    }
+
+    const { gsap } = motionRef;
+    const startRect = rootEl.getBoundingClientRect();
+    const savedScrollTop = messagesViewport?.scrollTop ?? 0;
+
+    placeholderEl = document.createElement('div');
+    placeholderEl.setAttribute('aria-hidden', 'true');
+    placeholderEl.style.inlineSize = `${startRect.width}px`;
+    placeholderEl.style.blockSize = `${startRect.height}px`;
+    parent.insertBefore(placeholderEl, rootEl);
+
+    backdropEl = document.createElement('div');
+    backdropEl.className = 'ga-chat-backdrop';
+    backdropEl.addEventListener('click', () => void collapseChat());
+    document.body.append(backdropEl);
+    document.body.append(rootEl);
+
+    gsap.set(rootEl, {
+      position: 'fixed',
+      top: startRect.top,
+      left: startRect.left,
+      width: startRect.width,
+      height: startRect.height,
+      margin: 0,
+      zIndex: 51,
+    });
+
+    expanded = true;
+    // Reparenting resets the scroll container and drops focus — restore both.
+    if (messagesViewport) messagesViewport.scrollTop = savedScrollTop;
+    expandToggle?.focus({ preventScroll: true });
+    setBackgroundScrollLocked(true);
+
+    const target = getExpandedTargetRect();
+
+    if (!canUseSpatialMotion(window)) {
+      gsap.set(backdropEl, { opacity: 1 });
+      gsap.set(rootEl, target);
+      expandAnimating = false;
+      return;
+    }
+
+    gsap.fromTo(
+      backdropEl,
+      { opacity: 0 },
+      { opacity: 1, duration: BACKDROP_FADE_DURATION, ease: 'power2.out' },
+    );
+    gsap.to(rootEl, {
+      ...target,
+      duration: EXPAND_DURATION,
+      ease: EXPAND_EASE,
+      onComplete: () => {
+        expandAnimating = false;
+      },
+    });
+  }
+
+  async function collapseChat(): Promise<void> {
+    if (!expanded || expandAnimating || !rootEl || !placeholderEl || !motionRef) return;
+    expandAnimating = true;
+
+    const { gsap } = motionRef;
+    // Background scroll is locked while expanded, so the placeholder's
+    // viewport rect is stable and is exactly where the fixed panel must land.
+    const targetRect = placeholderEl.getBoundingClientRect();
+
+    if (!canUseSpatialMotion(window)) {
+      restoreCollapsedState();
+      expandAnimating = false;
+      return;
+    }
+
+    if (backdropEl) {
+      gsap.to(backdropEl, { opacity: 0, duration: BACKDROP_FADE_DURATION, ease: 'power2.in' });
+    }
+    gsap.to(rootEl, {
+      top: targetRect.top,
+      left: targetRect.left,
+      width: targetRect.width,
+      height: targetRect.height,
+      duration: EXPAND_DURATION,
+      ease: EXPAND_EASE,
+      onComplete: () => {
+        restoreCollapsedState();
+        expandAnimating = false;
+      },
+    });
+  }
+
+  /** Puts the section back into its original flow position and removes the overlay chrome. */
+  function restoreCollapsedState(): void {
+    const savedScrollTop = messagesViewport?.scrollTop ?? 0;
+    if (rootEl && motionRef) {
+      motionRef.gsap.set(rootEl, { clearProps: 'position,top,left,width,height,margin,zIndex' });
+    }
+    if (rootEl && placeholderEl) {
+      placeholderEl.replaceWith(rootEl);
+    } else {
+      placeholderEl?.remove();
+    }
+    placeholderEl = null;
+    backdropEl?.remove();
+    backdropEl = null;
+    setBackgroundScrollLocked(false);
+    expanded = false;
+    if (messagesViewport) messagesViewport.scrollTop = savedScrollTop;
+    expandToggle?.focus({ preventScroll: true });
+  }
+
+  function onToggleExpand(): void {
+    if (expanded) {
+      void collapseChat();
+    } else {
+      void expandChat();
+    }
+  }
+
+  function onWindowKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Escape' || event.defaultPrevented) return;
+    if (!expanded || expandAnimating) return;
+    event.preventDefault();
+    void collapseChat();
+  }
+
+  function onWindowResize(): void {
+    if (!expanded || expandAnimating || !rootEl || !motionRef) return;
+    motionRef.gsap.set(rootEl, getExpandedTargetRect());
+  }
+
+  $effect(() => {
+    return () => {
+      // Unmount while expanded (e.g. navigation): drop the overlay chrome and
+      // release the scroll lock; Svelte removes the section itself.
+      backdropEl?.remove();
+      backdropEl = null;
+      placeholderEl?.remove();
+      placeholderEl = null;
+      if (backgroundScrollLocked) setBackgroundScrollLocked(false);
+    };
+  });
 
   async function scrollMessagesToBottom(): Promise<void> {
     await tick();
@@ -227,10 +427,38 @@
   }
 </script>
 
-<section class="ga-chat" class:ga-chat--compact={compact}>
+<svelte:window onkeydown={onWindowKeydown} onresize={onWindowResize} />
+
+<section
+  class="ga-chat"
+  class:ga-chat--compact={compact}
+  class:ga-chat--expanded={expanded}
+  bind:this={rootEl}
+>
   <header class="ga-chat__header">
-    <p class="ga-chat__label">Grounded Chat</p>
-    <p class="ga-chat__hint">Answers stream from the note index only.</p>
+    <div class="ga-chat__header-text">
+      <p class="ga-chat__label">Grounded Chat</p>
+      <p class="ga-chat__hint">Answers stream from the note index only.</p>
+    </div>
+    <button
+      type="button"
+      class="ga-chat__expand-toggle ga-focus-ring"
+      aria-expanded={expanded}
+      aria-label={expanded ? 'Collapse chat' : 'Expand chat'}
+      title={expanded ? 'Collapse chat' : 'Expand chat'}
+      bind:this={expandToggle}
+      onclick={onToggleExpand}
+    >
+      {#if expanded}
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M14 6.5H9.5V2M9.5 6.5 14 2M2 9.5h4.5V14M6.5 9.5 2 14" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+      {:else}
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M9.5 2H14v4.5M14 2 9.5 6.5M6.5 14H2V9.5M2 14l4.5-4.5" stroke="currentColor" stroke-width="1.5" />
+        </svg>
+      {/if}
+    </button>
   </header>
 
   <div class="ga-chat__messages" role="log" aria-live="polite" bind:this={messagesViewport}>
@@ -326,7 +554,58 @@
     border-bottom: var(--line-thin) solid var(--color-line-2);
     padding: 0.9rem 1rem;
     display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: 0.75rem;
+  }
+
+  .ga-chat__header-text {
+    display: grid;
     gap: 0.2rem;
+    min-width: 0;
+  }
+
+  .ga-chat__expand-toggle {
+    inline-size: 1.9rem;
+    block-size: 1.9rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: var(--line-thin) solid var(--color-line-2);
+    border-radius: 0;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+  }
+
+  .ga-chat__expand-toggle:hover {
+    color: var(--color-text-strong);
+    border-color: var(--color-line-3);
+  }
+
+  .ga-chat__expand-toggle svg {
+    inline-size: 0.85rem;
+    block-size: 0.85rem;
+  }
+
+  .ga-chat--expanded {
+    box-shadow: 0 24px 80px rgb(16 16 14 / 35%);
+  }
+
+  /*
+   * The backdrop element is created programmatically in `expandChat()` and
+   * appended to `document.body`, outside this component's template — scoped
+   * styles cannot reach it without `:global`. Scrim color mirrors
+   * `.ga-dialog-overlay` in app.css; it sits below the sources Dialog
+   * (overlay z-index 60) so sources opened from the expanded panel stack
+   * above it.
+   */
+  :global(.ga-chat-backdrop) {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgb(16 16 14 / 60%);
   }
 
   .ga-chat__label {

@@ -348,6 +348,7 @@ export const notes = pgTable('notes', {
 - Return plain serializable objects from query helpers, not raw Drizzle result types.
 - Use Drizzle's type inference for return types: `typeof notes.$inferSelect`.
 - Chunk indexing helpers must go through typed helpers (`replaceNoteChunks`, `searchChunksBySimilarity`) rather than inline route SQL.
+- Current semantic-index freshness rules must stay centralized in `src/lib/server/db/notes.ts`: use `hasCurrentSemanticIndex()` for in-memory note checks and the DB helper predicates baked into `searchNotesBySimilarity()`, `searchChunksBySimilarity()`, `searchNotesByLexical()`, and `getRelatedNotes()`. A semantic index is current only when status is `current`, the note-level embedding and index timestamps exist, and `semantic_index_source_updated_at >= updated_at`.
 
 ```ts
 // src/lib/server/db/notes.ts
@@ -389,6 +390,7 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Semantic status-only updates must preserve the saved note's `updated_at`; otherwise current indexes can look stale immediately after refresh.
 - Admin note surfaces should expose stale-index state when saved content is newer than the last successful semantic index or when `semantic_index_status = 'failed'`. Use the server-side `getSemanticIndexDisplay()` mapper to drive list/editor UI warnings; do not duplicate timestamp/status rules in client components.
 - Current implementation stores both note-level embeddings (`notes.embedding`) and section-aware chunk embeddings (`note_chunks.embedding`). Chat orchestration uses section-aware chunk retrieval plus lexical/topic retrieval for prompt assembly.
+- Published-note chat readiness is maintained with `npm run semantic-index:audit` and `npm run semantic-index:refresh`. The refresh command must reindex through `reindexNoteAfterSave()`; never repair stale or missing vectors/chunks with direct SQL edits.
 
 ---
 
@@ -405,7 +407,7 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 ### Prompt Assembly (`src/lib/server/chat.ts`)
 
 - Use always-on light hybrid retrieval: run semantic similarity and topic/lexical retrieval in parallel, then fuse/rerank a bounded candidate set before prompt assembly.
-- Include only compact evidence in LLM context: semantic note chunks with section headings, plus lexical-only title/takeaway snippets. Never send full note bodies, and do not include chunks from published notes whose semantic index is pending, failed, or stale.
+- Include only compact evidence in LLM context: semantic note chunks with section headings, plus lexical-only title/takeaway snippets. Never send full note bodies, and do not include any chat retrieval candidate whose published note has a pending, failed, missing, or stale semantic index.
 - Assemble the final prompt from: personality block + condensed evidence context + user message.
 - Treat retrieved excerpts as evidence to synthesize, not text to copy. The system prompt should explicitly ask for conversational paraphrase, allow fuller/talkative answers when the evidence supports them, and reserve verbatim quotation for cases where the user asks for a quote.
 - Apply confidence gating before answer generation. High confidence uses the normal grounded LLM answer path; borderline confidence uses a stricter limited-coverage LLM instruction; low confidence skips the LLM and returns the deterministic no-coverage fallback with related-topic note links when available.

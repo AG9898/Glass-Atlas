@@ -13,10 +13,13 @@ vi.mock('./index', () => ({
 import {
   consumeChatRateLimit,
   getRelatedNotes,
+  getNoteChunkCount,
   getTotalCitations,
+  hasCurrentSemanticIndex,
   recordCitations,
   replaceNoteChunks,
   searchChunksBySimilarity,
+  searchNotesByLexical,
   searchNotesBySimilarity,
 } from './notes';
 
@@ -34,7 +37,7 @@ const noteRow = {
   series: 'RAG Notes',
   status: 'published',
   embedding: [0.1, 0.2, 0.3],
-  semanticIndexStatus: 'current',
+  semanticIndexStatus: 'current' as const,
   semanticIndexError: null,
   semanticIndexedAt: new Date('2026-04-02T00:30:00Z'),
   semanticIndexSourceUpdatedAt: new Date('2026-04-02T00:00:00Z'),
@@ -125,6 +128,20 @@ describe('notes DB query helpers', () => {
     vi.clearAllMocks();
   });
 
+  it('classifies only complete non-stale semantic indexes as current', () => {
+    expect(hasCurrentSemanticIndex(noteRow)).toBe(true);
+    expect(hasCurrentSemanticIndex({ ...noteRow, semanticIndexStatus: 'pending' })).toBe(false);
+    expect(hasCurrentSemanticIndex({ ...noteRow, embedding: null })).toBe(false);
+    expect(hasCurrentSemanticIndex({ ...noteRow, semanticIndexedAt: null })).toBe(false);
+    expect(hasCurrentSemanticIndex({ ...noteRow, semanticIndexSourceUpdatedAt: null })).toBe(false);
+    expect(
+      hasCurrentSemanticIndex({
+        ...noteRow,
+        semanticIndexSourceUpdatedAt: new Date('2026-04-01T23:59:59Z'),
+      }),
+    ).toBe(false);
+  });
+
   it('searchNotesBySimilarity orders published notes by pgvector cosine distance', async () => {
     const chain = createSelectLimitChain([noteRow]);
     dbMock.select.mockReturnValue(chain);
@@ -144,6 +161,10 @@ describe('notes DB query helpers', () => {
     expect(queryChunks.some((chunk) => chunkContains(chunk, '<=>'))).toBe(true);
     expect(queryChunks).toContain('[0.1,0.2,0.3]');
     expect(queryChunks.some((chunk) => chunkContains(chunk, '::vector'))).toBe(true);
+
+    const [whereExpression] = chain.where.mock.calls[0];
+    expect(deepContainsValue(whereExpression, 'published')).toBe(true);
+    expect(deepContainsValue(whereExpression, 'current')).toBe(true);
   });
 
   it('searchNotesBySimilarity skips the database when limit is zero', async () => {
@@ -311,6 +332,14 @@ describe('notes DB query helpers', () => {
     expect(where).toHaveBeenCalledOnce();
   });
 
+  it('getNoteChunkCount returns the note chunk count', async () => {
+    const chain = createSourceLookupChain([{ value: 3 }]);
+    dbMock.select.mockReturnValue(chain);
+
+    await expect(getNoteChunkCount('vector-search')).resolves.toBe(3);
+    expect(chain.where).toHaveBeenCalledOnce();
+  });
+
   it('searchChunksBySimilarity returns published chunks ordered by cosine distance', async () => {
     const chain = createSelectChunkChain([
       {
@@ -342,6 +371,10 @@ describe('notes DB query helpers', () => {
     expect(queryChunks.some((chunk) => chunkContains(chunk, '<=>'))).toBe(true);
     expect(queryChunks).toContain('[0.1,0.2,0.3]');
     expect(queryChunks.some((chunk) => chunkContains(chunk, '::vector'))).toBe(true);
+
+    const [whereExpression] = chain.where.mock.calls[0];
+    expect(deepContainsValue(whereExpression, 'published')).toBe(true);
+    expect(deepContainsValue(whereExpression, 'current')).toBe(true);
   });
 
   it('searchChunksBySimilarity skips the database when limit is zero', async () => {
@@ -349,8 +382,41 @@ describe('notes DB query helpers', () => {
     expect(dbMock.select).not.toHaveBeenCalled();
   });
 
+  it('searchNotesByLexical filters to published notes with current semantic indexes', async () => {
+    const chain = createSelectLimitChain([
+      {
+        slug: 'vector-search',
+        title: 'Vector Search',
+        category: 'databases',
+        tags: ['postgres'],
+        takeaway: 'Use pgvector cosine search.',
+      },
+    ]);
+    dbMock.select.mockReturnValue(chain);
+
+    const result = await searchNotesByLexical('vector', 5);
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        slug: 'vector-search',
+        title: 'Vector Search',
+      }),
+    ]);
+    const [whereExpression] = chain.where.mock.calls[0];
+    expect(deepContainsValue(whereExpression, 'published')).toBe(true);
+    expect(deepContainsValue(whereExpression, 'current')).toBe(true);
+  });
+
   it('getRelatedNotes orders published notes by cosine distance to the source embedding, excluding the source note', async () => {
-    const sourceChain = createSourceLookupChain([{ embedding: [0.1, 0.2, 0.3] }]);
+    const sourceChain = createSourceLookupChain([
+      {
+        embedding: [0.1, 0.2, 0.3],
+        semanticIndexStatus: 'current',
+        semanticIndexedAt: new Date('2026-04-02T00:30:00Z'),
+        semanticIndexSourceUpdatedAt: new Date('2026-04-02T00:00:00Z'),
+        updatedAt: new Date('2026-04-02T00:00:00Z'),
+      },
+    ]);
     const relatedRow = {
       slug: 'other-note',
       title: 'Other Note',

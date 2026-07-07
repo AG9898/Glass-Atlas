@@ -2307,7 +2307,7 @@
       "id": "CHAT-07B",
       "title": "Harden chat retrieval against stale semantic indexes",
       "description": "Make chat retrieval use only current semantic index data and provide a clear maintenance path for published notes whose note or chunk embeddings are pending, failed, or stale. Refresh the live published-note semantic index as part of the task so production retrieval reflects the current corpus before later prompt and audit work evaluates answer quality.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "group_id": "CHAT",
       "depends_on": [

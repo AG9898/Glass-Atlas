@@ -13,6 +13,8 @@
     "lint": "tsc --noEmit && eslint .",
     "create-note": "node scripts/create-note.js",
     "review-draft": "node scripts/review-draft.js",
+    "semantic-index:audit": "node scripts/semantic-index.js",
+    "semantic-index:refresh": "node scripts/semantic-index.js --refresh",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:migrate:http": "node scripts/migrate.js",

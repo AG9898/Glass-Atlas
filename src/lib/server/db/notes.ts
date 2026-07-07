@@ -85,6 +85,11 @@ export type ChatRateLimitResult = {
   resetAt: Date;
 };
 
+export type SemanticIndexFreshnessInput = Pick<
+  Note,
+  'embedding' | 'semanticIndexStatus' | 'semanticIndexedAt' | 'semanticIndexSourceUpdatedAt' | 'updatedAt'
+>;
+
 export type UpdateNoteInput = {
   title?: string;
   body?: string;
@@ -252,7 +257,7 @@ export async function searchNotesBySimilarity(embedding: number[], limit: number
   const rows = await db
     .select()
     .from(notes)
-    .where(and(eq(notes.status, 'published'), isNotNull(notes.embedding)))
+    .where(and(eq(notes.status, 'published'), currentSemanticIndexCondition()))
     .orderBy(sql`${notes.embedding} <=> ${JSON.stringify(embedding)}::vector`)
     .limit(safeLimit);
 
@@ -293,10 +298,16 @@ export async function getRelatedNotes(slug: string, limit: number): Promise<Rela
   if (safeLimit === 0) return [];
 
   const [source] = await db
-    .select({ embedding: notes.embedding })
+    .select({
+      embedding: notes.embedding,
+      semanticIndexStatus: notes.semanticIndexStatus,
+      semanticIndexedAt: notes.semanticIndexedAt,
+      semanticIndexSourceUpdatedAt: notes.semanticIndexSourceUpdatedAt,
+      updatedAt: notes.updatedAt,
+    })
     .from(notes)
     .where(eq(notes.slug, slug));
-  if (!source?.embedding) return [];
+  if (!source || !hasCurrentSemanticIndex(source)) return [];
 
   const vectorLiteral = JSON.stringify(source.embedding);
 
@@ -314,7 +325,7 @@ export async function getRelatedNotes(slug: string, limit: number): Promise<Rela
     .where(
       and(
         eq(notes.status, 'published'),
-        isNotNull(notes.embedding),
+        currentSemanticIndexCondition(),
         sql`${notes.slug} <> ${slug}`,
       ),
     )
@@ -450,6 +461,7 @@ export async function searchNotesByLexical(
     .where(
       and(
         eq(notes.status, 'published'),
+        currentSemanticIndexCondition(),
         or(
           ilike(notes.title, pattern),
           ilike(notes.category, pattern),
@@ -525,6 +537,15 @@ export async function replaceNoteChunks(
     );
 }
 
+/** Returns the current stored chunk count for a note. Used by semantic-index maintenance tooling. */
+export async function getNoteChunkCount(noteSlug: string): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(noteChunks)
+    .where(eq(noteChunks.noteSlug, noteSlug));
+  return row?.value ?? 0;
+}
+
 /** Cosine similarity search over published note chunks. */
 export async function searchChunksBySimilarity(
   embedding: number[],
@@ -547,7 +568,7 @@ export async function searchChunksBySimilarity(
     })
     .from(noteChunks)
     .innerJoin(notes, eq(noteChunks.noteSlug, notes.slug))
-    .where(eq(notes.status, 'published'))
+    .where(and(eq(notes.status, 'published'), currentSemanticIndexCondition()))
     .orderBy(sql`${noteChunks.embedding} <=> ${vectorLiteral}::vector`)
     .limit(safeLimit);
 
@@ -557,9 +578,30 @@ export async function searchChunksBySimilarity(
   }));
 }
 
+export function hasCurrentSemanticIndex(note: SemanticIndexFreshnessInput): boolean {
+  return (
+    note.semanticIndexStatus === 'current' &&
+    note.embedding !== null &&
+    note.semanticIndexedAt instanceof Date &&
+    note.semanticIndexSourceUpdatedAt instanceof Date &&
+    note.updatedAt instanceof Date &&
+    note.semanticIndexSourceUpdatedAt.getTime() >= note.updatedAt.getTime()
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+function currentSemanticIndexCondition() {
+  return and(
+    eq(notes.semanticIndexStatus, 'current'),
+    isNotNull(notes.embedding),
+    isNotNull(notes.semanticIndexedAt),
+    isNotNull(notes.semanticIndexSourceUpdatedAt),
+    sql`${notes.semanticIndexSourceUpdatedAt} >= ${notes.updatedAt}`,
+  );
+}
 
 /** Maps a raw Drizzle row to a typed plain Note object. */
 function toNote(row: typeof notes.$inferSelect): Note {

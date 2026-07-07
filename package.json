@@ -13,6 +13,7 @@
     "lint": "tsc --noEmit && eslint .",
     "create-note": "node scripts/create-note.js",
     "review-draft": "node scripts/review-draft.js",
+    "chat:audit": "node scripts/chat-audit.js",
     "semantic-index:audit": "node scripts/semantic-index.js",
     "semantic-index:refresh": "node scripts/semantic-index.js --refresh",
     "db:generate": "drizzle-kit generate",

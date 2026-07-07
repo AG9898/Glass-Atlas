@@ -1,8 +1,8 @@
 import { env } from '$env/dynamic/private';
 
-const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
-const DEFAULT_OPENROUTER_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
-const DEFAULT_OPENROUTER_FALLBACK_MODEL = 'openrouter/free';
+export const DEFAULT_OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+export const DEFAULT_OPENROUTER_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
+export const DEFAULT_OPENROUTER_FALLBACK_MODEL = 'openrouter/free';
 export const DEFAULT_OPENROUTER_TIMEOUT_MS = 20_000;
 
 export type ChatMessage = {

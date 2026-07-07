@@ -2269,7 +2269,7 @@
       "id": "CHAT-07A",
       "title": "Switch chat model and add OpenRouter fallback",
       "description": "Update the chat OpenRouter adapter and configuration docs so public chat uses nvidia/nemotron-3-ultra-550b-a55b:free as the primary free model and openrouter/free as a last-resort fallback for rate limits, temporary provider failures, and timeouts. Keep streaming SSE behavior compatible with existing clients by consuming only visible delta.content tokens and ignoring reasoning fields from fallback providers.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "group_id": "CHAT",
       "depends_on": [

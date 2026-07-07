@@ -25,7 +25,7 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 **Why:** The July 2026 chat audit found direct-topic vector retrieval generally mapped well, but natural full-question lexical support was weak, some published index state was stale/pending, low-confidence fallback could surface odd related links, and the current default model (`google/gemma-4-31b-it:free`) was returning upstream `429`. Raw `Excerpt:` prompt context also leaves room for the model to answer by repeating the note rather than speaking conversationally.
 **Alternatives rejected:** Keeping the current default model without fallback was rejected because free-provider availability is unstable. Using `openrouter/free` as the primary model was rejected because it may route to reasoning-heavy providers with delayed visible content. Allowing low-confidence related links for any nearest-neighbor result was rejected because it can reduce trust on unrelated questions. Forcing terse answers was rejected because the desired assistant should feel more conversational when the retrieved notes have enough evidence.
 **Affects:** docs/PRD.md, docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/ENV_VARS.md, docs/TESTING.md, `src/lib/server/ai/openrouter.ts`, `src/lib/server/personality.ts`, `src/lib/server/chat.ts`, `src/routes/api/chat/+server.ts`, `src/lib/utils/chat-format.ts`, `src/lib/components/Chat.svelte`
-**Implementation status (2026-07-07):** Decision accepted and documented; implementation queued as `CHAT-07A` through `CHAT-07E`.
+**Implementation status (2026-07-07):** `CHAT-07A` implemented the model switch and OpenRouter fallback adapter. Remaining chat-quality refinements are queued as later `CHAT-07*` tasks.
 
 ### RESOLVED-24 — Reader Trust and Navigation Polish Scope
 

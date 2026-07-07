@@ -418,7 +418,7 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 
 - All LLM calls go through `openrouter.ts`. Never call the OpenRouter API directly from `chat.ts` or route files.
 - The adapter exposes an OpenAI-compatible streaming chat-completions interface.
-- Chat uses `OPENROUTER_MODEL` as the primary free model and `OPENROUTER_FALLBACK_MODEL` as a last-resort free-router fallback for rate limits, temporary provider failures, and timeouts. The fallback may emit `reasoning` fields; clients and stream parsers must keep ignoring anything except visible `delta.content` tokens and must not surface reasoning text.
+- Chat uses `OPENROUTER_MODEL` (`nvidia/nemotron-3-ultra-550b-a55b:free` by default) as the primary free model and `OPENROUTER_FALLBACK_MODEL` (`openrouter/free` by default) as a last-resort free-router fallback for rate limits, temporary provider failures, and timeouts. The fallback may emit `reasoning` fields; clients and stream parsers must keep ignoring anything except visible `delta.content` tokens and must not surface reasoning text.
 
 ### Note Critique (`src/lib/server/ai/review.ts`)
 

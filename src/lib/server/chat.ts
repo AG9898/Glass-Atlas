@@ -287,7 +287,7 @@ function formatChunkSnippet(slug: string, chunks: RetrievedNoteChunk[]): string 
     if (chunk.sectionHeading) {
       lines.push(`Section: ${chunk.sectionHeading}`);
     }
-    lines.push(`Evidence to paraphrase: ${chunk.chunkText.trim()}`);
+    lines.push(`Evidence to paraphrase (rewrite in your own words, do not copy wording): ${chunk.chunkText.trim()}`);
   }
 
   return lines.join('\n');

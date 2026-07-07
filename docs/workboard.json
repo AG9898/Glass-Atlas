@@ -2493,7 +2493,7 @@
       "id": "CHAT-08B",
       "title": "Reduce verbatim excerpt copying in chat answers",
       "description": "The CHAT-07E audit quote-copy diagnostics found answers copying long contiguous runs from retrieved excerpts despite the CHAT-07D paraphrase instruction: a 31-word shared run on the-inspiration (direct, high tier) and an 18-word run on a borderline adjacent answer (flag threshold is 12 words). Reduce verbatim copying without weakening grounding — e.g. strengthen or restructure the paraphrase instruction in personality.ts / prompt assembly, or reshape how evidence is framed in the context block. Validate the change with npm run chat:audit quote-copy diagnostics before and after; keep answers conversational per RESOLVED-25.",
-      "status": "todo",
+      "status": "done",
       "priority": "medium",
       "group_id": "CHAT",
       "depends_on": [

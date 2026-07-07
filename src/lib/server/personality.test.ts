@@ -41,4 +41,9 @@ describe('SYSTEM_PROMPT', () => {
     expect(SYSTEM_PROMPT).toMatch(/Do not quote or closely mirror/i);
     expect(SYSTEM_PROMPT).toMatch(/explicitly asks for a quote/i);
   });
+
+  it('sets a concrete consecutive-word limit on excerpt reuse, even for strong sources', () => {
+    expect(SYSTEM_PROMPT).toMatch(/never carry over more than about 8 consecutive words/i);
+    expect(SYSTEM_PROMPT).toMatch(/not a license to quote its wording/i);
+  });
 });

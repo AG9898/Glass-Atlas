@@ -516,7 +516,7 @@ describe('assembleContext — synthesis prompt wording', () => {
 
     const result = await assembleContext('vector search');
 
-    expect(result.context).toContain('Evidence to paraphrase:');
+    expect(result.context).toContain('Evidence to paraphrase (rewrite in your own words, do not copy wording):');
     expect(result.context).not.toContain('Excerpt:');
   });
 

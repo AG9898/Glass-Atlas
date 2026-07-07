@@ -17,7 +17,8 @@
 | `DATABASE_URL` | Yes | All | — | `$env/dynamic/private` | Neon PostgreSQL connection string. Must include `?sslmode=require`. Uses dynamic import so the dev server starts without a DB configured (queries will fail at runtime until set). |
 | `OPENROUTER_API_KEY` | Yes | All | — | `$env/dynamic/private` | API key for OpenRouter (LLM + embeddings). Never expose client-side. |
 | `OPENROUTER_BASE_URL` | No | All | `https://openrouter.ai/api/v1` | `$env/dynamic/private` | Override the OpenRouter base URL. Useful for test mocking. |
-| `OPENROUTER_MODEL` | No | All | `google/gemma-4-31b-it:free` | `$env/static/private` | Override the default LLM model used for chat. Default is a free model because the OpenRouter account has no credits; paid models return 402. |
+| `OPENROUTER_MODEL` | No | All | `nvidia/nemotron-3-ultra-550b-a55b:free` | `$env/dynamic/private` | Override the primary LLM model used for chat. Default is a free model because the OpenRouter account has no credits; paid models return 402. |
+| `OPENROUTER_FALLBACK_MODEL` | No | All | `openrouter/free` | `$env/dynamic/private` | Fallback chat model/router used when the primary chat model is rate-limited or temporarily unavailable. The app consumes visible `delta.content` only and ignores reasoning fields some free providers emit. |
 | `OPENROUTER_REVIEW_MODEL` | No | All | `openrouter/free` | `$env/dynamic/private` | Override the admin note critique model. Default uses OpenRouter's free-model router because individual free model endpoints can disappear. Keep this on a free model/router unless a decision explicitly changes the cost policy. |
 | `OPENROUTER_DRAFT_REVIEW_MODEL` | No | All | `openrouter/free` | `$env/dynamic/private` | Override the `/write-post` draft-review scorer model (`src/lib/server/ai/draft-review.ts`). Separate from `OPENROUTER_REVIEW_MODEL` so the authoring voice/AI-tell scorer can be tuned independently of the in-editor critique. Keep on a free model/router unless a decision changes the cost policy. |
 | `EMBEDDING_MODEL` | No | All | `text-embedding-3-small` | `$env/dynamic/private` | Override the default embedding model. |
@@ -86,7 +87,8 @@ Optional overrides (only set if you need to change defaults):
 
 ```dotenv
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-OPENROUTER_MODEL=google/gemma-4-31b-it:free
+OPENROUTER_MODEL=nvidia/nemotron-3-ultra-550b-a55b:free
+OPENROUTER_FALLBACK_MODEL=openrouter/free
 OPENROUTER_REVIEW_MODEL=openrouter/free
 OPENROUTER_DRAFT_REVIEW_MODEL=openrouter/free
 EMBEDDING_MODEL=text-embedding-3-small
@@ -200,4 +202,4 @@ Set via Railway dashboard under Project > Service > Variables. Railway encrypts 
 
 Use separate GitHub OAuth apps for local and production so callback URLs stay distinct and credentials can be rotated independently.
 
-Optional variables (`CHAT_RATE_LIMIT_MAX`, `CHAT_RATE_LIMIT_WINDOW_MINUTES`, `CHAT_SESSION_COOKIE_NAME`, `OPENROUTER_MODEL`, `OPENROUTER_REVIEW_MODEL`, `OPENROUTER_DRAFT_REVIEW_MODEL`, `EMBEDDING_MODEL`, `OPENROUTER_BASE_URL`) only need to be set in Railway if you want to override the defaults in production. Bucket variables are required only when the first-party media upload path is enabled.
+Optional variables (`CHAT_RATE_LIMIT_MAX`, `CHAT_RATE_LIMIT_WINDOW_MINUTES`, `CHAT_SESSION_COOKIE_NAME`, `OPENROUTER_MODEL`, `OPENROUTER_FALLBACK_MODEL`, `OPENROUTER_REVIEW_MODEL`, `OPENROUTER_DRAFT_REVIEW_MODEL`, `EMBEDDING_MODEL`, `OPENROUTER_BASE_URL`) only need to be set in Railway if you want to override the defaults in production. Bucket variables are required only when the first-party media upload path is enabled.

@@ -18,6 +18,15 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 
 ## Resolved Decisions
 
+### RESOLVED-25 — Chat Response Quality and Model Fallback Refresh
+
+**Resolved:** 2026-07-07
+**Decision:** Tune chat for conversational synthesis over excerpt repetition while preserving strict grounding. Retrieved chunks remain the only factual source, but the prompt should explicitly tell the model to paraphrase, connect evidence, and be more talkative/verbose when the retrieved notes support a fuller answer; verbatim quotation should be reserved for quote-seeking user requests. Retrieval should exclude stale/pending/failed semantic indexes from answer context, strengthen lexical/topic support for natural-language questions, and avoid showing irrelevant nearest-neighbor notes in low-confidence fallback copy. Switch the primary chat model to `nvidia/nemotron-3-ultra-550b-a55b:free` and add `openrouter/free` as a last-resort fallback for provider rate limits/outages. The fallback may emit reasoning fields; the app consumes visible `delta.content` only and ignores reasoning tokens.
+**Why:** The July 2026 chat audit found direct-topic vector retrieval generally mapped well, but natural full-question lexical support was weak, some published index state was stale/pending, low-confidence fallback could surface odd related links, and the current default model (`google/gemma-4-31b-it:free`) was returning upstream `429`. Raw `Excerpt:` prompt context also leaves room for the model to answer by repeating the note rather than speaking conversationally.
+**Alternatives rejected:** Keeping the current default model without fallback was rejected because free-provider availability is unstable. Using `openrouter/free` as the primary model was rejected because it may route to reasoning-heavy providers with delayed visible content. Allowing low-confidence related links for any nearest-neighbor result was rejected because it can reduce trust on unrelated questions. Forcing terse answers was rejected because the desired assistant should feel more conversational when the retrieved notes have enough evidence.
+**Affects:** docs/PRD.md, docs/ARCHITECTURE.md, docs/CONVENTIONS.md, docs/ENV_VARS.md, docs/TESTING.md, `src/lib/server/ai/openrouter.ts`, `src/lib/server/personality.ts`, `src/lib/server/chat.ts`, `src/routes/api/chat/+server.ts`, `src/lib/utils/chat-format.ts`, `src/lib/components/Chat.svelte`
+**Implementation status (2026-07-07):** Decision accepted and documented; implementation queued as `CHAT-07A` through `CHAT-07E`.
+
 ### RESOLVED-24 — Reader Trust and Navigation Polish Scope
 
 **Resolved:** 2026-06-29
@@ -190,12 +199,13 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 
 ### RESOLVED-01 — LLM Model Choice
 
-**Resolved:** 2026-04-25 · **Superseded:** 2026-06-07 (see note below)
+**Resolved:** 2026-04-25 · **Superseded:** 2026-06-07 and again on 2026-07-07 (see RESOLVED-25)
 **Decision:** Use `google/gemma-4-31b-it:free` via OpenRouter as the default chat model.
 **Why:** As of 2026-06-07, `google/gemini-2.0-flash-001` returns `404 No endpoints found` (the original default was retired from OpenRouter), and paid successors like `google/gemini-2.5-flash` return `402 Payment Required` because the OpenRouter account holds no credits. `google/gemma-4-31b-it:free` is the closest free drop-in: same vendor/tone, 262k context, streams clean `content`-only deltas (no reasoning leakage), and obeyed the grounding system prompt in testing.
 **Alternatives rejected:** `openai/gpt-oss-120b:free` works but interleaves `reasoning` tokens that stall visible output; several free Llama/Qwen/Kimi endpoints returned `429`. Adding account credits to keep a paid Gemini was deferred — free model is adequate at blog scale.
 **Original (2026-04-25) decision:** Use `google/gemini-2.0-flash-001` for ~400–600 ms TTFT and reliable personality injection. Retired upstream; preserved here for history.
 **Affects:** ARCHITECTURE.md, ENV_VARS.md, src/lib/server/ai/openrouter.ts
+**Current status:** Superseded by RESOLVED-25, which switches the primary default to `nvidia/nemotron-3-ultra-550b-a55b:free` and adds `openrouter/free` as a fallback router.
 
 ---
 

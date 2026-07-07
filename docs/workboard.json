@@ -1,7 +1,7 @@
 {
   "$schema": "./workboard.schema.json",
   "schema_version": "1.0.0",
-  "last_updated": "2026-07-06",
+  "last_updated": "2026-07-07",
   "tasks": [
     {
       "id": "SCAFFOLD-01",
@@ -2263,6 +2263,195 @@
         "npm run lint",
         "npm run check",
         "npm run build"
+      ]
+    },
+    {
+      "id": "CHAT-07A",
+      "title": "Switch chat model and add OpenRouter fallback",
+      "description": "Update the chat OpenRouter adapter and configuration docs so public chat uses nvidia/nemotron-3-ultra-550b-a55b:free as the primary free model and openrouter/free as a last-resort fallback for rate limits, temporary provider failures, and timeouts. Keep streaming SSE behavior compatible with existing clients by consuming only visible delta.content tokens and ignoring reasoning fields from fallback providers.",
+      "status": "todo",
+      "priority": "high",
+      "group_id": "CHAT",
+      "depends_on": [
+        "CHAT-06B"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Default chat model is nvidia/nemotron-3-ultra-550b-a55b:free unless OPENROUTER_MODEL overrides it",
+        "OPENROUTER_FALLBACK_MODEL defaults to openrouter/free and is used only after primary model rate-limit, temporary provider failure, or timeout conditions",
+        "Fallback streams that include reasoning fields do not expose reasoning text to the client-visible answer",
+        "Route/adapter tests cover primary success, fallback success, fallback failure, and visible-content-only parsing behavior",
+        "Relevant docs stay synchronized with the new model/fallback behavior",
+        "npm run test:run, npm run lint, and npm run check pass"
+      ],
+      "docs": [
+        "docs/ENV_VARS.md",
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/DECISIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/ai/openrouter.ts",
+        "src/lib/server/ai/openrouter.test.ts",
+        "src/routes/api/chat/+server.ts",
+        "src/routes/api/chat/chat.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check"
+      ]
+    },
+    {
+      "id": "CHAT-07B",
+      "title": "Harden chat retrieval against stale semantic indexes",
+      "description": "Make chat retrieval use only current semantic index data and provide a clear maintenance path for published notes whose note or chunk embeddings are pending, failed, or stale. Refresh the live published-note semantic index as part of the task so production retrieval reflects the current corpus before later prompt and audit work evaluates answer quality.",
+      "status": "todo",
+      "priority": "high",
+      "group_id": "CHAT",
+      "depends_on": [
+        "CHAT-07A"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Chunk similarity retrieval excludes published notes with pending, failed, missing, or stale semantic index state",
+        "Current-index freshness rules are centralized and covered by tests instead of duplicated in route code",
+        "Published notes with stale or pending semantic indexes are reindexed through the existing reindex pipeline, not direct SQL vector edits",
+        "Production/live audit after reindex reports all published notes intended for chat have current semantic indexes and chunk rows",
+        "Docs describe how stale index state affects chat retrieval",
+        "npm run test:run, npm run lint, and npm run check pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md",
+        "AGENTS.md"
+      ],
+      "files": [
+        "src/lib/server/db/notes.ts",
+        "src/lib/server/db/notes.test.ts",
+        "src/lib/server/embeddings.ts",
+        "scripts/create-note.js"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check"
+      ]
+    },
+    {
+      "id": "CHAT-07C",
+      "title": "Improve natural-language lexical retrieval support",
+      "description": "Replace the literal full-query lexical match with a bounded natural-language topic/token strategy that extracts meaningful query terms and matches them against note titles, categories, and tags. Keep semantic retrieval primary, but let lexical matches provide useful support for full questions such as RAG, embeddings, self-hosted agent, security, documentation, and loop prompts.",
+      "status": "todo",
+      "priority": "high",
+      "group_id": "CHAT",
+      "depends_on": [
+        "CHAT-07B"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Full natural-language questions can produce lexical support when they contain meaningful title/category/tag terms",
+        "Stop words and punctuation do not create broad noisy lexical matches",
+        "Semantic-first fusion ordering and the five-note context cap remain intact",
+        "Tests cover short topic fragments, full questions, overlap deduplication, and no-match behavior",
+        "Docs describe lexical retrieval as natural-language topic/token support rather than full-query substring matching",
+        "npm run test:run, npm run lint, and npm run check pass"
+      ],
+      "docs": [
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/db/notes.ts",
+        "src/lib/server/db/notes.test.ts",
+        "src/lib/server/chat.ts",
+        "src/lib/server/chat.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check"
+      ]
+    },
+    {
+      "id": "CHAT-07D",
+      "title": "Tune chat prompt for conversational synthesis",
+      "description": "Adjust the chat system prompt, limited-coverage instruction, context wording, and fallback helpers so answers synthesize retrieved notes in a person-to-person voice, may be more talkative when evidence supports it, and avoid verbatim excerpt copying unless the user asks for a quote. Also change low-confidence fallback behavior so unrelated nearest-neighbor notes are not presented as sources or related links.",
+      "status": "todo",
+      "priority": "high",
+      "group_id": "CHAT",
+      "depends_on": [
+        "CHAT-07C"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "System prompt explicitly asks for conversational paraphrase/synthesis and permits fuller grounded answers when evidence supports them",
+        "Prompt/context wording discourages copying raw Excerpt lines unless the user asks for a quote",
+        "Low-confidence fallback omits irrelevant related-note/source links while borderline limited-coverage responses can still steer to genuine adjacent notes",
+        "Deterministic tests cover quote-copy guardrails, verbose-but-grounded prompt language, low-confidence no-source behavior, and existing source metadata contracts",
+        "Existing social-intent and SSE streaming behavior remains unchanged",
+        "npm run test:run, npm run lint, and npm run check pass"
+      ],
+      "docs": [
+        "docs/PRD.md",
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/TESTING.md",
+        "docs/DECISIONS.md"
+      ],
+      "files": [
+        "src/lib/server/personality.ts",
+        "src/lib/server/personality.test.ts",
+        "src/lib/server/chat.ts",
+        "src/lib/server/chat.test.ts",
+        "src/routes/api/chat/+server.ts",
+        "src/routes/api/chat/chat.test.ts",
+        "src/lib/utils/chat-format.ts",
+        "src/lib/utils/chat-format.test.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check"
+      ]
+    },
+    {
+      "id": "CHAT-07E",
+      "title": "Run post-fix chat quality audit sweep",
+      "description": "After the model fallback, index health, lexical retrieval, and conversational prompt changes land, run a live chat audit sweep against representative direct, adjacent, and unrelated questions using local .env or Railway-provided env vars. Compare retrieved chunks/distances, confidence tiers, visible streamed answers, quote-copy diagnostics, source metadata, and fallback behavior, then record any follow-up tasks rather than bundling new fixes into the audit.",
+      "status": "todo",
+      "priority": "high",
+      "group_id": "CHAT",
+      "depends_on": [
+        "CHAT-07D"
+      ],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "Audit covers direct note-topic questions, adjacent-topic questions, and unrelated questions",
+        "Report includes top retrieved chunks, cosine distances, confidence tier, cited/source slugs, answer sample, model used, fallback use if any, and quote-copy diagnostics",
+        "Audit verifies low-confidence responses do not show irrelevant related/source links",
+        "Audit verifies fallback model behavior produces visible content or records provider limitations clearly",
+        "Any remaining issues are added to docs/workboard.json as new targeted tasks instead of being fixed ad hoc inside the audit task",
+        "npm run test:run, npm run lint, and npm run check pass"
+      ],
+      "docs": [
+        "docs/TESTING.md",
+        "docs/DECISIONS.md",
+        "docs/workboard.json"
+      ],
+      "files": [
+        "src/lib/server/chat.ts",
+        "src/lib/server/ai/openrouter.ts",
+        "src/routes/api/chat/+server.ts",
+        "scripts/**"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check"
       ]
     }
   ]

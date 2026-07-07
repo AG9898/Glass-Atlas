@@ -80,7 +80,7 @@ Glass Atlas uses **Soft Editorial Brutalism**:
 - Include the stack and architecture at a high level, but do not turn the page into a portfolio/project showcase.
 - Do not include chat privacy/rate-limit details unless a future product decision reopens that scope.
 - Composition should be editorial and scannable: short sections, structural rules, and restrained technical panels for architecture details.
-- **Shipped (`POLISH-05`):** the page is a single-column editorial shell (`max-width: 900px`) with rule-bound header/section dividers (`--line-strong`/`--line-thin`) matching the notes-index rhythm. The "Stack" and "How the pieces fit" sections each use a scoped `.blueprint-panel` (the same `2px` border + uppercase header-strip + `surface-2` tonal recipe as `.ga-code-block`, but component-scoped rather than global since no HTML injection is involved). `Nav.svelte`'s left link group gained a `HOW IT WORKS` entry next to `NOTES`/`CHAT`.
+- **Shipped (`POLISH-05`):** the page is a single-column editorial shell (`max-width: 900px`) with rule-bound header/section dividers (`--line-strong`/`--line-thin`) matching the notes-index rhythm. The "Stack" and "How the pieces fit" sections each use a scoped `.blueprint-panel` (the same `2px` border + uppercase header-strip + `surface-2` tonal recipe as `.ga-code-block`, but component-scoped rather than global since no HTML injection is involved). `Nav.svelte`'s left link group is `HOME`/`NOTES`/`HOW IT WORKS` (the `CHAT` anchor link was later replaced by `HOME`, since chat lives in the homepage hero).
 
 ---
 

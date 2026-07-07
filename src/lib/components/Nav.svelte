@@ -99,16 +99,16 @@
     <!-- Left nav links -->
     <nav class="ga-nav__links-left" aria-label="Primary navigation">
       <a
+        href="/"
+        class="ga-nav__link {pathname === '/' ? 'ga-nav__link--active' : ''}"
+      >
+        HOME
+      </a>
+      <a
         href="/notes"
         class="ga-nav__link {pathname === '/notes' || pathname.startsWith('/notes/') ? 'ga-nav__link--active' : ''}"
       >
         NOTES
-      </a>
-      <a
-        href="/#chat"
-        class="ga-nav__link {pathname === '/' ? '' : ''}"
-      >
-        CHAT
       </a>
       <a
         href="/how-it-works"

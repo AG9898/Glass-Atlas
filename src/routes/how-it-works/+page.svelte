@@ -132,7 +132,7 @@
     <p>
       Curious what's actually been written? Start at the
       <a href="/notes">notes index</a>
-      or just <a href="/#chat">ask the chat</a> a question.
+      or just <a href="/">ask the chat</a> a question.
     </p>
   </footer>
 </main>

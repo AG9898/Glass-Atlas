@@ -2380,7 +2380,7 @@
       "id": "CHAT-07D",
       "title": "Tune chat prompt for conversational synthesis",
       "description": "Adjust the chat system prompt, limited-coverage instruction, context wording, and fallback helpers so answers synthesize retrieved notes in a person-to-person voice, may be more talkative when evidence supports it, and avoid verbatim excerpt copying unless the user asks for a quote. Also change low-confidence fallback behavior so unrelated nearest-neighbor notes are not presented as sources or related links.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "group_id": "CHAT",
       "depends_on": [

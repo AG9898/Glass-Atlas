@@ -100,31 +100,20 @@ const COVERAGE_STEER_SUFFIX =
 /**
  * Builds the fallback response text for insufficient-coverage situations.
  *
- * When `citedNotes` is non-empty, appends an italicized related-notes footer
- * using wiki-link syntax. Only notes with safe slugs are included — slugs that
- * fail the safety check are silently dropped to prevent bad links from
- * appearing in the chat output.
+ * Low-confidence retrieval can still contain nearest-neighbor chunks, but
+ * those candidates are not reliable enough to present as related links or
+ * source metadata. Borderline retrieval uses the LLM limited-coverage path
+ * instead, where genuinely adjacent notes can still be cited.
  *
- * When no safe related notes exist, returns a concise no-coverage reply plus
- * a steer toward note-grounded follow-up questions.
- *
- * @param citedNotes - Notes retrieved by the context assembly step.
  * @param query - User message text for minimal tone shaping.
  */
-export function buildFallbackResponse(citedNotes: CitedNote[], query = ''): string {
-  const safeNotes = citedNotes.filter((n) => isSafeNoteSlug(n.slug));
-
+export function buildFallbackResponse(query = ''): string {
   const trimmed = query.trim();
   const steerPrefix = trimmed.endsWith('?')
     ? 'I have not documented that exact question yet.'
     : INSUFFICIENT_COVERAGE_RESPONSE;
 
-  if (safeNotes.length === 0) {
-    return `${steerPrefix} ${COVERAGE_STEER_SUFFIX}`;
-  }
-
-  const links = safeNotes.map((n) => `[[${n.slug}|${n.title}]]`).join(', ');
-  return `${steerPrefix} Here are the closest related notes I can talk about. ${COVERAGE_STEER_SUFFIX}\n\n*Related notes: ${links}*`;
+  return `${steerPrefix} ${COVERAGE_STEER_SUFFIX}`;
 }
 
 /**
@@ -155,9 +144,10 @@ export function buildChatSources(citedNotes: CitedNote[]): ChatSource[] {
  * set) are appended in lexical order. The combined list is capped at
  * MAX_NOTES_IN_CONTEXT distinct notes.
  *
- * Full note bodies are never passed to the LLM — only retrieved chunk excerpts
- * and section headings (where available) are included per semantic note; lexical-
- * only notes contribute only their title and takeaway line.
+ * Full note bodies are never passed to the LLM — only bounded evidence for
+ * synthesis is included per semantic note; lexical-only notes contribute only
+ * their title and takeaway line. Context labels deliberately frame retrieved
+ * text as evidence to paraphrase rather than prose to copy.
  */
 export async function assembleContext(query: string): Promise<AssembledContext> {
   const semanticQuery = buildSemanticSearchQuery(query);
@@ -297,7 +287,7 @@ function formatChunkSnippet(slug: string, chunks: RetrievedNoteChunk[]): string 
     if (chunk.sectionHeading) {
       lines.push(`Section: ${chunk.sectionHeading}`);
     }
-    lines.push(`Excerpt: ${chunk.chunkText.trim()}`);
+    lines.push(`Evidence to paraphrase: ${chunk.chunkText.trim()}`);
   }
 
   return lines.join('\n');
@@ -311,7 +301,7 @@ function formatChunkSnippet(slug: string, chunks: RetrievedNoteChunk[]): string 
 function formatLexicalSnippet(note: RetrievedLexicalNote): string {
   const lines: string[] = [`Slug: ${note.slug}`, `Title: ${note.title}`];
   if (note.takeaway) {
-    lines.push(`Takeaway: ${note.takeaway}`);
+    lines.push(`Takeaway to synthesize: ${note.takeaway}`);
   }
   return lines.join('\n');
 }

@@ -471,7 +471,7 @@ describe('POST /api/chat', () => {
     expect(raw).toContain("I don't have a note on that yet.");
   });
 
-  it('fallback path passes citedNotes to buildFallbackResponse', async () => {
+  it('fallback path does not pass low-confidence candidates to buildFallbackResponse', async () => {
     const relatedNotes = [{ slug: 'rag-pipeline', title: 'RAG Pipeline', snippet: 'An excerpt.' }];
     mockAssembleContext.mockResolvedValueOnce({
       context: '',
@@ -483,7 +483,8 @@ describe('POST /api/chat', () => {
 
     await callPost(makeEvent({ message: 'unknown topic' }));
 
-    expect(mockBuildFallbackResponse).toHaveBeenCalledWith(relatedNotes, 'unknown topic');
+    expect(mockBuildFallbackResponse).toHaveBeenCalledWith('unknown topic');
+    expect(mockBuildFallbackResponse).not.toHaveBeenCalledWith(relatedNotes, 'unknown topic');
   });
 
   it('fallback path does not call recordCitations', async () => {
@@ -539,6 +540,7 @@ describe('POST /api/chat', () => {
     const userMsg = messages.find((m) => m.role === 'user');
     expect(userMsg?.content).toContain('Limited coverage:');
     expect(userMsg?.content).toContain('adjacent or partial evidence');
+    expect(userMsg?.content).toContain('paraphrase instead of copying retrieved wording');
     expect(userMsg?.content).toContain('Retrieved notes:');
   });
 

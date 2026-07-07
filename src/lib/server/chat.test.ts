@@ -273,7 +273,9 @@ describe('assembleContext', () => {
 
     expect(result.context).toContain('Slug: llm-basics');
     expect(result.context).toContain('Title: LLM Basics');
-    expect(result.context).toContain('Takeaway: Language models predict the next token.');
+    expect(result.context).toContain(
+      'Takeaway to synthesize: Language models predict the next token.',
+    );
   });
 
   it('lexical-only note without takeaway omits the takeaway line', async () => {
@@ -283,7 +285,7 @@ describe('assembleContext', () => {
 
     const result = await assembleContext('language models');
 
-    expect(result.context).not.toContain('Takeaway:');
+    expect(result.context).not.toContain('Takeaway to synthesize:');
     expect(result.context).toContain('Slug: llm-basics');
   });
 
@@ -502,6 +504,32 @@ describe('hasSufficientCoverage', () => {
   });
 });
 
+describe('assembleContext — synthesis prompt wording', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockEmbedText.mockResolvedValue([0.1, 0.2, 0.3]);
+    mockSearchLexical.mockResolvedValue([]);
+  });
+
+  it('labels semantic chunks as evidence to paraphrase rather than raw excerpts', async () => {
+    mockSearchChunks.mockResolvedValue([chunkA1]);
+
+    const result = await assembleContext('vector search');
+
+    expect(result.context).toContain('Evidence to paraphrase:');
+    expect(result.context).not.toContain('Excerpt:');
+  });
+
+  it('labels lexical takeaways as material to synthesize', async () => {
+    mockSearchChunks.mockResolvedValue([]);
+    mockSearchLexical.mockResolvedValue([lexicalNoteC]);
+
+    const result = await assembleContext('language models');
+
+    expect(result.context).toContain('Takeaway to synthesize:');
+  });
+});
+
 describe('INSUFFICIENT_COVERAGE_RESPONSE', () => {
   it('is a non-empty string written in first person', () => {
     expect(typeof INSUFFICIENT_COVERAGE_RESPONSE).toBe('string');
@@ -520,59 +548,21 @@ describe('INSUFFICIENT_COVERAGE_RESPONSE', () => {
 
 describe('buildFallbackResponse', () => {
   it('returns no-coverage response with a steer when no cited notes are provided', () => {
-    const result = buildFallbackResponse([]);
+    const result = buildFallbackResponse();
     expect(result).toContain(INSUFFICIENT_COVERAGE_RESPONSE);
     expect(result).toContain('Try asking for a specific topic');
   });
 
-  it('appends an italicized related-notes footer with wiki-links when notes are provided', () => {
-    const result = buildFallbackResponse([
-      { slug: 'rag-pipeline', title: 'RAG Pipeline', snippet: 'An excerpt.' },
-      { slug: 'vector-search', title: 'Vector Search', snippet: 'An excerpt.' },
-    ]);
-    expect(result).toContain(INSUFFICIENT_COVERAGE_RESPONSE);
-    expect(result).toContain('*Related notes:');
-    expect(result).toContain('[[rag-pipeline|RAG Pipeline]]');
-    expect(result).toContain('[[vector-search|Vector Search]]');
-  });
+  it('omits related-note links so low-confidence nearest neighbors are not surfaced', () => {
+    const result = buildFallbackResponse('tell me about orbital mechanics');
 
-  it('wraps the related-notes footer in single asterisks (italic)', () => {
-    const result = buildFallbackResponse([
-      { slug: 'test-note', title: 'Test Note', snippet: 'An excerpt.' },
-    ]);
-    // Footer must start and end with * (not **)
-    expect(result).toMatch(/\*Related notes:.*\*$/s);
-  });
-
-  it('filters out notes with unsafe slugs', () => {
-    const result = buildFallbackResponse([
-      { slug: 'valid-note', title: 'Valid Note', snippet: 'An excerpt.' },
-      { slug: 'BAD_SLUG!', title: 'Bad Slug', snippet: 'An excerpt.' },
-      { slug: 'also invalid slug', title: 'Also Invalid', snippet: 'An excerpt.' },
-    ]);
-    expect(result).toContain('[[valid-note|Valid Note]]');
-    expect(result).not.toContain('BAD_SLUG');
-    expect(result).not.toContain('also invalid slug');
-  });
-
-  it('returns canned response without footer when all slugs are unsafe', () => {
-    const result = buildFallbackResponse([
-      { slug: 'BAD SLUG', title: 'Bad', snippet: 'An excerpt.' },
-      { slug: 'UPPERCASE', title: 'Upper', snippet: 'An excerpt.' },
-    ]);
     expect(result).toContain(INSUFFICIENT_COVERAGE_RESPONSE);
     expect(result).not.toContain('*Related notes:');
-  });
-
-  it('includes slugs that start with a digit (valid slug pattern)', () => {
-    const result = buildFallbackResponse([
-      { slug: '2024-recap', title: '2024 Recap', snippet: 'An excerpt.' },
-    ]);
-    expect(result).toContain('[[2024-recap|2024 Recap]]');
+    expect(result).not.toContain('[[');
   });
 
   it('uses question-sensitive wording when the user message is a question', () => {
-    const result = buildFallbackResponse([], 'Do you have a note about this?');
+    const result = buildFallbackResponse('Do you have a note about this?');
     expect(result).toContain('I have not documented that exact question yet.');
   });
 });

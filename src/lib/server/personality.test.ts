@@ -29,4 +29,16 @@ describe('SYSTEM_PROMPT', () => {
     expect(SYSTEM_PROMPT).toMatch(/limited-coverage instruction/i);
     expect(SYSTEM_PROMPT).toMatch(/adjacent or partial/i);
   });
+
+  it('asks for conversational synthesis and permits fuller grounded answers', () => {
+    expect(SYSTEM_PROMPT).toMatch(/Synthesize in your own words/i);
+    expect(SYSTEM_PROMPT).toMatch(/fuller, more talkative answer/i);
+    expect(SYSTEM_PROMPT).toMatch(/evidence is rich enough/i);
+  });
+
+  it('guards against copying raw excerpts unless the user asks for a quote', () => {
+    expect(SYSTEM_PROMPT).toMatch(/evidence to paraphrase/i);
+    expect(SYSTEM_PROMPT).toMatch(/Do not quote or closely mirror/i);
+    expect(SYSTEM_PROMPT).toMatch(/explicitly asks for a quote/i);
+  });
 });

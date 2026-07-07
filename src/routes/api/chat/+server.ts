@@ -17,7 +17,7 @@ const RATE_LIMIT_WINDOW_MINUTES_DEFAULT = 60;
 const CHAT_SESSION_COOKIE_NAME_DEFAULT = 'chat_session';
 const CHAT_SESSION_COOKIE_TTL_SECONDS = 60 * 60 * 24 * 365;
 const LIMITED_COVERAGE_INSTRUCTION =
-  'Limited coverage: the retrieved notes are adjacent or partial evidence, not a direct hit. Say that plainly, answer only what the notes support, avoid filling gaps, and steer toward the closest documented angle.';
+  'Limited coverage: the retrieved notes are adjacent or partial evidence, not a direct hit. Say that plainly, answer only what the notes support, avoid filling gaps, paraphrase instead of copying retrieved wording, and steer toward the closest documented angle.';
 
 const MAX_MESSAGE_LENGTH = 2000;
 
@@ -324,7 +324,7 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
 
   // --- 6. Confidence gate: short-circuit to fallback when retrieval is low-confidence or empty ---
   if (!hasSufficientCoverage(assembledCtx)) {
-    const fallbackText = buildFallbackResponse(citedNotes, message);
+    const fallbackText = buildFallbackResponse(message);
     return new Response(makeFallbackStream(fallbackText), {
       headers: {
         'Content-Type': 'text/event-stream',

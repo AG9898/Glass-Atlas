@@ -411,11 +411,11 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 - Include only compact evidence in LLM context: semantic note chunks with section headings, plus lexical-only title/takeaway snippets. Never send full note bodies, and do not include any chat retrieval candidate whose published note has a pending, failed, missing, or stale semantic index.
 - Assemble the final prompt from: personality block + condensed evidence context + user message.
 - Treat retrieved excerpts as evidence to synthesize, not text to copy. The system prompt should explicitly ask for conversational paraphrase, allow fuller/talkative answers when the evidence supports them, and reserve verbatim quotation for cases where the user asks for a quote.
-- Apply confidence gating before answer generation. High confidence uses the normal grounded LLM answer path; borderline confidence uses a stricter limited-coverage LLM instruction; low confidence skips the LLM and returns the deterministic no-coverage fallback with related-topic note links when available.
+- Apply confidence gating before answer generation. High confidence uses the normal grounded LLM answer path; borderline confidence uses a stricter limited-coverage LLM instruction and may cite genuinely adjacent notes; low confidence skips the LLM and returns the deterministic no-coverage fallback without nearest-neighbor source or related-note links.
 - Keep related-note links deterministic from retrieved note slugs; do not rely on model-invented slugs or URLs.
 - Keep chat source-popup metadata deterministic from retrieved note slugs and excerpts; do not rely on model-invented snippets, slugs, URLs, or confidence labels.
-- Low-confidence fallback responses should not expose irrelevant nearest-neighbor notes as sources. Related-note footers belong to borderline/limited-coverage situations where the retrieved notes are genuinely adjacent and safe-slug validated.
-- `isSafeNoteSlug` is exported from `src/lib/utils/chat-format.ts` and is the canonical slug-safety predicate for both the fallback builder and the chat HTML renderer. Import it from that module in both client and server contexts.
+- Low-confidence fallback responses should not expose irrelevant nearest-neighbor notes as sources or related links. Related-note footers belong to citable high/borderline answers where the retrieved notes are genuinely usable and safe-slug validated.
+- `isSafeNoteSlug` is exported from `src/lib/utils/chat-format.ts` and is the canonical slug-safety predicate for chat links and source metadata. Import it from that module in both client and server contexts.
 
 ### OpenRouter (`src/lib/server/ai/openrouter.ts`)
 

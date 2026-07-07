@@ -117,7 +117,7 @@ This table starts empty and is filled in as test files are added to the project.
 
 | Test file | Module under test | What it covers |
 |---|---|---|
-| `src/lib/server/db/notes.test.ts` | `src/lib/server/db/notes.ts` | Mocked Drizzle coverage for note-level similarity, semantic related-notes (`getRelatedNotes`), chunk replace/search helpers, and citation tracking |
+| `src/lib/server/db/notes.test.ts` | `src/lib/server/db/notes.ts` | Mocked Drizzle coverage for note-level similarity, semantic related-notes (`getRelatedNotes`), chunk replace/search helpers, citation tracking, and natural-language lexical term extraction/query filtering |
 | `src/lib/server/embeddings.test.ts` | `src/lib/server/embeddings.ts` | Mocked OpenRouter embedding requests, section/paragraph chunk ordering, metadata payload template stability, missing key handling, HTTP failure handling, malformed payload rejection, and `reindexNoteAfterSave()` success/note-failure/chunk-failure preservation behavior |
 | `src/lib/server/ai/openrouter.test.ts` | `src/lib/server/ai/openrouter.ts` | Mocked OpenRouter chat-completion coverage for primary request shape, default Nemotron/free-router model selection, fallback on rate limits, provider failures, and timeouts, fallback failure details, missing-key/body errors, base URL fallback, and visible-content-only SSE filtering that drops reasoning deltas |
 | `src/lib/server/admin/semantic-index-display.test.ts` | `src/lib/server/admin/semantic-index-display.ts` | Pure mapping coverage for current, pending, stale timestamp, missing source timestamp, and failed semantic index display state used by admin list/editor warnings |

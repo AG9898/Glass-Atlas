@@ -1,4 +1,16 @@
-import { and, count, desc, eq, ilike, inArray, isNotNull, notInArray, or, sql } from 'drizzle-orm';
+import {
+  and,
+  count,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNotNull,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from 'drizzle-orm';
 import { db } from './index';
 import { chatRateLimits, citationEvents, noteChunks, noteLinks, notes } from './schema';
 import { parseWikiLinks } from '$lib/utils/wiki-links';
@@ -434,9 +446,111 @@ export type RetrievedLexicalNote = {
   takeaway: string | null;
 };
 
+const MAX_LEXICAL_SEARCH_TERMS = 8;
+
+const LEXICAL_STOP_WORDS = new Set([
+  'about',
+  'after',
+  'again',
+  'against',
+  'also',
+  'and',
+  'any',
+  'are',
+  'because',
+  'been',
+  'before',
+  'being',
+  'between',
+  'but',
+  'can',
+  'could',
+  'did',
+  'does',
+  'doing',
+  'done',
+  'for',
+  'from',
+  'get',
+  'give',
+  'handle',
+  'handles',
+  'has',
+  'have',
+  'having',
+  'how',
+  'into',
+  'its',
+  'just',
+  'like',
+  'more',
+  'most',
+  'note',
+  'notes',
+  'now',
+  'off',
+  'onto',
+  'out',
+  'over',
+  'please',
+  'show',
+  'site',
+  'than',
+  'that',
+  'the',
+  'their',
+  'then',
+  'there',
+  'these',
+  'they',
+  'this',
+  'through',
+  'what',
+  'when',
+  'where',
+  'which',
+  'while',
+  'who',
+  'why',
+  'work',
+  'working',
+  'works',
+  'with',
+  'would',
+  'you',
+  'your',
+]);
+
+/**
+ * Extracts bounded topic terms from a natural-language chat query for lexical
+ * retrieval. This keeps lexical search useful for full questions without
+ * letting stop words or punctuation turn into broad substring matches.
+ */
+export function buildLexicalSearchTerms(query: string): string[] {
+  const normalized = query
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/['’]s\b/g, '')
+    .replace(/[^a-z0-9]+/g, ' ');
+
+  const terms: string[] = [];
+  const seen = new Set<string>();
+
+  for (const token of normalized.split(/\s+/)) {
+    if (terms.length >= MAX_LEXICAL_SEARCH_TERMS) break;
+    if (token.length < 3 || LEXICAL_STOP_WORDS.has(token) || seen.has(token)) continue;
+    seen.add(token);
+    terms.push(token);
+  }
+
+  return terms;
+}
+
 /**
  * Searches published notes by lexical/topic match on title, tags, and category.
- * All three fields are checked with case-insensitive substring matching.
+ * Full natural-language queries are reduced to bounded meaningful terms, then
+ * title, tags, and category are checked with case-insensitive substring matching.
  * Results are returned in descending publication-date order (most recent first).
  * Only published notes are returned.
  */
@@ -445,9 +559,22 @@ export async function searchNotesByLexical(
   limit: number,
 ): Promise<RetrievedLexicalNote[]> {
   const safeLimit = Math.max(0, Math.floor(limit));
-  if (safeLimit === 0 || !query.trim()) return [];
+  const terms = buildLexicalSearchTerms(query);
+  if (safeLimit === 0 || terms.length === 0) return [];
 
-  const pattern = `%${query}%`;
+  const termConditions: SQL[] = [];
+  for (const term of terms) {
+    const pattern = `%${term}%`;
+    const termCondition = or(
+      ilike(notes.title, pattern),
+      ilike(notes.category, pattern),
+      sql`EXISTS (SELECT 1 FROM unnest(${notes.tags}) AS t(tag) WHERE t.tag ILIKE ${pattern})`,
+    );
+    if (termCondition) termConditions.push(termCondition);
+  }
+
+  const lexicalCondition = or(...termConditions);
+  if (!lexicalCondition) return [];
 
   const rows = await db
     .select({
@@ -462,11 +589,7 @@ export async function searchNotesByLexical(
       and(
         eq(notes.status, 'published'),
         currentSemanticIndexCondition(),
-        or(
-          ilike(notes.title, pattern),
-          ilike(notes.category, pattern),
-          sql`EXISTS (SELECT 1 FROM unnest(${notes.tags}) AS t(tag) WHERE t.tag ILIKE ${pattern})`,
-        ),
+        lexicalCondition,
       ),
     )
     .orderBy(desc(sql`coalesce(${notes.publishedAt}, ${notes.createdAt})`))

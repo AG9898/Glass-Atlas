@@ -11,6 +11,7 @@ vi.mock('./index', () => ({
 }));
 
 import {
+  buildLexicalSearchTerms,
   consumeChatRateLimit,
   getRelatedNotes,
   getNoteChunkCount,
@@ -126,6 +127,22 @@ function deepContainsValue(node: unknown, text: string, seen = new WeakSet<objec
 describe('notes DB query helpers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('extracts bounded lexical terms from short fragments and full questions', () => {
+    expect(buildLexicalSearchTerms('RAG')).toEqual(['rag']);
+    expect(buildLexicalSearchTerms('How does RAG handle embeddings, security, and docs?')).toEqual([
+      'rag',
+      'embeddings',
+      'security',
+      'docs',
+    ]);
+    expect(buildLexicalSearchTerms('RAG, rag; RAG!')).toEqual(['rag']);
+  });
+
+  it('ignores stop words, short tokens, and punctuation for lexical terms', () => {
+    expect(buildLexicalSearchTerms('How does this site work?')).toEqual([]);
+    expect(buildLexicalSearchTerms('the, and, or, to, of?!')).toEqual([]);
   });
 
   it('classifies only complete non-stale semantic indexes as current', () => {
@@ -405,6 +422,32 @@ describe('notes DB query helpers', () => {
     const [whereExpression] = chain.where.mock.calls[0];
     expect(deepContainsValue(whereExpression, 'published')).toBe(true);
     expect(deepContainsValue(whereExpression, 'current')).toBe(true);
+  });
+
+  it('searchNotesByLexical matches meaningful terms from full natural-language questions', async () => {
+    const chain = createSelectLimitChain([]);
+    dbMock.select.mockReturnValue(chain);
+
+    await searchNotesByLexical(
+      'How does RAG handle self-hosted agent security and documentation prompts?',
+      5,
+    );
+
+    const [whereExpression] = chain.where.mock.calls[0];
+    expect(deepContainsValue(whereExpression, '%rag%')).toBe(true);
+    expect(deepContainsValue(whereExpression, '%self%')).toBe(true);
+    expect(deepContainsValue(whereExpression, '%hosted%')).toBe(true);
+    expect(deepContainsValue(whereExpression, '%agent%')).toBe(true);
+    expect(deepContainsValue(whereExpression, '%security%')).toBe(true);
+    expect(deepContainsValue(whereExpression, '%documentation%')).toBe(true);
+    expect(deepContainsValue(whereExpression, '%prompts%')).toBe(true);
+    expect(deepContainsValue(whereExpression, '%how%')).toBe(false);
+    expect(deepContainsValue(whereExpression, '%does%')).toBe(false);
+  });
+
+  it('searchNotesByLexical skips the database when no meaningful terms remain', async () => {
+    await expect(searchNotesByLexical('the, and, or, to, of?!', 5)).resolves.toEqual([]);
+    expect(dbMock.select).not.toHaveBeenCalled();
   });
 
   it('getRelatedNotes orders published notes by cosine distance to the source embedding, excluding the source note', async () => {

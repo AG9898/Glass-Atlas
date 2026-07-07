@@ -2344,7 +2344,7 @@
       "id": "CHAT-07C",
       "title": "Improve natural-language lexical retrieval support",
       "description": "Replace the literal full-query lexical match with a bounded natural-language topic/token strategy that extracts meaningful query terms and matches them against note titles, categories, and tags. Keep semantic retrieval primary, but let lexical matches provide useful support for full questions such as RAG, embeddings, self-hosted agent, security, documentation, and loop prompts.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "group_id": "CHAT",
       "depends_on": [

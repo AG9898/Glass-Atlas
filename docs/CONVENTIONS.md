@@ -407,6 +407,7 @@ export async function findSimilarNotes(embedding: number[], limit = 5) {
 ### Prompt Assembly (`src/lib/server/chat.ts`)
 
 - Use always-on light hybrid retrieval: run semantic similarity and topic/lexical retrieval in parallel, then fuse/rerank a bounded candidate set before prompt assembly.
+- Lexical/topic retrieval must tokenize natural-language questions with `buildLexicalSearchTerms()` in `src/lib/server/db/notes.ts`: keep only meaningful lowercase terms, dedupe them, cap the term count, and drop stop words/punctuation before matching title/category/tags. Do not revert to full-query substring matching; full questions should still surface useful topic terms without broad noisy matches.
 - Include only compact evidence in LLM context: semantic note chunks with section headings, plus lexical-only title/takeaway snippets. Never send full note bodies, and do not include any chat retrieval candidate whose published note has a pending, failed, missing, or stale semantic index.
 - Assemble the final prompt from: personality block + condensed evidence context + user message.
 - Treat retrieved excerpts as evidence to synthesize, not text to copy. The system prompt should explicitly ask for conversational paraphrase, allow fuller/talkative answers when the evidence supports them, and reserve verbatim quotation for cases where the user asks for a quote.

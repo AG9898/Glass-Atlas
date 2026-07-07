@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import { beforeNavigate } from '$app/navigation';
   import {
     renderChatMessageHtml,
     parseChatSourcesEvent,
@@ -198,6 +199,28 @@
     expandToggle?.focus({ preventScroll: true });
   }
 
+  /**
+   * Instantly restores the collapsed state with no animation. Needed on
+   * navigation/unmount: the expanded section lives in `document.body`,
+   * outside this component's subtree, so SvelteKit's page teardown would
+   * otherwise strand it there as a fixed overlay with no live listeners left
+   * to close it. Reparenting it back before teardown lets Svelte remove it
+   * with the rest of the page.
+   */
+  function forceCollapseNow(): void {
+    if (!expanded) return;
+    if (motionRef && rootEl) {
+      motionRef.gsap.killTweensOf(rootEl);
+      if (backdropEl) motionRef.gsap.killTweensOf(backdropEl);
+    }
+    expandAnimating = false;
+    restoreCollapsedState();
+  }
+
+  beforeNavigate(() => {
+    forceCollapseNow();
+  });
+
   function onToggleExpand(): void {
     if (expanded) {
       void collapseChat();
@@ -220,8 +243,11 @@
 
   $effect(() => {
     return () => {
-      // Unmount while expanded (e.g. navigation): drop the overlay chrome and
-      // release the scroll lock; Svelte removes the section itself.
+      // Unmount while expanded (fallback for teardown paths that don't fire
+      // `beforeNavigate`): put the section back into the component subtree so
+      // Svelte's DOM removal actually takes it out, then drop any remaining
+      // overlay chrome and release the scroll lock.
+      forceCollapseNow();
       backdropEl?.remove();
       backdropEl = null;
       placeholderEl?.remove();

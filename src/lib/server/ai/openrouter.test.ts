@@ -11,7 +11,22 @@ vi.mock('$env/dynamic/private', () => ({
   env: envMock,
 }));
 
-import { DEFAULT_OPENROUTER_TIMEOUT_MS, streamChatCompletion } from './openrouter';
+import {
+  DEFAULT_OPENROUTER_STREAM_STALL_TIMEOUT_MS,
+  DEFAULT_OPENROUTER_TIMEOUT_MS,
+  streamChatCompletion,
+} from './openrouter';
+
+/** A stream whose reads never resolve — simulates a stalled upstream connection. */
+function makeHangingStream(): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    pull() {
+      return new Promise(() => {
+        // never resolves
+      });
+    },
+  });
+}
 
 function makeSseStream(dataLines: string[]): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
@@ -59,7 +74,10 @@ describe('streamChatCompletion', () => {
   });
 
   it('sends a streaming request to the OpenRouter chat completions endpoint', async () => {
-    const stream = new ReadableStream<Uint8Array>();
+    const stream = makeSseStream([
+      JSON.stringify({ choices: [{ delta: { content: 'hi' }, index: 0 }] }),
+      '[DONE]',
+    ]);
     const fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -116,7 +134,10 @@ describe('streamChatCompletion', () => {
 
   it('falls back to default base URL when OPENROUTER_BASE_URL is not set', async () => {
     envMock.OPENROUTER_BASE_URL = '';
-    const stream = new ReadableStream<Uint8Array>();
+    const stream = makeSseStream([
+      JSON.stringify({ choices: [{ delta: { content: 'hi' }, index: 0 }] }),
+      '[DONE]',
+    ]);
     const fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
     vi.stubGlobal('fetch', fetchMock);
 
@@ -252,5 +273,119 @@ describe('streamChatCompletion', () => {
     expect(raw).toContain('[DONE]');
     expect(raw).not.toContain('hidden reasoning');
     expect(raw).not.toContain('more hidden reasoning');
+  });
+
+  it('retries with the fallback model when the primary stream returns an in-band SSE error event', async () => {
+    const errorStream = makeSseStream([
+      JSON.stringify({ error: { code: 502, message: 'Upstream error from Nvidia: ResourceExhausted' } }),
+    ]);
+    const fallbackStream = makeSseStream([
+      JSON.stringify({ choices: [{ delta: { content: 'fallback answer' }, index: 0 }] }),
+      '[DONE]',
+    ]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(errorStream, { status: 200 }))
+      .mockResolvedValueOnce(new Response(fallbackStream, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const result = await streamChatCompletion([{ role: 'user', content: 'Hello' }]);
+    const raw = await readStream(result);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getRequestBody(fetchMock, 1)).toMatchObject({ model: 'fallback-model' });
+    expect(raw).toContain('fallback answer');
+    errorSpy.mockRestore();
+  });
+
+  it('retries with the fallback model when the primary stream completes with zero visible content', async () => {
+    const emptyStream = makeSseStream([
+      JSON.stringify({ choices: [{ delta: { reasoning: 'thinking only' }, index: 0 }] }),
+      '[DONE]',
+    ]);
+    const fallbackStream = makeSseStream([
+      JSON.stringify({ choices: [{ delta: { content: 'fallback answer' }, index: 0 }] }),
+      '[DONE]',
+    ]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(emptyStream, { status: 200 }))
+      .mockResolvedValueOnce(new Response(fallbackStream, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await streamChatCompletion([{ role: 'user', content: 'Hello' }]);
+    const raw = await readStream(result);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getRequestBody(fetchMock, 1)).toMatchObject({ model: 'fallback-model' });
+    expect(raw).toContain('fallback answer');
+  });
+
+  it('aborts a stalled primary stream and retries with the fallback model', async () => {
+    vi.useFakeTimers();
+    const fallbackStream = makeSseStream([
+      JSON.stringify({ choices: [{ delta: { content: 'fallback answer' }, index: 0 }] }),
+      '[DONE]',
+    ]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(makeHangingStream(), { status: 200 }))
+      .mockResolvedValueOnce(new Response(fallbackStream, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const resultPromise = streamChatCompletion([{ role: 'user', content: 'Hello' }]);
+    await vi.advanceTimersByTimeAsync(DEFAULT_OPENROUTER_STREAM_STALL_TIMEOUT_MS);
+    const result = await resultPromise;
+    const raw = await readStream(result);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(getRequestBody(fetchMock, 1)).toMatchObject({ model: 'fallback-model' });
+    expect(raw).toContain('fallback answer');
+  });
+
+  it('closes the stream gracefully instead of retrying when an in-band error arrives after content already streamed', async () => {
+    const stream = makeSseStream([
+      JSON.stringify({ choices: [{ delta: { content: 'partial answer' }, index: 0 }] }),
+      JSON.stringify({ error: { code: 502, message: 'Upstream error from Nvidia: ResourceExhausted' } }),
+    ]);
+    const fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const result = await streamChatCompletion([{ role: 'user', content: 'Hello' }]);
+    const raw = await readStream(result);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(raw).toContain('partial answer');
+    expect(raw).toContain('[DONE]');
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
+  it('logs provider detail and rejects when both primary and fallback streams fail', async () => {
+    const primaryError = makeSseStream([
+      JSON.stringify({ error: { code: 502, message: 'Upstream error from Nvidia: ResourceExhausted' } }),
+    ]);
+    const fallbackError = makeSseStream([
+      JSON.stringify({ choices: [{ delta: { reasoning: 'thinking only' }, index: 0 }] }),
+      '[DONE]',
+    ]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(primaryError, { status: 200 }))
+      .mockResolvedValueOnce(new Response(fallbackError, { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    await expect(streamChatCompletion([{ role: 'user', content: 'Hello' }])).rejects.toThrow(
+      /OpenRouter chat request failed after fallback\. Primary: OpenRouter in-band error: .*Fallback: OpenRouter stream completed with no visible content\./,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[openrouter] Both primary and fallback models failed:',
+      expect.stringContaining('OpenRouter in-band error'),
+    );
+    errorSpy.mockRestore();
   });
 });

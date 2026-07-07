@@ -2458,7 +2458,7 @@
       "id": "CHAT-08A",
       "title": "Harden OpenRouter adapter against in-band SSE errors and empty-content streams",
       "description": "The CHAT-07E audit found nvidia/nemotron-3-ultra-550b-a55b:free intermittently (3 of 7 citable questions in one sweep, plus one >60s stall) returns HTTP 200 with a single in-band SSE error event (502 ResourceExhausted, provider_unavailable) and zero visible content. The adapter treats HTTP 200 as success, so the fallback model never engages and the client renders an empty answer bubble that still carries a Sources control. Detect in-band error events and zero-visible-content stream completions in src/lib/server/ai/openrouter.ts, retry once with the fallback model, add a stream-level inactivity timeout so stalled upstream streams do not hang indefinitely, and log the provider limitation clearly when both models fail.",
-      "status": "todo",
+      "status": "done",
       "priority": "high",
       "group_id": "CHAT",
       "depends_on": [

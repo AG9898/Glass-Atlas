@@ -10,6 +10,7 @@ import {
 import { streamChatCompletion } from '$lib/server/ai/openrouter';
 import { SYSTEM_PROMPT } from '$lib/server/personality';
 import { consumeChatRateLimit, recordCitations } from '$lib/server/db/notes';
+import { SUGGESTED_CHAT_PROMPT } from '$lib/utils/chat-format';
 
 const RATE_LIMIT_MAX_DEFAULT = 10;
 const RATE_LIMIT_WINDOW_MINUTES_DEFAULT = 60;
@@ -87,6 +88,30 @@ function buildSocialReply(intent: SocialIntent): string {
     default:
       return "I don't have a note on that yet.";
   }
+}
+
+/**
+ * Author-curated reply for the suggested showcase prompt (the one-click chip
+ * in `Chat.svelte`, shared via `SUGGESTED_CHAT_PROMPT`).
+ *
+ * Why this bypasses retrieval: the notes corpus does not document how the
+ * site itself is built, so the real RAG path answers this question honestly
+ * but thinly ("I haven't written an architecture note yet") — verified
+ * end-to-end before this lane was added. Since the chip exists to give
+ * first-time visitors a transparent, accurate demo, the reply is static
+ * author-written text (same trust level as the /how-it-works page), not LLM
+ * output. It is deliberately separate from the social-intent lane, which
+ * must stay non-factual and steering-only.
+ */
+const SUGGESTED_PROMPT_REPLY = [
+  'Happy to answer this one specifically, since transparency is the point of the build.',
+  "This site is a SvelteKit app (Svelte 5) running on Railway. Notes live in Neon Postgres, and every note gets embedded into pgvector at save time. When you ask something here, the site embeds your question, runs a similarity search over chunks of my notes, and hands only the best-matching excerpts to an open model through OpenRouter, which streams the answer back.",
+  "The important part is what the model is *not* allowed to do: it never sees full note bodies, and it never answers from its own training data. If retrieval can't find enough coverage in what I've written, the chat says so instead of guessing. When an answer does land, a Sources control shows exactly which notes it drew from.",
+  'The full walkthrough is on [How It Works](/how-it-works), and the notes themselves document the build as it goes.',
+].join('\n\n');
+
+function isSuggestedPrompt(message: string): boolean {
+  return normalizeMessage(message) === normalizeMessage(SUGGESTED_CHAT_PROMPT);
 }
 
 /**
@@ -270,7 +295,18 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
     });
   }
 
-  // --- 4. Short social-chat lane (safe, no factual claims) ---
+  // --- 4a. Curated showcase lane (exact suggested-prompt match) ---
+  if (isSuggestedPrompt(message)) {
+    return new Response(makeFallbackStream(SUGGESTED_PROMPT_REPLY), {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      },
+    });
+  }
+
+  // --- 4b. Short social-chat lane (safe, no factual claims) ---
   const socialIntent = detectSocialIntent(message);
   if (socialIntent) {
     return new Response(makeFallbackStream(buildSocialReply(socialIntent)), {

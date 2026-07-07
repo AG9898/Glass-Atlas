@@ -360,6 +360,58 @@ describe('POST /api/chat', () => {
     expect(raw).not.toContain('Related notes:');
   });
 
+  // ----- Curated showcase lane (suggested prompt) -----
+
+  it('answers the suggested showcase prompt with the curated reply, without retrieval or LLM calls', async () => {
+    const res = await callPost(makeEvent({ message: 'How does this site work?' }));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+    expect(mockAssembleContext).not.toHaveBeenCalled();
+    expect(mockStreamChatCompletion).not.toHaveBeenCalled();
+    expect(mockRecordCitations).not.toHaveBeenCalled();
+
+    const raw = await readStreamBody(res);
+    expect(raw).toContain('SvelteKit');
+    expect(raw).toContain('pgvector');
+    expect(raw).toContain('OpenRouter');
+    expect(raw).toContain('[How It Works](/how-it-works)');
+  });
+
+  it('matches the suggested prompt case-insensitively with surrounding whitespace', async () => {
+    const res = await callPost(makeEvent({ message: '  how does this site WORK?  ' }));
+
+    expect(res.status).toBe(200);
+    expect(mockAssembleContext).not.toHaveBeenCalled();
+    expect(mockStreamChatCompletion).not.toHaveBeenCalled();
+
+    const raw = await readStreamBody(res);
+    expect(raw).toContain('pgvector');
+  });
+
+  it('still consumes quota before serving the curated showcase reply', async () => {
+    await callPost(makeEvent({ message: 'How does this site work?' }));
+    expect(mockConsumeChatRateLimit).toHaveBeenCalledTimes(1);
+
+    mockConsumeChatRateLimit.mockResolvedValueOnce({
+      allowed: false,
+      messageCount: 11,
+      remaining: 0,
+      limit: 10,
+      windowStart: new Date('2026-05-01T00:00:00.000Z'),
+      resetAt: new Date('2026-05-01T01:00:00.000Z'),
+    });
+    const res = await callPost(makeEvent({ message: 'How does this site work?' }));
+    expect(res.status).toBe(429);
+  });
+
+  it('does not route non-preset build questions into the curated lane', async () => {
+    const res = await callPost(makeEvent({ message: 'How was this blog built?' }));
+
+    expect(res.status).toBe(200);
+    expect(mockAssembleContext).toHaveBeenCalledTimes(1);
+  });
+
   it('the response uses new Response(stream), not json()', async () => {
     const res = await callPost(makeEvent({ message: 'test' }));
 

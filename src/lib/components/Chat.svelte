@@ -1,6 +1,11 @@
 <script lang="ts">
   import { tick } from 'svelte';
-  import { renderChatMessageHtml, parseChatSourcesEvent, type ChatSource } from '$lib/utils/chat-format';
+  import {
+    renderChatMessageHtml,
+    parseChatSourcesEvent,
+    SUGGESTED_CHAT_PROMPT,
+    type ChatSource,
+  } from '$lib/utils/chat-format';
   import { canUseSpatialMotion, loadPublicGsap, type PublicGsap } from '$lib/motion';
   import { Dialog } from '$lib/components/ui';
   import WaveGridLoader from '$lib/components/WaveGridLoader.svelte';
@@ -347,10 +352,13 @@
 
   async function onSubmit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
+    await sendMessage(input);
+  }
 
+  async function sendMessage(rawMessage: string): Promise<void> {
     if (loading) return;
 
-    const message = input.trim();
+    const message = rawMessage.trim();
     if (!message) return;
 
     error = '';
@@ -463,7 +471,18 @@
 
   <div class="ga-chat__messages" role="log" aria-live="polite" bind:this={messagesViewport}>
     {#if messages.length === 0}
-      <p class="ga-chat__empty">Ask a question to begin a grounded search.</p>
+      <div class="ga-chat__empty">
+        <p class="ga-chat__empty-text">Ask a question to begin a grounded search.</p>
+        <button
+          type="button"
+          class="ga-chat__suggestion ga-focus-ring"
+          disabled={loading}
+          onclick={() => void sendMessage(SUGGESTED_CHAT_PROMPT)}
+        >
+          <span class="ga-chat__suggestion-eyebrow">Try it</span>
+          <span class="ga-chat__suggestion-text">{SUGGESTED_CHAT_PROMPT}</span>
+        </button>
+      </div>
     {:else}
       {#each messages as message}
         <article class="ga-chat__message" class:ga-chat__message--assistant={message.role === 'assistant'}>
@@ -635,11 +654,56 @@
   }
 
   .ga-chat__empty {
-    margin: 0;
+    display: grid;
+    gap: 0.85rem;
+    justify-items: start;
     padding: 1rem;
+    border-bottom: var(--line-thin) solid var(--color-line-1);
+  }
+
+  .ga-chat__empty-text {
+    margin: 0;
     color: var(--color-text-muted);
     font-size: 0.95rem;
-    border-bottom: var(--line-thin) solid var(--color-line-1);
+  }
+
+  .ga-chat__suggestion {
+    display: grid;
+    gap: 0.25rem;
+    justify-items: start;
+    padding: 0.6rem 0.85rem;
+    border: var(--line-thin) solid var(--color-line-2);
+    border-radius: 0;
+    background: var(--color-surface-2);
+    color: var(--color-text);
+    font-family: 'Literata', Georgia, 'Times New Roman', serif;
+    font-size: 0.92rem;
+    line-height: 1.4;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .ga-chat__suggestion:hover {
+    border-color: var(--color-line-3);
+    color: var(--color-text-strong);
+  }
+
+  .ga-chat__suggestion:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .ga-chat__suggestion-eyebrow {
+    font-family: 'Space Grotesk', 'Inter', 'Segoe UI', sans-serif;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .ga-chat__suggestion-text {
+    display: block;
   }
 
   .ga-chat__message {

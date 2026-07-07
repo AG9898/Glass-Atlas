@@ -22,6 +22,17 @@ describe('renderChatMessageHtml', () => {
     expect(html).toContain('<a href="/notes/rag-pipeline" class="ga-chat__note-link">RAG Pipeline</a>');
   });
 
+  it('renders markdown links to allowlisted internal pages', () => {
+    const html = renderChatMessageHtml('See [How It Works](/how-it-works).');
+    expect(html).toContain('<a href="/how-it-works" class="ga-chat__note-link">How It Works</a>');
+  });
+
+  it('does not link markdown links to non-allowlisted internal pages', () => {
+    const html = renderChatMessageHtml('See [Admin](/admin) and [Elsewhere](https://example.com).');
+    expect(html).not.toContain('href="/admin"');
+    expect(html).not.toContain('href="https://example.com"');
+  });
+
   it('escapes unsafe HTML', () => {
     const html = renderChatMessageHtml('<script>alert(1)</script>');
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');

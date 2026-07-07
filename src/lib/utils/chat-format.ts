@@ -93,10 +93,20 @@ export function isSafeNoteSlug(value: string): boolean {
   return /^[a-z0-9][a-z0-9-]*$/.test(value);
 }
 
+/**
+ * The suggested showcase prompt offered as a one-click chip in the chat UI.
+ * `POST /api/chat` matches this exact question (case-insensitively) and
+ * returns an author-curated reply, so the client chip and the server lane
+ * must share this constant — never duplicate the string on either side.
+ */
+export const SUGGESTED_CHAT_PROMPT = 'How does this site work?';
+
 // Matches [[slug]] and [[slug|display text]]
 const WIKI_LINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
 // Matches markdown links to local note pages only: [Label](/notes/slug)
 const NOTE_MARKDOWN_LINK_RE = /\[([^\]]+)\]\((\/notes\/([a-z0-9-]+))\)/g;
+// Markdown links to a small allowlist of internal non-note pages.
+const INTERNAL_PAGE_LINK_RE = /\[([^\]]+)\]\(\/(how-it-works)\)/g;
 // Single-asterisk italics only (intentionally excludes **bold**)
 const ITALIC_RE = /(^|[^*])\*([^*\n]+)\*(?!\*)/g;
 
@@ -106,6 +116,7 @@ const ITALIC_RE = /(^|[^*])\*([^*\n]+)\*(?!\*)/g;
  * - *italic*
  * - [[slug]] / [[slug|label]]
  * - [label](/notes/slug)
+ * - [label](/how-it-works) (allowlisted internal pages only)
  */
 export function renderChatMessageHtml(content: string): string {
   let html = escapeHtml(content);
@@ -121,6 +132,10 @@ export function renderChatMessageHtml(content: string): string {
   html = html.replace(NOTE_MARKDOWN_LINK_RE, (_raw, label: string, _path: string, slug: string) => {
     if (!isSafeNoteSlug(slug)) return label;
     return `<a href="/notes/${slug}" class="ga-chat__note-link">${label}</a>`;
+  });
+
+  html = html.replace(INTERNAL_PAGE_LINK_RE, (_raw, label: string, page: string) => {
+    return `<a href="/${page}" class="ga-chat__note-link">${label}</a>`;
   });
 
   html = html.replace(ITALIC_RE, '$1<em>$2</em>');

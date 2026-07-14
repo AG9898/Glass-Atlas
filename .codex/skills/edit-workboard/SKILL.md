@@ -1,6 +1,6 @@
 ---
 name: edit-workboard
-description: Create new workboard tasks and edit existing task fields (description, criteria, deps, priority, blocked state). Use append-to/remove-from for array fields, split-task to break heavy tasks apart. Never use for task selection or execution — those belong to $query-workboard and $start-task.
+description: Create new workboard tasks and edit existing task fields with targeted JSON patches, including dependency-safe deletion and split-task workflows, without using this skill for task selection or execution.
 version: 1.0.0
 ---
 
@@ -8,9 +8,17 @@ version: 1.0.0
 
 Use this skill to author, modify, and restructure tasks in `docs/workboard.json`.
 
-**Not for:** selecting the next task, executing tasks, or transitioning `todo → in_progress → done` (those belong to `$query-workboard` and `$start-task`).
+Use `$edit-workboard` when work needs to create tasks, refine task fields, or split heavy tasks into smaller scoped tasks.
 
----
+Do not use this skill for selecting the next task, executing tasks, or transitioning `todo -> in_progress -> done`; those belong to `$query-workboard` and `$start-task`.
+
+## Workflow
+
+1. Read the repo instruction dispatcher first (`AGENTS.md`).
+2. If the request is task selection, dependency triage, or next-task identification, hand off to `$query-workboard`.
+3. If the request is executing a task lifecycle (`todo -> in_progress -> done`), hand off to `$start-task`.
+4. For writes, use only targeted task-level or structural patches; never rewrite the entire board.
+5. After each write, run the shared write protocol in this skill before reporting completion.
 
 ## Command Index
 
@@ -30,18 +38,54 @@ Use this skill to author, modify, and restructure tasks in `docs/workboard.json`
 | `delete-task <ID>` | Remove a task (refused if `in_progress` or depended upon by another task) |
 | `split-task <ID>` | Replace one task with two or more scoped subtasks |
 
-**`status` is write-protected in this skill.** The only legal status writes are the atomic `set-blocked` and `unblock` operations below. Execution transitions belong to `$start-task`.
+`status` is write-protected in this skill. The only legal status writes are the atomic `set-blocked` and `unblock` operations below. Execution transitions belong to `$start-task`.
 
-**`id` is immutable.** Renaming an ID silently breaks every `depends_on` reference to it — refuse if asked.
-
----
+`id` is immutable. Renaming an ID silently breaks every `depends_on` reference to it; refuse if asked.
 
 ## Shared Write Protocol
 
-Run after every command that writes to the board:
+### Preflight: confirm the board is jq-canonical
 
-1. Apply the targeted patch using the template for that command — never rewrite the full file.
-2. Update `last_updated` in the **same jq expression** as the patch. Never update it separately.
+Run this **before** any write, and read the result before proceeding.
+
+Every `jq ... > /tmp/wb.json && mv` template below re-serializes the **whole file** with jq's
+canonical formatting. jq has no formatting-preserving write. So if the board's on-disk bytes
+differ from jq's canonical output in any way, the first write silently reformats every task —
+a full-file rewrite wearing the disguise of a one-task patch. The task content is unchanged, so
+validation still passes and nothing looks wrong; only the diff gives it away.
+
+Divergences that occur in practice: short arrays kept on one line (jq expands each element onto
+its own line), non-ASCII stored as `\uXXXX` escapes (jq emits literal UTF-8, e.g. `—` becomes
+an em dash), and stray blank lines.
+
+```bash
+diff <(jq '.' docs/workboard.json) docs/workboard.json >/dev/null \
+  && echo "CANONICAL — jq templates below are safe" \
+  || echo "NOT CANONICAL — a jq write would bulk-reformat the whole board"
+```
+
+If it reports NOT CANONICAL, do not run the jq templates as written. Pick one:
+
+- **Preferred — preserve the file's formatting.** Apply the change as a targeted text edit in the
+  board's existing style (for `add-task`, splice the new task object in before the closing `]`,
+  matching the surrounding indentation), then run the validations below. Verify with
+  `git diff --numstat docs/workboard.json`: `add-task` must show **0 deletions**.
+- **Or — normalize deliberately, in its own commit.** Rewrite the file to canonical form
+  (`jq '.' docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json`), prove it
+  changed no content, commit that alone, then apply your edit with the jq templates on top:
+  ```bash
+  diff <(git show HEAD:docs/workboard.json | jq -S '.tasks | sort_by(.id)') \
+       <(jq -S '.tasks | sort_by(.id)' docs/workboard.json) \
+    && echo "semantic no-op — safe to commit as a pure normalization"
+  ```
+
+Never let a normalization ride along inside a content commit; it buries the real change and makes
+the board's history unreviewable.
+
+### After every write
+
+1. Apply the targeted patch using the template for that command; never rewrite the full file.
+2. Update `last_updated` in the same jq expression as the patch. Never update it separately.
 3. Validate shape:
    ```bash
    jq -e '.tasks and (.tasks | type == "array")' docs/workboard.json >/dev/null
@@ -50,29 +94,32 @@ Run after every command that writes to the board:
    ```bash
    npx --yes ajv-cli validate -s docs/workboard.schema.json -d docs/workboard.json
    ```
-   > **Note on pre-existing violations:** If the board already contains a task with an invalid ID (e.g. a lowercase character like `ADMIN-01a`), step 4 will report failure even when your edit is clean. To isolate responsibility, re-run the shape check (step 3) against `/tmp/wb.json` — if it passes, your change is valid and the failure is pre-existing noise. Report both findings separately; do not revert a clean edit because of a pre-existing violation.
-5. If either validation fails due to **your change**: the `/tmp/wb.json` backup (left by the `mv` pattern) is the last good state. Report the error and stop — do not attempt a second write to fix it.
-6. Print a compact one-line summary of the changed task.
-
----
+5. If schema validation fails due to pre-existing invalid records, isolate responsibility by shape-checking `/tmp/wb.json`; report pre-existing noise separately from your edit result.
+6. If either validation fails due to your change, stop immediately, report the failure, and do not attempt another write.
+7. Confirm the write touched only what you intended — deletions must match the lines you meant to change, and must be `0` for `add-task`:
+   ```bash
+   git diff --numstat docs/workboard.json
+   ```
+   If the deletion count exceeds your intended change, the write reformatted the board: revert it
+   (`git checkout docs/workboard.json`) and re-apply as a targeted text edit.
+8. Print a compact one-line summary of the changed task.
 
 ## Commands
 
 ### `show <ID>`
 
-Read-only. Run this before any edit to verify the current state.
+Read-only. Run this before any edit to verify current state.
 
 ```bash
 jq '.tasks[] | select(.id == "TASK-ID")' docs/workboard.json
 ```
 
----
-
 ### `add-task`
 
 All 12 required fields must be present. New tasks always start as `todo`. Replace `YYYY-MM-DD` with today's date.
 
-**Before writing:**
+Before writing:
+
 - Confirm the ID is not already taken:
   ```bash
   jq -e --arg id "NEW-ID" '.tasks[] | select(.id == $id)' docs/workboard.json >/dev/null && echo "ID taken"
@@ -81,7 +128,7 @@ All 12 required fields must be present. New tasks always start as `todo`. Replac
   ```bash
   jq --arg g "GROUP_ID" '[.tasks[] | select(.group_id == $g) | .id] | sort | last' docs/workboard.json
   ```
-- Confirm every `depends_on` ID exists in the board (use the existence check above for each one).
+- Confirm every `depends_on` ID exists in the board using the existence check above for each one.
 
 ```bash
 jq --argjson task '{
@@ -102,8 +149,6 @@ jq --argjson task '{
 docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json
 ```
 
----
-
 ### `edit-task <ID> <field> <value>`
 
 Scalar fields only: `title`, `description`, `group_id`.
@@ -116,8 +161,6 @@ docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json
 
 Replace `FIELD_NAME` literally with `title`, `description`, or `group_id`.
 
----
-
 ### `reprioritize <ID> <level>`
 
 Level must be one of: `critical`, `high`, `medium`, `low`.
@@ -128,14 +171,12 @@ jq --arg level "high" \
 docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json
 ```
 
----
-
 ## Array Field Commands
 
-Array fields are: `acceptance_criteria`, `docs`, `files`, `commands`.
-(`depends_on` and `blocked_by` have dedicated commands below.)
+Array fields are `acceptance_criteria`, `docs`, `files`, and `commands`.
+(`depends_on` and `blocked_by` use dedicated commands below.)
 
-Use `append-to` / `remove-from` for incremental changes. Use `set-array` only when replacing the whole array is intentional — always run `show <ID>` first so the current value is visible in context.
+Use `append-to` and `remove-from` for incremental changes. Use `set-array` only when replacing the whole array is intentional; run `show <ID>` first so the current value is visible.
 
 ### `append-to <ID> <field> <value>`
 
@@ -145,11 +186,9 @@ jq --arg val "new item" \
 docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json
 ```
 
----
-
 ### `remove-from <ID> <field> <value>`
 
-Removes by exact string match. If the string is not present, the board is unchanged (no error).
+Removes by exact string match. If the string is not present, the board is unchanged.
 
 ```bash
 jq --arg val "item to remove" \
@@ -157,11 +196,9 @@ jq --arg val "item to remove" \
 docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json
 ```
 
----
-
 ### `set-array <ID> <field> <json-array>`
 
-Replaces the entire array. Run `show <ID>` first — the current array must be visible in context before this write executes.
+Replaces the entire array. Run `show <ID>` first; the current array must be visible in context before this write executes.
 
 ```bash
 jq --argjson arr '["item 1", "item 2"]' \
@@ -169,13 +206,11 @@ jq --argjson arr '["item 1", "item 2"]' \
 docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json
 ```
 
----
-
 ## Dependency Commands
 
 ### `add-dep <ID> <dep-ID>`
 
-Verify the dependency exists before appending:
+Verify dependency exists before appending:
 
 ```bash
 jq -e --arg id "DEP-ID" '.tasks[] | select(.id == $id)' docs/workboard.json >/dev/null
@@ -189,8 +224,6 @@ jq --arg dep "DEP-ID" \
 docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json
 ```
 
----
-
 ### `remove-dep <ID> <dep-ID>`
 
 ```bash
@@ -199,13 +232,11 @@ jq --arg dep "DEP-ID" \
 docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json
 ```
 
----
-
 ## Status Commands
 
 ### `set-blocked <ID> <reason>`
 
-Reason must be a non-empty string. Sets both `status` and `blocked_by` atomically.
+Reason must be non-empty. Sets both `status` and `blocked_by` atomically.
 
 ```bash
 jq --arg reason "reason text" \
@@ -213,15 +244,13 @@ jq --arg reason "reason text" \
 docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json
 ```
 
-To append a second reason to an already-blocked task without clearing the first:
+To append a second reason without clearing the first:
 
 ```bash
 jq --arg reason "additional reason" \
 '(.tasks[] | select(.id == "TASK-ID")).blocked_by += [$reason] | .last_updated = "YYYY-MM-DD"' \
 docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json
 ```
-
----
 
 ### `unblock <ID>`
 
@@ -230,110 +259,106 @@ jq '(.tasks[] | select(.id == "TASK-ID")) |= . + {"status": "todo", "blocked_by"
 docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json
 ```
 
----
-
 ### `delete-task <ID>`
 
-Removes a task from the board permanently. Only valid when `status` is `todo`, `blocked`, or `done`.
+Removes a task permanently. Only valid when `status` is `todo`, `blocked`, or `done`.
 
-**Before writing:**
+Before writing:
 
-Check the task is not `in_progress`:
+Check task is not `in_progress`:
+
 ```bash
 jq -e --arg id "TASK-ID" '.tasks[] | select(.id == $id and .status == "in_progress")' docs/workboard.json >/dev/null && echo "REFUSED: task is in_progress"
 ```
 
-Check no other task depends on it (print any dependents — if the list is non-empty, resolve those `depends_on` entries first):
+Check no other task depends on it:
+
 ```bash
 jq --arg id "TASK-ID" '[.tasks[] | select(.depends_on | contains([$id])) | .id]' docs/workboard.json
 ```
 
 Then delete:
+
 ```bash
 jq --arg id "TASK-ID" \
 '.tasks |= map(select(.id != $id)) | .last_updated = "YYYY-MM-DD"' \
 docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json
 ```
 
----
-
 ## `split-task <ID>`
 
 Replaces one task with two or more scoped subtasks. Only valid when source task is `todo` or `blocked`.
 
-This is a multi-step, destructive operation. **Stop after Step 3 and wait for explicit user confirmation before writing anything.**
+This is a multi-step destructive operation. Stop after Step 3 and wait for explicit confirmation before writing.
 
----
-
-**Step 1 — Read the original task in full:**
+Step 1: Read the original task in full.
 
 ```bash
 jq '.tasks[] | select(.id == "ORIG-ID")' docs/workboard.json
 ```
 
----
-
-**Step 2 — Find downstream dependents (tasks that will need their `depends_on` patched):**
+Step 2: Find downstream dependents that need `depends_on` rewrites.
 
 ```bash
 jq --arg orig "ORIG-ID" '[.tasks[] | select(.depends_on | contains([$orig])) | .id]' docs/workboard.json
 ```
 
----
+Step 3: Present split proposal and wait for confirmation.
 
-**Step 3 — Present the proposed split and wait for confirmation.**
+Show:
 
-Show the user:
-- The new task objects: IDs, titles, descriptions, acceptance criteria for each piece
-- Which split task is the "terminal" task (the last deliverable — downstream dependents will point here)
-- The list of downstream task IDs that will have their `depends_on` updated
+- New task objects (`id`, `title`, `description`, `acceptance_criteria`)
+- Which split task is terminal (downstream dependents will point here)
+- Downstream task IDs that will have `depends_on` updated
 
-**Do not write until the user confirms.** If running autonomously without an interactive user, state your self-confirmation explicitly in output before proceeding — do not silently skip this step.
+Do not write until confirmed.
 
----
+Step 4: Execute after confirmation.
 
-**Step 4 — Execute (after confirmation).**
+ID naming rule: split IDs must use underscore-plus-digit suffixes: `ORIG-ID_1`, `ORIG-ID_2`, etc. Never use letter suffixes.
 
-**ID naming rule:** Split task IDs MUST use an underscore + digit suffix: `ORIG-ID_1`, `ORIG-ID_2`, etc. Never use letter suffixes (`ORIG-ID_A`, `ORIG-ID_a`, `ORIG-ID-a`) — lowercase letters violate the schema pattern `^[A-Z][A-Z0-9_-]*$` and uppercase letters are ambiguous. The `_N` form is the only valid convention.
+First split inherits original `depends_on`. Each subsequent split depends on the previous split. All splits inherit `group_id` and `priority` unless explicitly overridden.
 
-First split inherits the original's `depends_on`. Each subsequent split depends on the one before it. All splits inherit `group_id` and `priority` from the original unless the user overrides.
-
-Run as a single atomic jq expression:
+Write the splits to a temp file first (the quoted heredoc delimiter prevents shell interpolation, so single quotes and special characters in descriptions are safe), then run the atomic jq expression:
 
 ```bash
+cat > /tmp/splits.json << 'SPLITS_EOF'
+[
+  {
+    "id": "ORIG-ID_1",
+    "title": "...",
+    "description": "...",
+    "status": "todo",
+    "priority": "...",
+    "group_id": "...",
+    "depends_on": [],
+    "blocked_by": [],
+    "acceptance_criteria": ["..."],
+    "docs": [],
+    "files": [],
+    "commands": []
+  },
+  {
+    "id": "ORIG-ID_2",
+    "title": "...",
+    "description": "...",
+    "status": "todo",
+    "priority": "...",
+    "group_id": "...",
+    "depends_on": ["ORIG-ID_1"],
+    "blocked_by": [],
+    "acceptance_criteria": ["..."],
+    "docs": [],
+    "files": [],
+    "commands": []
+  }
+]
+SPLITS_EOF
+
 jq \
   --arg orig "ORIG-ID" \
   --arg last "ORIG-ID_2" \
-  --argjson splits '[
-    {
-      "id": "ORIG-ID_1",
-      "title": "...",
-      "description": "...",
-      "status": "todo",
-      "priority": "...",
-      "group_id": "...",
-      "depends_on": [...original depends_on here...],
-      "blocked_by": [],
-      "acceptance_criteria": ["..."],
-      "docs": [],
-      "files": [],
-      "commands": []
-    },
-    {
-      "id": "ORIG-ID_2",
-      "title": "...",
-      "description": "...",
-      "status": "todo",
-      "priority": "...",
-      "group_id": "...",
-      "depends_on": ["ORIG-ID_1"],
-      "blocked_by": [],
-      "acceptance_criteria": ["..."],
-      "docs": [],
-      "files": [],
-      "commands": []
-    }
-  ]' \
+  --slurpfile splits /tmp/splits.json \
 '.last_updated = "YYYY-MM-DD" |
  .tasks = (
    [ .tasks[] |
@@ -341,28 +366,27 @@ jq \
      if (.depends_on | contains([$orig]))
      then .depends_on = (.depends_on | map(if . == $orig then $last else . end))
      else . end
-   ] + $splits
+   ] + $splits[0]
  )' \
 docs/workboard.json > /tmp/wb.json && mv /tmp/wb.json docs/workboard.json
+
+rm -f /tmp/splits.json
 ```
 
----
+Step 5: Validate using Shared Write Protocol steps 3 and 4.
 
-**Step 5 — Validate** using the shared write protocol (steps 3–4).
-
-**Step 6 — Report:** new task IDs created, downstream `depends_on` updates applied, original task ID removed.
-
----
+Step 6: Report new IDs created, downstream `depends_on` updates, and removal of original task.
 
 ## Guardrails
 
-- Never rewrite the full file. Every patch targets only the affected task or a specific structural change.
-- Never edit `status` via `edit-task`. Use `set-blocked`, `unblock`, or `$start-task`.
-- Never rename an `id`. Breaking `depends_on` chains is silent and hard to recover.
-- Warn before writing to an `in_progress` task — it may be mid-execution.
-- `add-task` refuses `status != "todo"`. New tasks always enter as `todo`.
+- Never rewrite the full file; apply targeted edits only. A jq write re-serializes the whole file, so on a board that is not already jq-canonical this happens by accident — run the preflight check and confirm `git diff --numstat` before trusting any write.
+- Never let a reformat ride along in a content commit; normalize separately or not at all.
+- Never edit `status` via `edit-task`; use `set-blocked`, `unblock`, or `$start-task`.
+- Never rename an `id`.
+- Warn before writing to an `in_progress` task.
+- `add-task` refuses `status != "todo"`.
 - `split-task` refuses source tasks with `status == "in_progress"` or `status == "done"`.
-- `split-task` requires at least 2 output tasks. Splitting into 1 is just an edit.
-- `split-task` IDs MUST use `_N` suffix (`ORIG-ID_1`, `ORIG-ID_2`). Letter suffixes are never valid.
-- `delete-task` refuses `status == "in_progress"` and refuses if any other task lists it in `depends_on`.
+- `split-task` requires at least two output tasks.
+- `split-task` IDs must use `_N` suffixes.
+- `delete-task` refuses `status == "in_progress"` and refuses deletion when any other task references it in `depends_on`.
 - `set-blocked` refuses an empty reason string.

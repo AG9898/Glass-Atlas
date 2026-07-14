@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import Chat from '$lib/components/Chat.svelte';
   import NoteCard from '$lib/components/NoteCard.svelte';
   import { createPublicGsapContext, schedulePublicScrollTriggerRefresh } from '$lib/motion';
@@ -9,45 +8,74 @@
   let landingShell: HTMLElement | null = $state(null);
 
   const numberFormatter = new Intl.NumberFormat('en-US');
+  const statSkeletonKeys = [0, 1, 2, 3];
 
-  const statItems = $derived([
-    {
-      label: 'Published Notes',
-      value: numberFormatter.format(data.stats.publishedNotes),
-    },
-    {
-      label: 'Distinct Topics',
-      value: numberFormatter.format(data.stats.distinctTopics),
-    },
-    {
-      label: 'Avg Words / Note',
-      value: numberFormatter.format(data.stats.averageWordCount),
-    },
-    {
-      label: 'Citations Served',
-      value: numberFormatter.format(data.stats.totalCitations),
-    },
-  ]);
+  function statItemsFor(stats: {
+    publishedNotes: number;
+    distinctTopics: number;
+    averageWordCount: number;
+    totalCitations: number;
+  }) {
+    return [
+      { label: 'Published Notes', value: numberFormatter.format(stats.publishedNotes) },
+      { label: 'Distinct Topics', value: numberFormatter.format(stats.distinctTopics) },
+      { label: 'Avg Words / Note', value: numberFormatter.format(stats.averageWordCount) },
+      { label: 'Citations Served', value: numberFormatter.format(stats.totalCitations) },
+    ];
+  }
 
-  onMount(() => {
-    if (!landingShell) return;
+  // Hero content (rule, copy, chat panel) never depends on `data.landing`, so its
+  // entrance animation can run as soon as the shell mounts — same as before.
+  $effect(() => {
+    const shell = landingShell;
+    if (!shell) return;
 
-    const setup = createPublicGsapContext(landingShell, ({ gsap, canUseSpatialMotion }) => {
+    const setup = createPublicGsapContext(shell, ({ gsap, canUseSpatialMotion }) => {
       if (!canUseSpatialMotion) return;
 
-      gsap.set('[data-motion="hero-rule"], [data-motion="latest-rule"]', {
-        transformOrigin: 'left center',
-      });
+      gsap.set('[data-motion="hero-rule"]', { transformOrigin: 'left center' });
 
-      const heroTimeline = gsap.timeline({
-        defaults: { duration: 0.42, ease: 'power3.out' },
-      });
-
-      heroTimeline
+      gsap
+        .timeline({ defaults: { duration: 0.42, ease: 'power3.out' } })
         .from('[data-motion="hero-rule"]', { scaleX: 0, duration: 0.56 }, 0)
         .from('[data-motion="hero-copy"]', { autoAlpha: 0, y: 12, stagger: 0.07 }, 0.08)
-        .from('[data-motion="hero-chat"]', { autoAlpha: 0, y: 16, duration: 0.48 }, 0.16)
-        .from('[data-motion="stat"]', { autoAlpha: 0, y: 10, stagger: 0.05 }, 0.34);
+        .from('[data-motion="hero-chat"]', { autoAlpha: 0, y: 16, duration: 0.48 }, 0.16);
+    });
+
+    return () => {
+      void setup.then((cleanup) => cleanup());
+    };
+  });
+
+  // Stats and latest-notes stream in via `data.landing` (see +page.server.ts) instead
+  // of blocking the page shell, so their entrance animation can only run once that
+  // content actually exists in the DOM — track resolution rather than firing once
+  // from mount the way a fully-synchronous load would allow.
+  let landingResolved = $state(false);
+
+  $effect(() => {
+    landingResolved = false;
+    let cancelled = false;
+    void data.landing.then(() => {
+      if (!cancelled) landingResolved = true;
+    });
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  $effect(() => {
+    const shell = landingShell;
+    if (!shell || !landingResolved) return;
+
+    const setup = createPublicGsapContext(shell, ({ gsap, canUseSpatialMotion }) => {
+      if (!canUseSpatialMotion) return;
+
+      gsap.set('[data-motion="latest-rule"]', { transformOrigin: 'left center' });
+
+      gsap
+        .timeline({ defaults: { duration: 0.34, ease: 'power2.out' } })
+        .from('[data-motion="stat"]', { autoAlpha: 0, y: 10, stagger: 0.05 }, 0);
 
       gsap
         .timeline({
@@ -97,32 +125,61 @@
     </div>
   </section>
 
-  <section class="stats" aria-label="Site statistics">
-    {#each statItems as stat}
-      <article class="stat-item" data-motion="stat">
-        <p class="stat-value">{stat.value}</p>
-        <p class="stat-label">{stat.label}</p>
-      </article>
-    {/each}
-  </section>
+  {#await data.landing}
+    <section class="stats stats--loading" aria-label="Site statistics" aria-busy="true">
+      {#each statSkeletonKeys as skeletonIndex (skeletonIndex)}
+        <article class="stat-item">
+          <p class="stat-value stat-skeleton" aria-hidden="true">&nbsp;</p>
+          <p class="stat-label stat-skeleton" aria-hidden="true">&nbsp;</p>
+        </article>
+      {/each}
+    </section>
 
-  <section class="latest" aria-labelledby="latest-title" data-motion-section="latest">
-    <header class="latest-header" data-motion="latest-heading">
-      <span class="motion-rule motion-rule--latest" data-motion="latest-rule" aria-hidden="true"></span>
-      <p class="latest-eyebrow">Archive</p>
-      <h2 id="latest-title">The latest field notes.</h2>
-    </header>
+    <section class="latest" aria-labelledby="latest-title" data-motion-section="latest">
+      <header class="latest-header">
+        <span class="motion-rule motion-rule--latest" aria-hidden="true"></span>
+        <p class="latest-eyebrow">Archive</p>
+        <h2 id="latest-title">The latest field notes.</h2>
+      </header>
+      <p class="latest-empty" aria-busy="true">Loading the latest notes…</p>
+    </section>
+  {:then landing}
+    <section class="stats" aria-label="Site statistics">
+      {#each statItemsFor(landing.stats) as stat}
+        <article class="stat-item" data-motion="stat">
+          <p class="stat-value">{stat.value}</p>
+          <p class="stat-label">{stat.label}</p>
+        </article>
+      {/each}
+    </section>
 
-    {#if data.latestNotes.length === 0}
-      <p class="latest-empty">No published notes yet.</p>
-    {:else}
-      <div class="latest-list">
-        {#each data.latestNotes as note, index (note.slug)}
-          <NoteCard {note} {index} />
-        {/each}
-      </div>
-    {/if}
-  </section>
+    <section class="latest" aria-labelledby="latest-title" data-motion-section="latest">
+      <header class="latest-header" data-motion="latest-heading">
+        <span class="motion-rule motion-rule--latest" data-motion="latest-rule" aria-hidden="true"></span>
+        <p class="latest-eyebrow">Archive</p>
+        <h2 id="latest-title">The latest field notes.</h2>
+      </header>
+
+      {#if landing.latestNotes.length === 0}
+        <p class="latest-empty">No published notes yet.</p>
+      {:else}
+        <div class="latest-list">
+          {#each landing.latestNotes as note, index (note.slug)}
+            <NoteCard {note} {index} />
+          {/each}
+        </div>
+      {/if}
+    </section>
+  {:catch}
+    <section class="latest" aria-labelledby="latest-title" data-motion-section="latest">
+      <header class="latest-header">
+        <span class="motion-rule motion-rule--latest" aria-hidden="true"></span>
+        <p class="latest-eyebrow">Archive</p>
+        <h2 id="latest-title">The latest field notes.</h2>
+      </header>
+      <p class="latest-empty">Couldn't load the latest notes right now.</p>
+    </section>
+  {/await}
 </main>
 
 <style>
@@ -254,6 +311,39 @@
     font-weight: 600;
     letter-spacing: 0.09em;
     text-transform: uppercase;
+  }
+
+  .stat-skeleton {
+    border-radius: 2px;
+    background: var(--color-line-2);
+    color: transparent;
+    animation: stat-skeleton-pulse 1.4s ease-in-out infinite;
+  }
+
+  .stat-value.stat-skeleton {
+    width: 3.5rem;
+    height: 1em;
+  }
+
+  .stat-label.stat-skeleton {
+    width: 5rem;
+    height: 0.66rem;
+  }
+
+  @keyframes stat-skeleton-pulse {
+    0%,
+    100% {
+      opacity: 0.5;
+    }
+    50% {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .stat-skeleton {
+      animation: none;
+    }
   }
 
   .latest {

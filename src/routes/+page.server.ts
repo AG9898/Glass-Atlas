@@ -14,7 +14,7 @@ function countWords(text: string): number {
   return trimmed.split(/\s+/).length;
 }
 
-export const load: PageServerLoad = async () => {
+async function loadLandingData() {
   const publishedNotes = await listNotes({ status: 'published' });
   const totalCitations = await getTotalCitations();
 
@@ -38,5 +38,15 @@ export const load: PageServerLoad = async () => {
   return {
     stats,
     latestNotes: publishedNotes.slice(0, 7),
+  };
+}
+
+// `landing` is returned unawaited so SvelteKit streams it in once the DB responds
+// instead of blocking the initial response on it — a cold Neon compute (see the
+// 2026-07-14 AGENTS.md discovery entry) no longer delays the page shell (nav,
+// InitialLoadScreen splash, hero) from reaching the browser.
+export const load: PageServerLoad = () => {
+  return {
+    landing: loadLandingData(),
   };
 };

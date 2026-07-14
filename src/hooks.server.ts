@@ -4,7 +4,6 @@ import type { Handle } from '@sveltejs/kit';
 import { redirect } from '@sveltejs/kit';
 import type { Session } from '@auth/core/types';
 import { env } from '$env/dynamic/private';
-import '$lib/server/db/keepalive';
 
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
 

@@ -173,6 +173,8 @@ For `POST /api/chat`, keep the request flow ordered as:
 
 **Post-sign-in redirect** — the admin guard in `hooks.server.ts` redirects unauthenticated `/admin` visits to `/signin?callbackUrl=<encoded-path>`. The custom sign-in page at `src/routes/signin/` reads `callbackUrl` from the query string (defaulting to `/admin`) and passes it as `redirectTo` to the Auth.js `signIn` action. This ensures the user lands back on the intended admin page after OAuth completes. When calling `signIn()` programmatically, pass `{ redirectTo: '/admin' }` as the options to get the same default behavior.
 
+**Canonical host redirect** — `canonicalHostRedirect` must remain the first handle in `hooks.server.ts`. It redirects only `www.glassatlas.dev` to `https://glassatlas.dev` with status `308`, preserving the path and query. Do not redirect localhost or the Railway-provided domain; the latter is the production rollback/diagnostic path.
+
 **Slugs** — always generate via `src/lib/utils/slugify.ts`. Never construct slugs by hand.
 
 **D3 in Svelte components** — never import D3 at the module level (`import * as d3 from 'd3'`). Always use a dynamic `import('d3')` call inside a `$effect` body. D3 reads `window`/`document` and will crash SSR if imported statically. The D3 simulation should be stopped in the `$effect` cleanup function returned before the async import resolves; guard the `.then(...)` callback with a `cancelled` flag set by that same cleanup function so a resolution that lands after unmount does not touch a stale/removed SVG element.

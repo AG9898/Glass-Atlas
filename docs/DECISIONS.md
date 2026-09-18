@@ -18,6 +18,14 @@ Tracks open questions and resolved design decisions for Glass Atlas.
 
 ## Resolved Decisions
 
+### RESOLVED-26 — Canonical Production Domain (`glassatlas.dev`)
+
+**Resolved:** 2026-09-18
+**Decision:** Use `https://glassatlas.dev` as the only canonical production origin. Attach both the apex and `www` hostnames to the Railway service, permanently redirect `www` to the apex in the first server hook, and retain `glass-atlas-production.up.railway.app` as a non-canonical rollback/diagnostic path. Set Railway's `PUBLIC_SITE_URL` to the apex origin, keep `AUTH_URL` unset per RESOLVED-20, allow the exact apex callback in the production GitHub OAuth app, and include the apex origin in Railway Bucket CORS.
+**Why:** A single canonical origin prevents split SEO signals and avoids host-specific OAuth/session ambiguity, while retaining the Railway-provided hostname gives operations a safe fallback during DNS or certificate incidents. The apex is shorter and was selected explicitly as the public hostname.
+**Alternatives rejected:** Making `www` canonical was rejected in favor of the shorter apex. Serving both hosts without a redirect was rejected because it would duplicate public URLs and split cookies and canonical signals. Redirecting the Railway-provided hostname was rejected so it remains useful during domain incidents.
+**Affects:** Railway custom domains and `PUBLIC_SITE_URL`, Railway Bucket CORS, GitHub OAuth app settings, `src/hooks.server.ts`, `.env.example`, `docs/ARCHITECTURE.md`, `docs/ENV_VARS.md`, `docs/CONVENTIONS.md`, `docs/TESTING.md`
+
 ### RESOLVED-25 — Chat Response Quality and Model Fallback Refresh
 
 **Resolved:** 2026-07-07

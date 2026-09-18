@@ -3,6 +3,7 @@
  *
  * Covers:
  * - buildSigninRedirectUrl: pure helper that constructs the /signin?callbackUrl=... redirect
+ * - buildCanonicalRedirectUrl: www-to-apex production canonicalization
  * - /signin load function: reads callbackUrl from URL, defaults to /admin
  *
  * Manual verification steps for the full OAuth flow (cannot be automated in unit tests):
@@ -76,6 +77,43 @@ describe('buildSigninRedirectUrl', () => {
     const url = buildSigninRedirectUrl('/admin/notes/my-slug/edit', '');
     const decoded = decodeURIComponent(url);
     expect(decoded).toContain('/admin/notes/my-slug/edit');
+  });
+});
+
+describe('buildCanonicalRedirectUrl', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it('redirects www to the HTTPS apex while preserving path and query', async () => {
+    const { buildCanonicalRedirectUrl } = await import('../hooks.server');
+    const url = new URL('http://www.glassatlas.dev/notes/example?ref=legacy');
+
+    expect(buildCanonicalRedirectUrl(url)).toBe(
+      'https://glassatlas.dev/notes/example?ref=legacy',
+    );
+  });
+
+  it('does not redirect the canonical apex', async () => {
+    const { buildCanonicalRedirectUrl } = await import('../hooks.server');
+
+    expect(buildCanonicalRedirectUrl(new URL('https://glassatlas.dev/notes'))).toBeNull();
+  });
+
+  it('keeps the Railway service domain available as a rollback path', async () => {
+    const { buildCanonicalRedirectUrl } = await import('../hooks.server');
+
+    expect(
+      buildCanonicalRedirectUrl(
+        new URL('https://glass-atlas-production.up.railway.app/admin'),
+      ),
+    ).toBeNull();
+  });
+
+  it('does not affect local development hosts', async () => {
+    const { buildCanonicalRedirectUrl } = await import('../hooks.server');
+
+    expect(buildCanonicalRedirectUrl(new URL('http://localhost:5173/'))).toBeNull();
   });
 });
 

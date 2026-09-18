@@ -6,6 +6,8 @@ import type { Session } from '@auth/core/types';
 import { env } from '$env/dynamic/private';
 
 const LOCAL_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+const CANONICAL_ORIGIN = 'https://glassatlas.dev';
+const REDIRECT_HOSTNAMES = new Set(['www.glassatlas.dev']);
 
 const AUTH_BYPASS_SESSION: Session = {
   user: {
@@ -35,6 +37,31 @@ export function buildSigninRedirectUrl(pathname: string, search: string): string
   const callbackUrl = pathname + search;
   return `/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`;
 }
+
+/**
+ * Returns the canonical production URL for alternate public hostnames while
+ * preserving the path and query string. Other hosts (including localhost and
+ * Railway's rollback domain) continue normally.
+ */
+export function buildCanonicalRedirectUrl(url: URL): string | null {
+  if (!REDIRECT_HOSTNAMES.has(url.hostname)) {
+    return null;
+  }
+
+  return new URL(`${url.pathname}${url.search}`, CANONICAL_ORIGIN).toString();
+}
+
+const canonicalHostRedirect: Handle = async ({ event, resolve }) => {
+  const canonicalUrl = buildCanonicalRedirectUrl(event.url);
+  if (canonicalUrl) {
+    return new Response(null, {
+      status: 308,
+      headers: { Location: canonicalUrl },
+    });
+  }
+
+  return resolve(event);
+};
 
 const localAuthBypass: Handle = async ({ event, resolve }) => {
   if (isAuthBypassEnabled(event.url.hostname)) {
@@ -87,4 +114,10 @@ const securityHeaders: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
-export const handle = sequence(authHandle, localAuthBypass, adminGuard, securityHeaders);
+export const handle = sequence(
+  canonicalHostRedirect,
+  authHandle,
+  localAuthBypass,
+  adminGuard,
+  securityHeaders,
+);

@@ -268,7 +268,9 @@ These paths are derived from published notes only on public pages. They should b
 
 **`trustHost` handling:** `AUTH_TRUST_HOST` is NOT set on Railway. In this codebase (`@auth/sveltekit@1.0.0`), `src/auth.ts` sets `trustHost: true` explicitly to avoid production host validation failures. Never set `trustHost: Boolean(env.AUTH_TRUST_HOST)` — that can force `false` in production and break OAuth callbacks.
 
-**`AUTH_URL` handling:** If `AUTH_URL` is set in Railway, it must be the site origin only (for example `https://glass-atlas-production.up.railway.app`) with no `/auth` suffix. Including a path causes Auth.js `env-url-basepath-redundant` warnings and can route actions incorrectly (`UnknownAction`).
+**Production origins:** `https://glassatlas.dev` is the canonical production origin. Railway also serves `www.glassatlas.dev`, which the first handle in `hooks.server.ts` permanently redirects to the apex origin with the path and query intact. The Railway-provided `glass-atlas-production.up.railway.app` domain remains attached as a rollback/diagnostic path and is not redirected.
+
+**`AUTH_URL` handling:** Keep `AUTH_URL` unset on Railway for the installed `@auth/sveltekit@1.0.0` integration. Auth.js derives the callback origin from the request host; setting `AUTH_URL` previously produced redundant base-path warnings and contributed to ambiguous action routing (`UnknownAction`). The production GitHub OAuth app must allow the exact callback URL `https://glassatlas.dev/auth/callback/github`.
 
 **Credential verification:** `src/hooks.server.ts` calls `event.locals.auth()` on every `/admin/**` request. Any request to an `/admin` or `/api/admin` path without a valid session is redirected to `/signin` (the custom sign-in page that posts into Auth.js OAuth actions). No `/admin` route handler is ever reached without a confirmed session.
 
@@ -292,7 +294,7 @@ These paths are derived from published notes only on public pages. They should b
 
 | Environment | Hosting | Database | Notes |
 |---|---|---|---|
-| Production | Railway (auto-deploy on push to `main`) | Neon production project, `glass_atlas` schema | Environment variables set in Railway dashboard; secrets never in source |
+| Production | Railway (auto-deploy on push to `main`) at `https://glassatlas.dev` | Neon production project, `glass_atlas` schema | Apex is canonical; `www` permanently redirects to apex; Railway service domain remains available for rollback; environment variables are set in Railway dashboard |
 | Local development | `localhost:5173` (SvelteKit dev server) | Neon dev branch or local PostgreSQL with pgvector | `.env.local` holds secrets; never committed |
 
 ---

@@ -48,10 +48,14 @@ export function buildCanonicalRedirectUrl(url: URL): string | null {
     return null;
   }
 
-  return new URL(`${url.pathname}${url.search}`, CANONICAL_ORIGIN).toString();
+  const target = new URL(CANONICAL_ORIGIN);
+  target.pathname = url.pathname;
+  target.search = url.search;
+
+  return target.toString();
 }
 
-const canonicalHostRedirect: Handle = async ({ event, resolve }) => {
+export const canonicalHostRedirect: Handle = async ({ event, resolve }) => {
   const canonicalUrl = buildCanonicalRedirectUrl(event.url);
   if (canonicalUrl) {
     return new Response(null, {
@@ -96,7 +100,7 @@ const adminGuard: Handle = async ({ event, resolve }) => {
   return resolve(event);
 };
 
-const securityHeaders: Handle = async ({ event, resolve }) => {
+export const securityHeaders: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
 
 	response.headers.set('X-Content-Type-Options', 'nosniff');
@@ -115,9 +119,9 @@ const securityHeaders: Handle = async ({ event, resolve }) => {
 };
 
 export const handle = sequence(
+  securityHeaders,
   canonicalHostRedirect,
   authHandle,
   localAuthBypass,
   adminGuard,
-  securityHeaders,
 );

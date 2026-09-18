@@ -75,7 +75,7 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 - Runs before every `/admin` route and `/api/admin/**` handler
 - Verifies the Auth.js session and rejects unauthenticated requests with a redirect to the OAuth flow
 - All other routes pass through without auth checks
-- Applies security response headers to every response via the `securityHeaders` handle: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, and `Strict-Transport-Security` (production only, max-age 1 year)
+- Applies security response headers to every response — including short-circuit responses such as the `www` 308 redirect and the `/api/admin` 401 — via the `securityHeaders` handle, which wraps the whole `sequence(...)`: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: camera=(), microphone=(), geolocation=()`, and `Strict-Transport-Security` (production only, max-age 1 year)
 - `adminGuard` covers both `/admin/**` (redirect to sign-in) and `/api/admin/**` (401 JSON) as a catch-all, with an explicit public exception for `GET /api/admin/media/access-url` which must remain accessible to anonymous visitors for note media rendering
 
 ### Client components (`src/lib/components/`)

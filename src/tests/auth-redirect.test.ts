@@ -115,6 +115,48 @@ describe('buildCanonicalRedirectUrl', () => {
 
     expect(buildCanonicalRedirectUrl(new URL('http://localhost:5173/'))).toBeNull();
   });
+
+  it.each([
+    'https://www.glassatlas.dev//evil.com/x?a=1',
+    'https://www.glassatlas.dev/\\\\evil.com/y',
+    'https://www.glassatlas.dev//user@evil.com/',
+  ])('never redirects off the canonical origin for %s', async (rawUrl) => {
+    const { buildCanonicalRedirectUrl } = await import('../hooks.server');
+
+    const target = buildCanonicalRedirectUrl(new URL(rawUrl));
+
+    expect(target).not.toBeNull();
+    expect(new URL(target as string).origin).toBe('https://glassatlas.dev');
+  });
+});
+
+describe('canonical redirect response', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it('carries the shared security headers on the 308', async () => {
+    const { canonicalHostRedirect, securityHeaders } = await import('../hooks.server');
+
+    const event = {
+      url: new URL('https://www.glassatlas.dev/notes?ref=legacy'),
+      locals: {},
+    } as unknown as Parameters<typeof securityHeaders>[0]['event'];
+
+    const response = await securityHeaders({
+      event,
+      resolve: (async () =>
+        canonicalHostRedirect({
+          event,
+          resolve: async () => new Response('should not be reached'),
+        } as unknown as Parameters<typeof canonicalHostRedirect>[0])) as never,
+    } as unknown as Parameters<typeof securityHeaders>[0]);
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get('Location')).toBe('https://glassatlas.dev/notes?ref=legacy');
+    expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(response.headers.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin');
+  });
 });
 
 // ---------------------------------------------------------------------------

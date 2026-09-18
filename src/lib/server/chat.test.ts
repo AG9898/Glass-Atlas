@@ -19,6 +19,9 @@ import {
   buildFallbackResponse,
   buildChatSources,
   buildSemanticSearchQuery,
+  detectCatalogIntent,
+  buildCatalogContext,
+  buildCatalogFallbackResponse,
   INSUFFICIENT_COVERAGE_RESPONSE,
   SEMANTIC_CONFIDENCE_THRESHOLDS,
 } from './chat';
@@ -681,5 +684,181 @@ describe('buildChatSources', () => {
 
   it('returns an empty array when no cited notes are provided', () => {
     expect(buildChatSources([])).toEqual([]);
+  });
+});
+
+describe('detectCatalogIntent', () => {
+  it.each([
+    'What is the most recent note that the author wrote about?',
+    'what is your latest note',
+    'Whats the newest post?',
+    'show me your last article',
+    'What have you written recently?',
+    'what did you publish lately',
+    'When did you last write?',
+  ])('classifies %j as a recency question', (message) => {
+    expect(detectCatalogIntent(message)).toBe('recent');
+  });
+
+  it.each([
+    'How many notes have you written?',
+    'how many posts are there',
+    'What is the total number of notes?',
+  ])('classifies %j as a count question', (message) => {
+    expect(detectCatalogIntent(message)).toBe('count');
+  });
+
+  it.each([
+    'List your notes',
+    'show me all your posts',
+    'What notes do you have?',
+    'what articles have you written',
+    'What have you written about?',
+    'What topics do you cover?',
+  ])('classifies %j as a listing question', (message) => {
+    expect(detectCatalogIntent(message)).toBe('list');
+  });
+
+  it.each([
+    // Topical questions that merely contain a catalog-ish word must reach RAG.
+    'What are your recent thoughts on agents?',
+    'What have you written about agent infrastructure?',
+    'How many agents does the loop spawn?',
+    'What is the last step in the workflow?',
+    'Tell me about documentation',
+    '',
+  ])('leaves %j on the retrieval path', (message) => {
+    expect(detectCatalogIntent(message)).toBeNull();
+  });
+});
+
+describe('buildCatalogContext', () => {
+  const notes = [
+    {
+      slug: 'newest-note',
+      title: 'The Newest Note',
+      takeaway: 'Agents need real interfaces.',
+      category: 'agents',
+      publishedAt: new Date('2026-09-18T00:00:00.000Z'),
+    },
+    {
+      slug: 'older-note',
+      title: 'An Older Note',
+      takeaway: 'Loops beat one-shot prompts.',
+      category: 'practice',
+      publishedAt: new Date('2026-06-22T00:00:00.000Z'),
+    },
+  ];
+
+  it('returns null when nothing is published', () => {
+    expect(buildCatalogContext('recent', [])).toBeNull();
+  });
+
+  it('lists notes in the given order with dates and takeaways', () => {
+    const catalog = buildCatalogContext('recent', notes);
+
+    expect(catalog).not.toBeNull();
+    expect(catalog!.context).toContain('Total published notes: 2');
+    expect(catalog!.context).toContain('1. Title: The Newest Note');
+    expect(catalog!.context).toContain('Published: 2026-09-18');
+    expect(catalog!.context).toContain('2. Title: An Older Note');
+    expect(catalog!.context).toContain('Agents need real interfaces.');
+    expect(catalog!.totalPublished).toBe(2);
+  });
+
+  it('carries a per-intent instruction that forbids a no-note answer', () => {
+    for (const intent of ['recent', 'count', 'list'] as const) {
+      const catalog = buildCatalogContext(intent, notes);
+      expect(catalog!.instruction).toContain('Never claim you lack a note on this.');
+    }
+  });
+
+  it('never includes note bodies', () => {
+    const catalog = buildCatalogContext('list', notes);
+    expect(catalog!.context).not.toContain('body');
+  });
+
+  it('exposes cited notes for the source-popup contract', () => {
+    const catalog = buildCatalogContext('recent', notes);
+
+    expect(catalog!.citedNotes).toEqual([
+      { slug: 'newest-note', title: 'The Newest Note', snippet: 'Agents need real interfaces.' },
+      { slug: 'older-note', title: 'An Older Note', snippet: 'Loops beat one-shot prompts.' },
+    ]);
+  });
+
+  it('limits a recency answer to the notes it is actually about', () => {
+    const many = Array.from({ length: 6 }, (_, i) => ({
+      slug: `note-${i}`,
+      title: `Note ${i}`,
+      takeaway: 'A takeaway.',
+      category: null,
+      publishedAt: new Date('2026-01-01T00:00:00.000Z'),
+    }));
+
+    const recent = buildCatalogContext('recent', many);
+    const list = buildCatalogContext('list', many);
+
+    expect(recent!.citedNotes).toHaveLength(3);
+    expect(recent!.citedNotes[0].slug).toBe('note-0');
+    // The prompt block still describes the whole enumerated slice.
+    expect(recent!.context).toContain('6. Title: Note 5');
+    // A listing answer genuinely spans everything enumerated.
+    expect(list!.citedNotes).toHaveLength(6);
+  });
+
+  it('caps the enumerated slice and says so', () => {
+    const many = Array.from({ length: 12 }, (_, i) => ({
+      slug: `note-${i}`,
+      title: `Note ${i}`,
+      takeaway: null,
+      category: null,
+      publishedAt: new Date('2026-01-01T00:00:00.000Z'),
+    }));
+
+    const catalog = buildCatalogContext('list', many);
+
+    expect(catalog!.totalPublished).toBe(12);
+    expect(catalog!.citedNotes).toHaveLength(8);
+    expect(catalog!.context).toContain('Total published notes: 12');
+    expect(catalog!.context).toContain('Showing the 8 most recent.');
+  });
+
+  it('handles a missing publication date and takeaway', () => {
+    const catalog = buildCatalogContext('recent', [
+      { slug: 'bare', title: 'Bare Note', takeaway: null, category: null, publishedAt: null },
+    ]);
+
+    expect(catalog!.context).toContain('Published: unpublished date');
+    expect(catalog!.citedNotes[0].snippet).toBe('Bare Note');
+  });
+});
+
+describe('buildCatalogFallbackResponse', () => {
+  const catalog = buildCatalogContext('recent', [
+    {
+      slug: 'newest-note',
+      title: 'The Newest Note',
+      takeaway: 'Agents need real interfaces.',
+      category: 'agents',
+      publishedAt: new Date('2026-09-18T00:00:00.000Z'),
+    },
+  ])!;
+
+  it('names the newest note for a recency question', () => {
+    const text = buildCatalogFallbackResponse(catalog);
+    expect(text).toContain('The Newest Note');
+    expect(text).not.toContain("I don't have a note on that yet");
+  });
+
+  it('states the total for a count question', () => {
+    const text = buildCatalogFallbackResponse({ ...catalog, intent: 'count', totalPublished: 6 });
+    expect(text).toContain('6 published notes');
+  });
+
+  it('uses the singular for a one-note corpus', () => {
+    const text = buildCatalogFallbackResponse({ ...catalog, intent: 'count' });
+    expect(text).toContain('1 published note right now');
+    expect(text).toContain('Ask me about it');
   });
 });

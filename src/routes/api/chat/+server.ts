@@ -5,11 +5,18 @@ import {
   hasSufficientCoverage,
   buildFallbackResponse,
   buildChatSources,
+  detectCatalogIntent,
+  buildCatalogContext,
+  buildCatalogFallbackResponse,
   type ChatSource,
 } from '$lib/server/chat';
 import { streamChatCompletion } from '$lib/server/ai/openrouter';
 import { SYSTEM_PROMPT } from '$lib/server/personality';
-import { consumeChatRateLimit, recordCitations } from '$lib/server/db/notes';
+import {
+  consumeChatRateLimit,
+  listPublishedNoteCatalog,
+  recordCitations,
+} from '$lib/server/db/notes';
 import { SUGGESTED_CHAT_PROMPT } from '$lib/utils/chat-format';
 
 const RATE_LIMIT_MAX_DEFAULT = 10;
@@ -316,6 +323,50 @@ export const POST: RequestHandler = async ({ request, cookies, url }) => {
         Connection: 'keep-alive',
       },
     });
+  }
+
+  // --- 4c. Catalog lane (questions about the collection, not its contents) ---
+  // Runs before retrieval because these questions are structurally invisible
+  // to it: publication order and corpus size live in columns, not chunk prose,
+  // so semantic + lexical search both miss and the confidence gate fires.
+  const catalogIntent = detectCatalogIntent(message);
+  if (catalogIntent) {
+    const catalog = buildCatalogContext(catalogIntent, await listPublishedNoteCatalog());
+
+    // A null catalog means nothing is published yet; fall through to the
+    // normal path so the usual fallback answers instead of an empty index.
+    if (catalog) {
+      const catalogSources = buildChatSources(catalog.citedNotes);
+      const catalogMessages = [
+        { role: 'system' as const, content: SYSTEM_PROMPT },
+        {
+          role: 'user' as const,
+          content: `${catalog.instruction}\n\n${catalog.context}\n\nUser question: ${message}`,
+        },
+      ];
+
+      // The LLM answers so the reply stays conversational and actually
+      // explains the notes rather than listing titles. The deterministic
+      // response is only a safety net: this lane exists to make a class of
+      // question reliably answerable, so a free-model outage must degrade to
+      // a plain factual answer, not back to "I don't have a note on that yet".
+      let catalogStream: ReadableStream<Uint8Array>;
+      try {
+        catalogStream = await streamChatCompletion(catalogMessages);
+      } catch (err: unknown) {
+        const detail = err instanceof Error ? err.message : String(err);
+        console.error('[chat] Catalog lane LLM error, serving deterministic answer:', detail);
+        catalogStream = makeFallbackStream(buildCatalogFallbackResponse(catalog));
+      }
+
+      return new Response(appendChatSourcesToStream(catalogStream, catalogSources), {
+        headers: {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          Connection: 'keep-alive',
+        },
+      });
+    }
   }
 
   // --- 5. Build RAG context ---

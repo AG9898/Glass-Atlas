@@ -9,6 +9,9 @@ vi.mock('$lib/server/chat', () => ({
   hasSufficientCoverage: vi.fn(),
   buildFallbackResponse: vi.fn(),
   buildChatSources: vi.fn(),
+  detectCatalogIntent: vi.fn(),
+  buildCatalogContext: vi.fn(),
+  buildCatalogFallbackResponse: vi.fn(),
   INSUFFICIENT_COVERAGE_RESPONSE: "I don't have a note on that yet.",
 }));
 
@@ -22,6 +25,7 @@ vi.mock('$lib/server/personality', () => ({
 
 vi.mock('$lib/server/db/notes', () => ({
   consumeChatRateLimit: vi.fn(),
+  listPublishedNoteCatalog: vi.fn(),
   recordCitations: vi.fn(),
 }));
 
@@ -31,9 +35,16 @@ import {
   hasSufficientCoverage,
   buildFallbackResponse,
   buildChatSources,
+  detectCatalogIntent,
+  buildCatalogContext,
+  buildCatalogFallbackResponse,
 } from '$lib/server/chat';
 import { streamChatCompletion } from '$lib/server/ai/openrouter';
-import { consumeChatRateLimit, recordCitations } from '$lib/server/db/notes';
+import {
+  consumeChatRateLimit,
+  listPublishedNoteCatalog,
+  recordCitations,
+} from '$lib/server/db/notes';
 
 const mockAssembleContext = vi.mocked(assembleContext);
 const mockHasSufficientCoverage = vi.mocked(hasSufficientCoverage);
@@ -42,6 +53,18 @@ const mockBuildChatSources = vi.mocked(buildChatSources);
 const mockStreamChatCompletion = vi.mocked(streamChatCompletion);
 const mockConsumeChatRateLimit = vi.mocked(consumeChatRateLimit);
 const mockRecordCitations = vi.mocked(recordCitations);
+const mockDetectCatalogIntent = vi.mocked(detectCatalogIntent);
+const mockBuildCatalogContext = vi.mocked(buildCatalogContext);
+const mockBuildCatalogFallbackResponse = vi.mocked(buildCatalogFallbackResponse);
+const mockListPublishedNoteCatalog = vi.mocked(listPublishedNoteCatalog);
+
+const CATALOG_CONTEXT = {
+  intent: 'recent' as const,
+  context: 'Note index ...',
+  instruction: 'Catalog question: ...',
+  citedNotes: [{ slug: 'note-a', title: 'Note A', snippet: 'A takeaway.' }],
+  totalPublished: 6,
+};
 
 /**
  * Builds a small real (non-empty) upstream SSE ReadableStream so tests can
@@ -142,6 +165,11 @@ beforeEach(() => {
     resetAt: new Date('2026-05-01T01:00:00.000Z'),
   });
   mockRecordCitations.mockResolvedValue(undefined);
+  // Default: not a catalog question — normal retrieval path.
+  mockDetectCatalogIntent.mockReturnValue(null);
+  mockBuildCatalogContext.mockReturnValue(CATALOG_CONTEXT);
+  mockBuildCatalogFallbackResponse.mockReturnValue('My most recent note is "Note A".');
+  mockListPublishedNoteCatalog.mockResolvedValue([]);
 });
 
 describe('POST /api/chat', () => {
@@ -627,5 +655,103 @@ describe('POST /api/chat', () => {
     await callPost(makeEvent({ message: 'hello' }));
 
     expect(mockBuildChatSources).not.toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/chat catalog lane', () => {
+  it('answers a catalog question through the LLM without running retrieval', async () => {
+    mockDetectCatalogIntent.mockReturnValue('recent');
+    mockStreamChatCompletion.mockResolvedValue(
+      makeUpstreamStream('My most recent note is Note A, published last week.'),
+    );
+
+    const res = await callPost(makeEvent({ message: 'What is your most recent note?' }));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Content-Type')).toBe('text/event-stream');
+    // Retrieval and the confidence gate are bypassed entirely.
+    expect(mockAssembleContext).not.toHaveBeenCalled();
+    expect(mockHasSufficientCoverage).not.toHaveBeenCalled();
+    expect(mockStreamChatCompletion).toHaveBeenCalledTimes(1);
+
+    const body = await readStreamBody(res);
+    expect(body).toContain('most recent note');
+  });
+
+  it('passes the catalog instruction and index block to the LLM', async () => {
+    mockDetectCatalogIntent.mockReturnValue('recent');
+    mockStreamChatCompletion.mockResolvedValue(makeUpstreamStream('ok'));
+
+    await callPost(makeEvent({ message: 'What is your latest post?' }));
+
+    const messages = mockStreamChatCompletion.mock.calls[0][0];
+    expect(messages[0]).toEqual({ role: 'system', content: 'Test system prompt.' });
+    expect(messages[1].content).toContain('Catalog question: ...');
+    expect(messages[1].content).toContain('Note index ...');
+    expect(messages[1].content).toContain('User question: What is your latest post?');
+  });
+
+  it('attaches catalog notes as source metadata', async () => {
+    mockDetectCatalogIntent.mockReturnValue('recent');
+    mockBuildChatSources.mockReturnValue([
+      { slug: 'note-a', title: 'Note A', snippet: 'A takeaway.' },
+    ]);
+    mockStreamChatCompletion.mockResolvedValue(makeUpstreamStream('answer'));
+
+    const res = await callPost(makeEvent({ message: 'What is your most recent note?' }));
+    const body = await readStreamBody(res);
+
+    expect(mockBuildChatSources).toHaveBeenCalledWith(CATALOG_CONTEXT.citedNotes);
+    expect(body).toContain('"sources"');
+    expect(body).toContain('note-a');
+  });
+
+  it('serves the deterministic catalog answer when the LLM fails', async () => {
+    mockDetectCatalogIntent.mockReturnValue('recent');
+    mockStreamChatCompletion.mockRejectedValue(new Error('both models failed'));
+
+    const res = await callPost(makeEvent({ message: 'What is your most recent note?' }));
+
+    // Degrades to a real answer, not the 503 the normal LLM path returns.
+    expect(res.status).toBe(200);
+    expect(mockBuildCatalogFallbackResponse).toHaveBeenCalledWith(CATALOG_CONTEXT);
+    const body = await readStreamBody(res);
+    expect(body).toContain('My most recent note is');
+  });
+
+  it('falls through to normal retrieval when nothing is published', async () => {
+    mockDetectCatalogIntent.mockReturnValue('recent');
+    mockBuildCatalogContext.mockReturnValue(null);
+    mockStreamChatCompletion.mockResolvedValue(makeUpstreamStream('normal answer'));
+
+    await callPost(makeEvent({ message: 'What is your most recent note?' }));
+
+    expect(mockAssembleContext).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not record citations for an index enumeration', async () => {
+    mockDetectCatalogIntent.mockReturnValue('list');
+    mockStreamChatCompletion.mockResolvedValue(makeUpstreamStream('a tour'));
+
+    await callPost(makeEvent({ message: 'What notes do you have?' }));
+
+    expect(mockRecordCitations).not.toHaveBeenCalled();
+  });
+
+  it('enforces the rate limit before the catalog lane', async () => {
+    mockDetectCatalogIntent.mockReturnValue('recent');
+    mockConsumeChatRateLimit.mockResolvedValue({
+      allowed: false,
+      messageCount: 11,
+      remaining: 0,
+      limit: 10,
+      windowStart: new Date('2026-05-01T00:00:00.000Z'),
+      resetAt: new Date('2026-05-01T01:00:00.000Z'),
+    });
+
+    const res = await callPost(makeEvent({ message: 'What is your most recent note?' }));
+
+    expect(res.status).toBe(429);
+    expect(mockListPublishedNoteCatalog).not.toHaveBeenCalled();
   });
 });

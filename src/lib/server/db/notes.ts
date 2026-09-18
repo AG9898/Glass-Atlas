@@ -43,6 +43,16 @@ export type Note = {
   updatedAt: Date;
 };
 
+/** Published-note metadata row used by the chat catalog lane. */
+export type PublishedNoteCatalogEntry = {
+  slug: string;
+  title: string;
+  takeaway: string | null;
+  category: string | null;
+  /** Publication date, falling back to creation date. */
+  publishedAt: Date | null;
+};
+
 export type CreateNoteInput = {
   slug: string;
   title: string;
@@ -171,6 +181,40 @@ export async function listNotes(filter?: ListNotesFilter): Promise<Note[]> {
     .orderBy(desc(sql`coalesce(${notes.publishedAt}, ${notes.createdAt})`));
 
   return rows.map(toNote);
+}
+
+/**
+ * Lightweight metadata listing of published notes, newest first.
+ *
+ * Powers the chat catalog lane, which answers questions about the collection
+ * itself (most recent note, how many notes, what topics exist). Selects only
+ * the columns that lane needs — notably not `body` or `embedding` — so a
+ * catalog answer never loads full note prose or vectors.
+ *
+ * Unlike chat retrieval, this is not filtered by semantic-index freshness:
+ * it reports what is published on the site, and its fields are read live from
+ * the notes table rather than from possibly-stale chunk vectors.
+ */
+export async function listPublishedNoteCatalog(): Promise<PublishedNoteCatalogEntry[]> {
+  const rows = await db
+    .select({
+      slug: notes.slug,
+      title: notes.title,
+      takeaway: notes.takeaway,
+      category: notes.category,
+      publishedAt: sql<Date | null>`coalesce(${notes.publishedAt}, ${notes.createdAt})`,
+    })
+    .from(notes)
+    .where(eq(notes.status, 'published'))
+    .orderBy(desc(sql`coalesce(${notes.publishedAt}, ${notes.createdAt})`));
+
+  return rows.map((row) => ({
+    slug: row.slug,
+    title: row.title,
+    takeaway: row.takeaway,
+    category: row.category,
+    publishedAt: row.publishedAt ? new Date(row.publishedAt) : null,
+  }));
 }
 
 /** Returns the note with the given slug, or null if not found. */

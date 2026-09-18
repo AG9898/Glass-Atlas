@@ -57,7 +57,17 @@ Glass Atlas uses **Soft Editorial Brutalism**:
 - Emphasize section dividers, pull quotes, diagrams, and code/technical callouts.
 - Reader-path modules should distinguish semantic related notes from backlinks/outlinks. Keep them line-led, compact, and secondary to the article body.
 - The note graph remains a small supporting widget, but motion/interaction should feel fluid and exploratory rather than static.
+- Its expand control opens a centered, large graph pane over a restrained scrim. The pane uses the global published-note graph, focuses the originating note, and follows the expanded-chat proportions without imitating a desktop workspace or adding a tool-heavy sidebar.
 - **Shipped (`POLISH-07D`):** note detail motion is one restrained editorial sequence for cover media, category, title, metadata, tags, and takeaway, followed by a one-shot reveal for only the first four major article blocks. Do not extend this into paragraph-by-paragraph choreography; the long-form body must remain stable and immediate.
+
+### Node View (`/node-view` and expanded note graph)
+
+- Use one large, line-bound graph field rather than cards, floating windows, a minimap, or an Obsidian-style tool sidebar.
+- Authored wiki-link edges are solid and visually stronger. Embedding-derived semantic edges are lighter and dashed. A compact two-item legend doubles as independent layer toggles; labels must say `AUTHORED LINKS` and `SEMANTIC SIMILARITY` so the relationship types are never conflated.
+- Every published note remains visible, including isolated notes and notes without a current embedding. Missing semantic index coverage removes only semantic edges; it must not hide or negatively badge the note.
+- The standalone page starts fitted to the graph. The expanded pane focuses and accent-rings the originating note while keeping the whole network available.
+- Full graph interaction includes node drag, background pan, wheel/pinch zoom, hover neighborhood emphasis, click navigation, and keyboard activation. Keep controls restrained: the relationship toggles and close control in the dialog are sufficient.
+- Under reduced motion, converge the force layout synchronously before paint and keep direct drag/pan/zoom available without animated ticks or eased transitions.
 
 ### Chat (`/` and shared chat UI)
 
@@ -80,7 +90,7 @@ Glass Atlas uses **Soft Editorial Brutalism**:
 - Include the stack and architecture at a high level, but do not turn the page into a portfolio/project showcase.
 - Do not include chat privacy/rate-limit details unless a future product decision reopens that scope.
 - Composition should be editorial and scannable: short sections, structural rules, and restrained technical panels for architecture details.
-- **Shipped (`POLISH-05`):** the page is a single-column editorial shell (`max-width: 900px`) with rule-bound header/section dividers (`--line-strong`/`--line-thin`) matching the notes-index rhythm. The "Stack" and "How the pieces fit" sections each use a scoped `.blueprint-panel` (the same `2px` border + uppercase header-strip + `surface-2` tonal recipe as `.ga-code-block`, but component-scoped rather than global since no HTML injection is involved). `Nav.svelte`'s left link group is `HOME`/`NOTES`/`HOW IT WORKS` (the `CHAT` anchor link was later replaced by `HOME`, since chat lives in the homepage hero).
+- **Shipped (`POLISH-05`):** the page is a single-column editorial shell (`max-width: 900px`) with rule-bound header/section dividers (`--line-strong`/`--line-thin`) matching the notes-index rhythm. The "Stack" and "How the pieces fit" sections each use a scoped `.blueprint-panel` (the same `2px` border + uppercase header-strip + `surface-2` tonal recipe as `.ga-code-block`, but component-scoped rather than global since no HTML injection is involved). `Nav.svelte`'s left link group is `HOME`/`NOTES`/`NODE VIEW`/`HOW IT WORKS` (the `CHAT` anchor link was later replaced by `HOME`, since chat lives in the homepage hero).
 
 ---
 
@@ -431,7 +441,13 @@ Canonical visual mockups are in `reference/UI/design_handoff_glass_atlas/`. Thes
 - Three-column layout: left sidebar (notes catalog — all published notes listed by date, NEW CONVERSATION CTA at top), main column (note Markdown body), right sidebar (related notes + cite section).
 - Structural pattern aligns with the chat surface conventions (line-led rails, citations, and grounded response framing), but this route remains the canonical note-view/main-blog page.
 - Related notes should prioritize semantic relevance. Backlinks/outlinks should be labeled separately as explicit note connections.
-- The graph should stay small, but future polish should improve movement, hover/click feedback, and perceived continuity. Hovering a node dims unrelated nodes/links, highlights the hovered node's direct connections, and enlarges the hovered node via CSS-eased transitions (`r`/`opacity`/`stroke-opacity`/`stroke-width`); clicking a non-current node still navigates to `/notes/[slug]`. Nodes seed from a small radial spread (rather than all stacking at the exact center) so the force simulation has a visible, fluid unfold instead of a static snap. Under `prefers-reduced-motion: reduce`, the simulation converges synchronously and paints once with no animated ticks or hover transitions, so the graph stays fully usable without motion.
+- The graph stays small and chrome-free, but remains directly manipulable: readers can drag individual nodes and drag the empty background to pan the viewport. Do not add a workspace frame, toolbar, minimap, zoom controls, or other graph-editor UI; zoom remains fixed. Hovering a node dims unrelated nodes/links, highlights the hovered node's direct connections, and enlarges the hovered node via CSS-eased transitions (`r`/`opacity`/`stroke-opacity`/`stroke-width`); clicking a non-current node still navigates to `/notes/[slug]`, while a completed drag must not trigger navigation. Nodes seed from a small radial spread (rather than all stacking at the exact center) so the force simulation has a visible, fluid unfold instead of a static snap. Under `prefers-reduced-motion: reduce`, the simulation converges synchronously and paints once with no animated ticks or hover transitions; direct dragging and panning remain available without restarting animated force ticks.
+
+**Node View (`/node-view`):**
+- Present a short editorial header followed by a graph field that fills most of the remaining viewport height.
+- Keep authored and semantic relationships visually distinct and independently toggleable through the compact legend.
+- Include all published notes, fit them on first paint, and allow drag/pan/zoom without surrounding workspace chrome.
+- The expanded note-page variant uses the same graph field in a centered `min(92vw, 1040px)` by `min(88vh, 900px)` pane over a scrim, with the originating note focused.
 
 **Admin Note Editor (`/admin/notes/[slug]/edit`):**
 - Two-column: left = title / takeaway / CodeMirror body / tags + categories; right sidebar = date, status, series, related notes.

@@ -119,6 +119,7 @@ This table starts empty and is filled in as test files are added to the project.
 | Test file | Module under test | What it covers |
 |---|---|---|
 | `src/lib/server/db/notes.test.ts` | `src/lib/server/db/notes.ts` | Mocked Drizzle coverage for note-level similarity, semantic related-notes (`getRelatedNotes`), chunk replace/search helpers, citation tracking, and natural-language lexical term extraction/query filtering |
+| `src/lib/server/note-graph.test.ts` | `src/lib/server/note-graph.ts` | Pure global-graph assembly coverage for published-only nodes, authored-edge filtering, semantic threshold/cap/deduplication, isolated notes, and omission of stale embeddings from semantic edges |
 | `src/lib/server/embeddings.test.ts` | `src/lib/server/embeddings.ts` | Mocked OpenRouter embedding requests, section/paragraph chunk ordering, metadata payload template stability, missing key handling, HTTP failure handling, malformed payload rejection, and `reindexNoteAfterSave()` success/note-failure/chunk-failure preservation behavior |
 | `src/lib/server/ai/openrouter.test.ts` | `src/lib/server/ai/openrouter.ts` | Mocked OpenRouter chat-completion coverage for primary request shape, default Nemotron/free-router model selection, fallback on rate limits, provider failures, and timeouts, fallback retry on an in-band SSE `error` event and on a zero-visible-content stream completion, fallback retry after a stalled stream (inactivity timeout), graceful close without retry when an in-band error arrives after content has already streamed, logged provider detail plus rejection when both primary and fallback fail, fallback failure details, missing-key/body errors, base URL fallback, and visible-content-only SSE filtering that drops reasoning deltas |
 | `src/lib/server/admin/semantic-index-display.test.ts` | `src/lib/server/admin/semantic-index-display.ts` | Pure mapping coverage for current, pending, stale timestamp, missing source timestamp, and failed semantic index display state used by admin list/editor warnings |
@@ -291,6 +292,7 @@ Manual smoke verification is still required in local dev for typing latency and 
 
 - Test semantic related-note helpers with mocked retrieval/DB results and assert unpublished notes are excluded from public routes.
 - Test backlinks/outlinks through query helpers rather than route-local body scans.
+- Test global graph assembly as pure server logic: draft/unresolved endpoints are filtered, isolated published notes remain, semantic pairs require current embeddings, and the named threshold/neighbor cap/deduplication rules hold. Route coverage for `GET /api/note-graph` should assert the compact public payload and cache policy. Browser smoke checks should exercise full-graph drag/pan/zoom, relationship toggles, reduced-motion stability, and the note-detail dialog's lazy load, originating-note focus, Escape close, and focus restoration.
 - Test editor quality warnings as pure mapping logic where possible: stale index display, blank takeaway, zero parsed wiki-links, and weak-title heuristic.
 - Verify warning presence does not change save/publish form action availability.
 

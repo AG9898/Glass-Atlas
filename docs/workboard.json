@@ -1,7 +1,7 @@
 {
   "$schema": "./workboard.schema.json",
   "schema_version": "1.0.0",
-  "last_updated": "2026-07-07",
+  "last_updated": "2026-09-18",
   "tasks": [
     {
       "id": "SCAFFOLD-01",
@@ -2523,6 +2523,51 @@
         "npm run lint",
         "npm run check",
         "npm run chat:audit"
+      ]
+    },
+    {
+      "id": "PUBLIC-06",
+      "title": "Ship the global Node View and note-page graph expansion",
+      "description": "Add a public /node-view surface and a lazy centered expansion from the note-detail mini graph, backed by one compact published-note graph contract and one shared full-graph renderer. Include all published notes, resolve authored wiki-link edges only between published endpoints, and derive separately typed semantic-similarity edges server-side from current note-level embeddings using a named distance threshold plus a bounded neighbor count. Render authored and semantic layers distinctly with independent toggles; support drag, pan, zoom, hover focus, click/keyboard note navigation, current-note focus in the dialog, reduced-motion convergence, and full D3/dialog cleanup. Never expose drafts, note bodies, raw vectors, or semantic-index errors.",
+      "status": "done",
+      "priority": "high",
+      "group_id": "PUBLIC",
+      "depends_on": [],
+      "blocked_by": [],
+      "acceptance_criteria": [
+        "/node-view appears in primary navigation and sitemap and renders every published note, including isolated notes",
+        "Authored wiki-links and semantic-similarity edges are visually distinct and independently toggleable",
+        "Semantic edges are server-derived only from current embeddings, deduplicated, thresholded, capped, and serialized without vectors or private index details",
+        "The full graph supports node drag, background pan, wheel/pinch zoom, hover focus, click navigation, and keyboard activation",
+        "The note mini graph has an expand control that lazily opens the shared global graph in a centered accessible dialog focused on the current note",
+        "Draft notes and unresolved or draft link endpoints never appear in public graph nodes or edges",
+        "Reduced-motion mode avoids animated force ticks while retaining direct graph manipulation",
+        "Unit tests cover graph assembly and public API behavior; npm run test:run, npm run lint, npm run check, and npm run build pass"
+      ],
+      "docs": [
+        "docs/PRD.md",
+        "docs/ARCHITECTURE.md",
+        "docs/CONVENTIONS.md",
+        "docs/styleguide.md",
+        "docs/TESTING.md"
+      ],
+      "files": [
+        "src/lib/server/db/notes.ts",
+        "src/lib/server/note-graph.ts",
+        "src/lib/components/NoteGraph.svelte",
+        "src/lib/components/FullNoteGraph.svelte",
+        "src/lib/components/NoteGraphDialog.svelte",
+        "src/lib/components/NoteDetail.svelte",
+        "src/lib/components/Nav.svelte",
+        "src/routes/node-view/**",
+        "src/routes/api/note-graph/+server.ts",
+        "src/routes/sitemap.xml/+server.ts"
+      ],
+      "commands": [
+        "npm run test:run",
+        "npm run lint",
+        "npm run check",
+        "npm run build"
       ]
     }
   ]

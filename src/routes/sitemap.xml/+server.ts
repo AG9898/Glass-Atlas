@@ -27,6 +27,7 @@ export const GET: RequestHandler = async ({ url }) => {
   const entries = [
     urlEntry(`${siteUrl}/`),
     urlEntry(`${siteUrl}/notes`),
+    urlEntry(`${siteUrl}/node-view`),
     ...publishedNotes.map((note) => urlEntry(`${siteUrl}/notes/${note.slug}`)),
   ];
 

@@ -111,6 +111,12 @@
         NOTES
       </a>
       <a
+        href="/node-view"
+        class="ga-nav__link {pathname === '/node-view' ? 'ga-nav__link--active' : ''}"
+      >
+        NODE VIEW
+      </a>
+      <a
         href="/how-it-works"
         class="ga-nav__link {pathname === '/how-it-works' ? 'ga-nav__link--active' : ''}"
       >

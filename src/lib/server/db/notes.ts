@@ -14,6 +14,8 @@ import {
 import { db } from './index';
 import { chatRateLimits, citationEvents, noteChunks, noteLinks, notes } from './schema';
 import { parseWikiLinks } from '$lib/utils/wiki-links';
+import { buildPublishedNoteGraph } from '$lib/server/note-graph';
+import type { PublishedNoteGraph } from '$lib/utils/note-graph';
 
 // ---------------------------------------------------------------------------
 // Plain-object types — exported for use in route handlers and form actions.
@@ -255,6 +257,45 @@ export async function getOutlinks(
 
   const noteBySlug = new Map(targetNotes.map((n) => [n.slug, toNote(n)]));
   return links.map((link) => ({ link, note: noteBySlug.get(link.targetSlug) ?? null }));
+}
+
+/**
+ * Returns the compact public graph used by /node-view and the note graph dialog.
+ * Raw vectors are loaded only long enough to assemble semantic edges server-side
+ * and are never included in the returned payload.
+ */
+export async function getPublishedNoteGraph(): Promise<PublishedNoteGraph> {
+  const [noteRows, linkRows] = await Promise.all([
+    db
+      .select({
+        slug: notes.slug,
+        title: notes.title,
+        category: notes.category,
+        status: notes.status,
+        embedding: notes.embedding,
+        semanticIndexStatus: notes.semanticIndexStatus,
+        semanticIndexedAt: notes.semanticIndexedAt,
+        semanticIndexSourceUpdatedAt: notes.semanticIndexSourceUpdatedAt,
+        updatedAt: notes.updatedAt,
+      })
+      .from(notes)
+      .where(eq(notes.status, 'published')),
+    db
+      .select({ sourceSlug: noteLinks.sourceSlug, targetSlug: noteLinks.targetSlug })
+      .from(noteLinks),
+  ]);
+
+  return buildPublishedNoteGraph(
+    noteRows.map((note) => ({
+      slug: note.slug,
+      title: note.title,
+      category: note.category,
+      status: note.status as 'draft' | 'published',
+      embedding: note.embedding,
+      semanticIndexCurrent: hasCurrentSemanticIndex(note),
+    })),
+    linkRows,
+  );
 }
 
 // ---------------------------------------------------------------------------

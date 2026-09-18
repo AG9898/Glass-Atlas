@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createPublicGsapContext, schedulePublicScrollTriggerRefresh } from '$lib/motion';
   import NoteGraph from '$lib/components/NoteGraph.svelte';
+  import NoteGraphDialog from '$lib/components/NoteGraphDialog.svelte';
 
   type NoteDetailNote = {
     slug: string;
@@ -263,7 +264,10 @@
 
     {#if graph}
       <div class="sidebar-left__graph">
-        <p class="sidebar-left__catalog-label">CONNECTIONS</p>
+        <div class="sidebar-left__graph-header">
+          <p class="sidebar-left__catalog-label">CONNECTIONS</p>
+          <NoteGraphDialog focusSlug={note.slug} />
+        </div>
         <NoteGraph {graph} />
       </div>
     {/if}
@@ -472,6 +476,20 @@
   .sidebar-left__graph {
     border-top: var(--line-thin) solid var(--color-line-1);
     padding: 1rem 0 1.25rem;
+  }
+
+  .sidebar-left__graph-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .sidebar-left__graph-header .sidebar-left__catalog-label {
+    margin: 0;
+    padding: 0;
   }
 
   .sidebar-left__catalog-label {

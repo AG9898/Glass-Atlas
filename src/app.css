@@ -15,6 +15,11 @@
   --color-accent-500: #93b184;
   --color-accent-700: #6b8a5c;
   --color-accent-900: #3f5634;
+  --color-accent2-100: #f1eadd;
+  --color-accent2-300: #dfceaf;
+  --color-accent2-500: #bba079;
+  --color-accent2-700: #8c7551;
+  --color-accent2-900: #54422a;
   --color-success: #4f7a56;
   --color-warning: #8a6b2d;
   --color-error: #a1433d;
@@ -40,6 +45,11 @@
     --color-accent-500: #8ea481;
     --color-accent-700: #a8be9b;
     --color-accent-900: #c5d3bc;
+    --color-accent2-100: #2a241a;
+    --color-accent2-300: #463b28;
+    --color-accent2-500: #bba079;
+    --color-accent2-700: #cfb58e;
+    --color-accent2-900: #e4d2b0;
     --color-success: #8bc090;
     --color-warning: #c9a761;
     --color-error: #e08c85;
@@ -64,6 +74,11 @@
   --color-accent-500: #8ea481;
   --color-accent-700: #a8be9b;
   --color-accent-900: #c5d3bc;
+  --color-accent2-100: #2a241a;
+  --color-accent2-300: #463b28;
+  --color-accent2-500: #bba079;
+  --color-accent2-700: #cfb58e;
+  --color-accent2-900: #e4d2b0;
   --color-success: #8bc090;
   --color-warning: #c9a761;
   --color-error: #e08c85;

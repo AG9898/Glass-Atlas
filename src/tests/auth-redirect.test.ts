@@ -3,6 +3,7 @@
  *
  * Covers:
  * - buildSigninRedirectUrl: pure helper that constructs the /signin?callbackUrl=... redirect
+ * - buildCanonicalRedirectUrl: www-to-apex production canonicalization
  * - /signin load function: reads callbackUrl from URL, defaults to /admin
  *
  * Manual verification steps for the full OAuth flow (cannot be automated in unit tests):
@@ -76,6 +77,85 @@ describe('buildSigninRedirectUrl', () => {
     const url = buildSigninRedirectUrl('/admin/notes/my-slug/edit', '');
     const decoded = decodeURIComponent(url);
     expect(decoded).toContain('/admin/notes/my-slug/edit');
+  });
+});
+
+describe('buildCanonicalRedirectUrl', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it('redirects www to the HTTPS apex while preserving path and query', async () => {
+    const { buildCanonicalRedirectUrl } = await import('../hooks.server');
+    const url = new URL('http://www.glassatlas.dev/notes/example?ref=legacy');
+
+    expect(buildCanonicalRedirectUrl(url)).toBe(
+      'https://glassatlas.dev/notes/example?ref=legacy',
+    );
+  });
+
+  it('does not redirect the canonical apex', async () => {
+    const { buildCanonicalRedirectUrl } = await import('../hooks.server');
+
+    expect(buildCanonicalRedirectUrl(new URL('https://glassatlas.dev/notes'))).toBeNull();
+  });
+
+  it('keeps the Railway service domain available as a rollback path', async () => {
+    const { buildCanonicalRedirectUrl } = await import('../hooks.server');
+
+    expect(
+      buildCanonicalRedirectUrl(
+        new URL('https://glass-atlas-production.up.railway.app/admin'),
+      ),
+    ).toBeNull();
+  });
+
+  it('does not affect local development hosts', async () => {
+    const { buildCanonicalRedirectUrl } = await import('../hooks.server');
+
+    expect(buildCanonicalRedirectUrl(new URL('http://localhost:5173/'))).toBeNull();
+  });
+
+  it.each([
+    'https://www.glassatlas.dev//evil.com/x?a=1',
+    'https://www.glassatlas.dev/\\\\evil.com/y',
+    'https://www.glassatlas.dev//user@evil.com/',
+  ])('never redirects off the canonical origin for %s', async (rawUrl) => {
+    const { buildCanonicalRedirectUrl } = await import('../hooks.server');
+
+    const target = buildCanonicalRedirectUrl(new URL(rawUrl));
+
+    expect(target).not.toBeNull();
+    expect(new URL(target as string).origin).toBe('https://glassatlas.dev');
+  });
+});
+
+describe('canonical redirect response', () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it('carries the shared security headers on the 308', async () => {
+    const { canonicalHostRedirect, securityHeaders } = await import('../hooks.server');
+
+    const event = {
+      url: new URL('https://www.glassatlas.dev/notes?ref=legacy'),
+      locals: {},
+    } as unknown as Parameters<typeof securityHeaders>[0]['event'];
+
+    const response = await securityHeaders({
+      event,
+      resolve: (async () =>
+        canonicalHostRedirect({
+          event,
+          resolve: async () => new Response('should not be reached'),
+        } as unknown as Parameters<typeof canonicalHostRedirect>[0])) as never,
+    } as unknown as Parameters<typeof securityHeaders>[0]);
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get('Location')).toBe('https://glassatlas.dev/notes?ref=legacy');
+    expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+    expect(response.headers.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin');
   });
 });
 

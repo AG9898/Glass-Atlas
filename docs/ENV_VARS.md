@@ -25,7 +25,7 @@
 | `AUTH_SECRET` | Yes | All | — | `$env/dynamic/private` | Random secret for Auth.js session signing. Generate: `openssl rand -hex 32`. Loaded at runtime so secrets are not baked into build artifacts. |
 | `AUTH_GITHUB_ID` | Yes | All | — | `$env/dynamic/private` | GitHub OAuth app Client ID. Loaded at runtime so credentials rotate without rebuild. |
 | `AUTH_GITHUB_SECRET` | Yes | All | — | `$env/dynamic/private` | GitHub OAuth app Client Secret. Loaded at runtime so credentials rotate without rebuild. |
-| `AUTH_URL` | Optional (recommended on production) | Production | — | N/A (read by Auth.js core) | Auth.js canonical site URL. If set, use origin only (for example `https://glass-atlas-production.up.railway.app`) and do **not** include `/auth`; path suffixes trigger `env-url-basepath-redundant` and can break action routing. |
+| `AUTH_URL` | No | — | — | N/A (read by Auth.js core) | Keep unset on Railway for the installed `@auth/sveltekit@1.0.0` integration. The production GitHub OAuth callback is `https://glassatlas.dev/auth/callback/github`; Auth.js derives its origin from the request host. |
 | `AUTH_BYPASS` | No | Local development only | `FALSE` | `$env/dynamic/private` | Dev-only auth bypass toggle for localhost testing. Set to `TRUE` to force an authenticated local admin session. Ignored outside `NODE_ENV=development` and non-local hosts. |
 | `AUTH_TRUST_HOST` | No | — | — | N/A | Legacy/Vercel-specific workaround — not required on Railway. Do not set. |
 | `CHAT_RATE_LIMIT_MAX` | No | All | `10` | `$env/dynamic/private` | Max chat messages allowed per anonymous browser session within one quota window. |
@@ -137,7 +137,7 @@ aws s3api put-bucket-cors \
         "AllowedOrigins": [
           "http://localhost:5173",
           "https://localhost:5173",
-          "https://your-prod-domain.com"
+          "https://glassatlas.dev"
         ],
         "MaxAgeSeconds": 3000
       }
@@ -190,8 +190,7 @@ Set via Railway dashboard under Project > Service > Variables. Railway encrypts 
 | `AUTH_SECRET` | Production random hex (separate from local) |
 | `AUTH_GITHUB_ID` | Production GitHub OAuth app client ID |
 | `AUTH_GITHUB_SECRET` | Production GitHub OAuth app client secret |
-| `AUTH_URL` | `https://yourdomain.com` (origin only, no `/auth` suffix) |
-| `PUBLIC_SITE_URL` | `https://yourdomain.com` |
+| `PUBLIC_SITE_URL` | `https://glassatlas.dev` |
 | `BUCKET` | Railway bucket name (variable reference) |
 | `ENDPOINT` | Railway bucket endpoint (`https://storage.railway.app`) |
 | `REGION` | Railway bucket region (`auto`) |
@@ -199,6 +198,9 @@ Set via Railway dashboard under Project > Service > Variables. Railway encrypts 
 | `SECRET_ACCESS_KEY` | Railway bucket secret key (variable reference) |
 
 `AUTH_TRUST_HOST` is not needed on Railway — do not set it.
+`AUTH_URL` must also remain unset for this deployment; see `DECISIONS.md` RESOLVED-20.
+
+The production GitHub OAuth app homepage is `https://glassatlas.dev` and its exact callback URL is `https://glassatlas.dev/auth/callback/github`. Keep the former Railway-domain callback temporarily during cutover if rollback access is required; GitHub OAuth apps support multiple callback URLs.
 
 Use separate GitHub OAuth apps for local and production so callback URLs stay distinct and credentials can be rotated independently.
 

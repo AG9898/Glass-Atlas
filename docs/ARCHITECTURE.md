@@ -72,6 +72,7 @@ Admin note create, update, and delete are handled by **SvelteKit form actions** 
 
 ### Auth middleware (`src/hooks.server.ts`)
 
+- `canonicalHostRedirect` is the first request-handling handle in the `sequence(...)`, short-circuiting alternate public hostnames to the canonical production origin before Auth.js sees the request (see "Production origins" below)
 - Runs before every `/admin` route and `/api/admin/**` handler
 - Verifies the Auth.js session and rejects unauthenticated requests with a redirect to the OAuth flow
 - All other routes pass through without auth checks

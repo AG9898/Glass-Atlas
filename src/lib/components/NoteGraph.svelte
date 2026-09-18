@@ -71,8 +71,27 @@
       sim = simulation as unknown as D3.Simulation<D3.SimulationNodeDatum, undefined>;
 
       const svg = d3.select(el).attr('viewBox', `0 0 ${WIDTH} ${HEIGHT}`);
+      const viewport = svg.append('g').attr('class', 'graph-viewport');
 
-      const linkSel = svg
+      let panX = 0;
+      let panY = 0;
+      const renderPan = () => {
+        viewport.attr('transform', `translate(${panX},${panY})`);
+      };
+
+      const panBehavior = d3
+        .drag<SVGSVGElement, unknown>()
+        .filter((event) => event.target === el && !event.ctrlKey && !event.button)
+        .subject(() => ({ x: panX, y: panY }))
+        .on('drag', (event) => {
+          panX = Math.max(-WIDTH / 2, Math.min(WIDTH / 2, event.x));
+          panY = Math.max(-HEIGHT / 2, Math.min(HEIGHT / 2, event.y));
+          renderPan();
+        });
+
+      svg.call(panBehavior);
+
+      const linkSel = viewport
         .append('g')
         .selectAll('line')
         .data(links)
@@ -99,15 +118,29 @@
         return s === slug || t === slug;
       };
 
-      const nodeGroup = svg
+      const draggedSlugs = new Set<string>();
+
+      const nodeGroup = viewport
         .append('g')
         .selectAll<SVGGElement, SimNode>('g')
         .data(nodes)
         .join('g')
         .attr('class', 'graph-node')
+        .attr('role', (d) => (d.isCurrent ? 'img' : 'link'))
+        .attr('tabindex', (d) => (d.isCurrent ? null : 0))
+        .attr('aria-label', (d) =>
+          d.isCurrent ? `Current note: ${d.title}` : `Open note: ${d.title}`,
+        )
         .style('cursor', (d) => (d.isCurrent ? 'default' : 'pointer'))
         .on('click', (_, d) => {
+          if (draggedSlugs.delete(d.slug)) return;
           if (!d.isCurrent) goto(`/notes/${d.slug}`);
+        })
+        .on('keydown', (event, d) => {
+          if (!d.isCurrent && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault();
+            goto(`/notes/${d.slug}`);
+          }
         })
         .on('mouseenter', function (_, d) {
           const neighbors = neighborsOf(d.slug);
@@ -120,6 +153,41 @@
           nodeGroup.classed('is-dimmed', false).classed('is-focused', false);
           linkSel.classed('is-dimmed', false).classed('is-active', false);
         });
+
+      const nodeDrag = d3
+        .drag<SVGGElement, SimNode>()
+        .clickDistance(4)
+        .on('start', (event, d) => {
+          d.fx = d.x;
+          d.fy = d.y;
+          if (!reduceMotion && !event.active) simulation.alphaTarget(0.25).restart();
+        })
+        .on('drag', (event, d) => {
+          draggedSlugs.add(d.slug);
+
+          const x = Math.max(10, Math.min(WIDTH - 10, event.x));
+          const y = Math.max(10, Math.min(HEIGHT - 10, event.y));
+          d.fx = x;
+          d.fy = y;
+
+          if (reduceMotion) {
+            d.x = x;
+            d.y = y;
+            renderPositions();
+          }
+        })
+        .on('end', (event, d) => {
+          if (!reduceMotion) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+          }
+          // Chrome may dispatch the synthetic click after the drag-end task.
+          // Keep the guard briefly, then clear it so a later intentional click works.
+          window.setTimeout(() => draggedSlugs.delete(d.slug), 250);
+        });
+
+      nodeGroup.call(nodeDrag);
 
       nodeGroup
         .append('circle')
@@ -145,6 +213,11 @@
         .attr('pointer-events', 'none');
 
       const renderPositions = () => {
+        for (const node of nodes) {
+          node.x = Math.max(10, Math.min(WIDTH - 10, node.x ?? WIDTH / 2));
+          node.y = Math.max(10, Math.min(HEIGHT - 10, node.y ?? HEIGHT / 2));
+        }
+
         linkSel
           .attr('x1', (d) => (d.source as SimNode).x ?? 0)
           .attr('y1', (d) => (d.source as SimNode).y ?? 0)
@@ -180,8 +253,8 @@
     bind:this={svgEl}
     width="100%"
     height={HEIGHT}
-    aria-label="Note connections graph"
-    role="img"
+    aria-label="Interactive note connections graph. Drag nodes or drag the background to pan."
+    role="group"
   ></svg>
 {:else}
   <p class="graph-empty">No connections yet</p>
@@ -191,6 +264,12 @@
   svg {
     display: block;
     overflow: visible;
+    cursor: grab;
+    touch-action: none;
+  }
+
+  svg:active {
+    cursor: grabbing;
   }
 
   :global(.graph-node-circle) {
@@ -207,6 +286,15 @@
 
   :global(.graph-node.is-focused .graph-node-circle) {
     r: 9;
+  }
+
+  :global(.graph-node:focus-visible) {
+    outline: none;
+  }
+
+  :global(.graph-node:focus-visible .graph-node-circle) {
+    stroke: var(--color-accent-900);
+    stroke-width: 2px;
   }
 
   :global(.graph-node.is-dimmed) {
